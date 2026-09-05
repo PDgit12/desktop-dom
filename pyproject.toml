@@ -1,0 +1,69 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "desktop-dom"
+version = "0.1.0"
+description = "Playwright for Desktop: Semantic Accessibility DOM and Deterministic Action Engine for AI Agents"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [
+    { name = "Piyush Dua", email = "pdua@purdue.edu" }
+]
+keywords = [
+    "desktop-automation",
+    "accessibility",
+    "ai-agents",
+    "computer-use",
+    "playwright",
+    "langchain",
+    "mcp",
+    "axuielement",
+    "ui-automation"
+]
+dependencies = [
+    "pydantic>=2.5.0",
+    "typer>=0.9.0",
+    "rich>=13.5.0",
+]
+
+[project.optional-dependencies]
+macos = [
+    "pyobjc-framework-ApplicationServices>=10.0",
+    "pyobjc-framework-Quartz>=10.0",
+    "pyobjc-framework-Cocoa>=10.0",
+]
+windows = [
+    "comtypes>=1.2.0",
+]
+linux = [
+    "jeepney>=0.8.0",
+]
+langchain = [
+    "langchain-core>=0.2.0",
+]
+mcp = [
+    "mcp>=1.0.0",
+]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.1.0",
+]
+all = [
+    "desktop-dom[langchain,mcp,dev]",
+]
+
+[project.scripts]
+desktop-dom = "desktop_dom.cli.main:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/desktop_dom"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".", "src"]
+python_files = "test_*.py"
+python_functions = "test_*"
+
