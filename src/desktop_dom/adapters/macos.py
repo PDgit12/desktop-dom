@@ -216,8 +216,13 @@ class MacOSAdapter(BasePlatformAdapter):
                 if app.processIdentifier() == pid:
                     if not app.isActive():
                         app.activateWithOptions_(2)  # NSApplicationActivateIgnoringOtherApps
-                        time.sleep(0.08)
+                        for _ in range(10):
+                            time.sleep(0.04)
+                            if app.isActive():
+                                break
+                        time.sleep(0.05)
                     break
+
         except Exception:
             pass
 
