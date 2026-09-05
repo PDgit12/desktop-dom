@@ -163,8 +163,62 @@ def record(
         console.print("\n[bold cyan]Generated Agent Code:[/bold cyan]\n")
         console.print(script)
 
+@app.command(name="wait-for")
+def wait_for_element(
+    target: str = typer.Option(..., "--app", "-a", help="Application name or PID"),
+    role: Optional[str] = typer.Option(None, "--role", "-r", help="Element role (button, input, text, etc.)"),
+    name: Optional[str] = typer.Option(None, "--name", "-n", help="Element name/label substring"),
+    element_id: Optional[str] = typer.Option(None, "--id", "-i", help="Exact or prefix element ID"),
+    timeout: float = typer.Option(5.0, "--timeout", "-t", help="Timeout in seconds"),
+):
+    """Waits for an element matching role, name, or ID to appear and become actionable."""
+    try:
+        app_instance = DesktopApp.attach(target)
+        console.print(f"[dim]Waiting up to {timeout}s for element in '{target}'...[/dim]")
+        node = app_instance.wait_for(role=role, name=name, element_id=element_id, timeout=timeout)
+        console.print(f"[bold green]✓ Found element:[/bold green] [{node.role.upper()}] \"{node.name}\" (ID: {node.id}, Centroid: {node.bbox.centroid})")
+    except TimeoutError as e:
+        console.print(f"[bold red]Timeout:[/bold red] {e}", file=sys.stderr)
+        sys.exit(1)
+
+@app.command()
+def snapshot(
+    target: str = typer.Option("Finder", "--app", "-a", help="Application name or PID to snapshot"),
+    output: str = typer.Option("dom_snapshot.html", "--out", "-o", help="Output HTML snapshot file path"),
+):
+    """Generates an interactive standalone HTML/SVG visual HUD snapshot of the application DOM."""
+    from desktop_dom.cli.overlay import generate_html_snapshot
+    from desktop_dom.schema import DesktopNode
+    try:
+        app_instance = DesktopApp.attach(target)
+        root_node = app_instance.get_tree(as_dict=False)
+        assert isinstance(root_node, DesktopNode)
+        html = generate_html_snapshot(root_node, target)
+        with open(output, "w") as f:
+            f.write(html)
+        console.print(f"[bold green]✓ Generated visual HUD snapshot:[/bold green] {output}")
+    except Exception as e:
+        console.print(f"[bold red]Error generating snapshot for '{target}':[/bold red] {e}", file=sys.stderr)
+        sys.exit(1)
+
+@app.command()
+def overlay(
+    target: str = typer.Option(..., "--app", "-a", help="Application name or PID to overlay"),
+    duration: float = typer.Option(5.0, "--duration", "-d", help="Duration to display overlay in seconds"),
+):
+    """Renders a transparent floating click-through HUD directly over the application window."""
+    from desktop_dom.cli.overlay import show_macos_overlay
+    try:
+        console.print(f"[dim]Rendering HUD overlay over '{target}' for {duration}s...[/dim]")
+        show_macos_overlay(target, duration=duration)
+    except Exception as e:
+        console.print(f"[bold red]Error launching overlay for '{target}':[/bold red] {e}", file=sys.stderr)
+        sys.exit(1)
+
 @app.command()
 def serve(
+
+
     target: Optional[str] = typer.Option(None, "--app", "-a", help="Target application name or PID"),
 ):
     """Starts the Model Context Protocol (MCP) server on stdio."""

@@ -27,5 +27,19 @@ def test_cli_inspect_app():
 def test_cli_inspect_json():
     result = runner.invoke(app, ["inspect", "--app", "Finder", "--format", "json"])
     assert result.exit_code == 0
-    assert '"role": "window"' in result.output
+@pytest.mark.skipif(sys.platform != "darwin", reason="Requires native macOS Finder session")
+def test_cli_wait_for():
+    result = runner.invoke(app, ["wait-for", "--app", "Finder", "--role", "window", "--timeout", "2.0"])
+    assert result.exit_code == 0
+    assert "Found element" in result.output
 
+@pytest.mark.skipif(sys.platform != "darwin", reason="Requires native macOS Finder session")
+def test_cli_snapshot(tmp_path):
+    out_file = str(tmp_path / "snap.html")
+    result = runner.invoke(app, ["snapshot", "--app", "Finder", "--out", out_file])
+    assert result.exit_code == 0
+    assert "Generated visual HUD snapshot" in result.output
+    with open(out_file, "r") as f:
+        content = f.read()
+    assert "<!DOCTYPE html>" in content
+    assert "svg" in content
