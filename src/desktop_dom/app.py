@@ -2,7 +2,8 @@ from __future__ import annotations
 import subprocess
 import time
 import logging
-from typing import Optional, List, Dict, Any, Literal, Union
+from typing import Optional, List, Dict, Any, Literal, Union, Callable
+
 
 from desktop_dom.adapters import get_platform_adapter
 from desktop_dom.adapters.base import BasePlatformAdapter
@@ -139,6 +140,124 @@ class DesktopApp:
             self.get_tree()
         assert self._last_tree is not None
         return self._last_tree.find_all(role=role, name=name)
+
+    def wait_for(
+        self,
+        role: Optional[str] = None,
+        name: Optional[str] = None,
+        element_id: Optional[str] = None,
+        timeout: float = 5.0,
+        poll_interval: float = 0.1,
+    ) -> DesktopNode:
+        """
+        Polls the application until a node matching the specified criteria appears and is actionable.
+        Raises TimeoutError if not found within the timeout window.
+        """
+        start = time.perf_counter()
+        while time.perf_counter() - start < timeout:
+            tree = self.get_tree(as_dict=False)
+            assert isinstance(tree, DesktopNode)
+            if element_id:
+                node = tree.find_by_id(element_id)
+                if node:
+                    return node
+            elif role or name:
+                matches = tree.find_all(role=role, name=name)
+                if matches:
+                    return matches[0]
+            time.sleep(poll_interval)
+
+        raise TimeoutError(
+            f"Timed out after {timeout:.1f}s waiting for element matching "
+            f"(role={role}, name={name}, element_id={element_id}) in '{self.target}'"
+        )
+
+    def wait_until_hidden(
+        self,
+        role: Optional[str] = None,
+        name: Optional[str] = None,
+        element_id: Optional[str] = None,
+        timeout: float = 5.0,
+        poll_interval: float = 0.1,
+    ) -> bool:
+        """
+        Waits until an element (e.g. modal, loading spinner) disappears from the accessibility tree.
+        Returns True when hidden, or raises TimeoutError if still visible after timeout.
+        """
+        start = time.perf_counter()
+        while time.perf_counter() - start < timeout:
+            tree = self.get_tree(as_dict=False)
+            assert isinstance(tree, DesktopNode)
+            found = False
+            if element_id:
+                found = tree.find_by_id(element_id) is not None
+            elif role or name:
+                found = len(tree.find_all(role=role, name=name)) > 0
+            if not found:
+                return True
+            time.sleep(poll_interval)
+
+        raise TimeoutError(
+            f"Timed out after {timeout:.1f}s waiting for element (role={role}, name={name}, id={element_id}) to hide"
+        )
+
+    def observe(
+        self,
+        duration: float = 3.0,
+        poll_interval: float = 0.1,
+        callback: Optional[Callable[[Dict[str, Any]], None]] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Monitors the desktop UI for mutations over a specified duration, emitting event records
+        for newly appeared nodes, disappeared nodes, and changed values.
+        """
+        events: List[Dict[str, Any]] = []
+        initial_tree = self.get_tree(as_dict=False)
+        assert isinstance(initial_tree, DesktopNode)
+        prev_nodes = {n.id: n for n in initial_tree.flatten()}
+
+        start = time.perf_counter()
+        while time.perf_counter() - start < duration:
+            time.sleep(poll_interval)
+            current_tree = self.get_tree(as_dict=False)
+            assert isinstance(current_tree, DesktopNode)
+            curr_nodes = {n.id: n for n in current_tree.flatten()}
+
+            # Check added
+            for node_id, node in curr_nodes.items():
+                if node_id not in prev_nodes:
+                    evt = {"type": "node_added", "id": node_id, "role": node.role, "name": node.name}
+                    events.append(evt)
+                    if callback:
+                        callback(evt)
+                else:
+                    # Check value changed
+                    old_val = prev_nodes[node_id].value
+                    if node.value != old_val:
+                        evt = {
+                            "type": "value_changed",
+                            "id": node_id,
+                            "role": node.role,
+                            "name": node.name,
+                            "old_value": old_val,
+                            "new_value": node.value,
+                        }
+                        events.append(evt)
+                        if callback:
+                            callback(evt)
+
+            # Check removed
+            for node_id, old_node in prev_nodes.items():
+                if node_id not in curr_nodes:
+                    evt = {"type": "node_removed", "id": node_id, "role": old_node.role, "name": old_node.name}
+                    events.append(evt)
+                    if callback:
+                        callback(evt)
+
+            prev_nodes = curr_nodes
+
+        return events
+
 
     def _resolve_node(self, element_id: str) -> DesktopNode:
         """
