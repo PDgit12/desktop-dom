@@ -1,27 +1,41 @@
 # desktop-dom
 
-> **Playwright for Desktop: Semantic Accessibility DOM and Deterministic Action Engine for AI Agents**
+<p align="center">
+  <strong>Playwright for Desktop: Semantic Accessibility DOM and Deterministic Action Engine for AI Agents</strong>
+</p>
 
-`desktop-dom` is an embeddable Python SDK and developer CLI that transforms native desktop applications (macOS, Windows, Linux) into structured, token-pruned JSON trees ("Desktop DOM") and executes deterministic, sub-millisecond OS actions.
+<p align="center">
+  <a href="https://pypi.org/project/desktop-dom/"><img src="https://img.shields.io/pypi/v/desktop-dom.svg?style=flat-square&color=3776AB&label=PyPI" alt="PyPI version" /></a>
+  <a href="https://www.npmjs.com/package/@desktop-dom/core"><img src="https://img.shields.io/npm/v/@desktop-dom/core.svg?style=flat-square&color=CB3837&label=npm" alt="npm version" /></a>
+  <a href="https://pypi.org/project/desktop-dom/"><img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg?style=flat-square" alt="Python versions" /></a>
+  <a href="https://github.com/PDgit12/desktop-dom/actions"><img src="https://img.shields.io/github/actions/workflow/status/PDgit12/desktop-dom/ci.yml?branch=main&label=CI&style=flat-square" alt="CI status" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-green.svg?style=flat-square" alt="License" /></a>
+  <a href="https://x.com/PDgit12"><img src="https://img.shields.io/badge/X-Follow%20%40PDgit12-black.svg?style=flat-square&logo=x&logoColor=white" alt="Follow on X" /></a>
+  <a href="https://github.com/PDgit12/desktop-dom/stargazers"><img src="https://img.shields.io/github/stars/PDgit12/desktop-dom?style=flat-square&logo=github" alt="GitHub stars" /></a>
+</p>
 
 ---
 
-## 1. Executive Summary
+`desktop-dom` is an open-source, embeddable SDK and CLI that transforms native desktop applications (**macOS**, **Windows**, **Linux**) into structured, token-pruned JSON trees ("Desktop DOM") and executes deterministic, sub-millisecond OS actions without vision model guessing.
+
+---
+
+## 1. Why `desktop-dom`?
 
 ### The Problem: Why Vision Agents Break on Desktop
-Traditional "computer-use" AI agents capture screenshots, encode multi-megabyte PNGs, and ask vision models to guess pixel coordinates:
+Traditional "computer-use" AI agents capture fullscreen screenshots, compress multi-megabyte PNGs, and ask multimodal vision models to guess coordinate pixels:
 
 ```
 [4K Desktop Screen] ──> [Encode PNG (3-8 MB)] ──> [Upload to Vision LLM]
-                                                          │ (3-5 sec latency, 2000+ tokens)
+                                                          │ (3-5s latency, 2,000+ tokens)
                                                           ▼
 [Physical OS Click] <── [Simulated Click] <── [Model Guesses (X, Y) Coordinates]
-                                                (Fragile: DPI scaling, shifts, small icons)
+                                                (Fragile: HiDPI drift, anti-aliased icons)
 ```
 
-* **Token Cost:** 1,200 to 2,500 vision tokens per reasoning step ($0.03–$0.08/step).
-* **Latency:** 3,000–6,000 ms per step (encoding + upload + vision inference).
-* **Brittleness:** Models hallucinate pixel coordinates on Retina (2x) and Windows HiDPI displays.
+* **High Token Cost:** Burns 1,500 to 2,500 vision tokens per step ($0.03–$0.08/step).
+* **High Latency:** 3,000–6,000 ms per turn for encoding, transit, and vision inference.
+* **Coordinate Drift:** Models hallucinate pixel coordinates on Retina (2x) and Windows HiDPI displays.
 
 ### The Solution: Semantic Accessibility DOM
 `desktop-dom` queries the native OS accessibility bus directly from the kernel and window manager:
@@ -33,36 +47,121 @@ Traditional "computer-use" AI agents capture screenshots, encode multi-megabyte 
 [Physical OS Click] <── [Deterministic Centroid Dispatch] <── [Model Emits {"target": "btn_save"}]
 ```
 
-* **>90% Token Reduction:** 100 to 250 tokens per step ($0.001–$0.003/step).
-* **Sub-Second Speed:** Local OS tree query completes in 15–80 ms; text inference in 200–500 ms.
-* **100% Geometric Accuracy:** Exact bounding box centroids; no pixel guessing.
-* **Cross-Toolkit Non-Invasive:** Works on Cocoa, Qt, GTK, WPF, Win32, Electron, Flutter, and Java Swing without browser runtimes.
+* **>90% Token Reduction:** Compresses trees to 100–250 tokens per step ($0.001–$0.003/step).
+* **Sub-Second Speed:** Local OS tree query completes in 15–80 ms; text LLM inference completes in 200–500 ms.
+* **100% Geometric Accuracy:** Targets exact bounding box centroids with zero pixel guessing.
+* **Cross-Toolkit Native Support:** Works with Cocoa, Qt, GTK, WPF, Win32, Electron, Flutter, and Java Swing.
 
 ---
 
-## 2. Installation
+## 2. Feature & Architecture Comparison
 
+| Capability | Traditional Vision Agents (e.g. Anthropic/OpenAI) | Scripted Automation (PyAutoGUI / PyWinAuto) | `desktop-dom` Semantic Engine |
+| :--- | :---: | :---: | :---: |
+| **Token Cost per Step** | ❌ 1,500 – 2,500 vision tokens | ❌ Not AI-native (hardcoded scripts) | ✅ **100 – 250 text tokens (<$0.002)** |
+| **Execution Latency** | ❌ 3,000 – 6,000 ms | ❌ ~50 ms (non-adaptive) | ✅ **15 – 80 ms native query** |
+| **Centroid & Click Accuracy** | ❌ Frequent misclicks on small icons | ❌ Brittle hardcoded pixels | ✅ **100% OS kernel precision** |
+| **HiDPI / Retina Coordinate Drift** | ❌ Broken by OS scale factors | ❌ Requires manual offset math | ✅ **Automatic scale factor calibration** |
+| **Electron / Chromium Tree Support** | ❌ Opaque pixel canvas | ❌ Unreadable accessibility tree | ✅ **Automatic `AXEnhancedUserInterface` hydration** |
+| **Stale ID & Dynamic UI Recovery** | ❌ Re-runs expensive vision reasoning | ❌ Crashes on element shift | ✅ **Generational counter + Fuzzy semantic recovery** |
+| **Cross-Platform Unified Schema** | ❌ Untyped images | ❌ Incompatible OS APIs | ✅ **Normalized `DesktopNode` schema** |
+| **Reactive State Engine** | ❌ Polling screenshot loop | ❌ Static `time.sleep` calls | ✅ **`wait_for`, `wait_until_hidden`, `observe`** |
+| **Visual Debugging HUD & Canvas** | ❌ Raw screenshots | ❌ None | ✅ **Transparent HUD overlay & interactive SVG snapshots** |
+| **Native Model Context Protocol (MCP)**| ❌ None | ❌ None | ✅ **Built-in stdio server for Claude, Cursor, Codex** |
+
+---
+
+## 3. Installation
+
+### Python SDK & CLI
 ```bash
 # Core package (SDK, CLI, Normalizer)
 pip install desktop-dom
 
-# Or install with platform-native backends:
-# On macOS:
-pip install "desktop-dom[macos]"
+# Or with platform-native backends:
+pip install "desktop-dom[macos]"    # macOS (PyObjC, Quartz, Cocoa)
+pip install "desktop-dom[windows]"  # Windows (comtypes, CUIAutomation8)
+pip install "desktop-dom[linux]"    # Linux (jeepney, AT-SPI2 D-Bus)
 
-# On Windows:
-pip install "desktop-dom[windows]"
-
-# On Linux:
-pip install "desktop-dom[linux]"
-
-# With LangChain / Agent integrations:
+# With AI agent integrations (LangChain, MCP):
 pip install "desktop-dom[all]"
+```
+
+### TypeScript SDK
+```bash
+npm install @desktop-dom/core
 ```
 
 ---
 
-## 3. Developer CLI
+## 4. Python SDK Quickstart
+
+### Basic Automation
+```python
+from desktop_dom import DesktopApp
+
+# Attach to running desktop application
+app = DesktopApp.attach("Spotify")
+
+# 1. Fetch token-pruned JSON tree (~150 tokens)
+tree = app.get_tree(max_depth=8, as_dict=True)
+
+# 2. Search for elements semantically
+play_btn = app.find(role="button", name="Play")
+
+# 3. Deterministic click
+if play_btn:
+    app.click(play_btn.id)
+
+# 4. Type text and send keyboard shortcuts
+search_bar = app.find(role="input")
+if search_bar:
+    app.type(search_bar.id, text="Diljit Dosanjh", clear_first=True)
+    app.press("return")
+```
+
+### Reactive State Engine
+Eliminate flaky `time.sleep()` calls with built-in reactive synchronization:
+
+```python
+# Wait for an async UI element to appear
+save_btn = app.wait_for(role="button", name="Save Changes", timeout=5.0)
+app.click(save_btn.id)
+
+# Wait for a modal dialog or spinner to disappear
+app.wait_until_hidden(role="dialog", timeout=5.0)
+
+# Stream live UI mutations in real time
+for mutation in app.observe(interval=0.25):
+    print(f"UI mutated: {mutation['action']} element {mutation['node'].id}")
+    if mutation["node"].name == "Download Complete":
+        break
+```
+
+---
+
+## 5. TypeScript SDK Quickstart
+
+`@desktop-dom/core` provides a type-safe TypeScript client that connects directly to the `desktop-dom` engine:
+
+```typescript
+import { DesktopApp } from "@desktop-dom/core";
+
+// Attach to application
+const app = DesktopApp.attach("Calculator");
+
+// Extract token-pruned accessibility DOM
+const tree = await app.getTree();
+console.log(`Root window: ${tree.name} (${tree.bbox.width}x${tree.bbox.height})`);
+
+// Dispatch deterministic clicks and keystrokes
+await app.click("btn_seven_8a12");
+await app.press("enter");
+```
+
+---
+
+## 6. Developer CLI & Visual Tooling
 
 ### Health Check & Permissions
 ```bash
@@ -70,7 +169,7 @@ desktop-dom doctor
 ```
 Verifies OS accessibility permissions (macOS TCC / Windows UIA), display backing scale factors, and platform drivers.
 
-### List Running Applications
+### List Active Applications
 ```bash
 desktop-dom apps
 ```
@@ -86,12 +185,27 @@ Or export raw token-minimized JSON for LLMs:
 desktop-dom inspect --app "Spotify" --format json
 ```
 
-### Manual Action Dispatch
+### Interactive SVG / HTML Snapshot
+Generate a standalone visual canvas with highlighted bounding boxes and element metadata:
 ```bash
-# Click by deterministic element ID
+desktop-dom snapshot --app "Calculator" --out calc_snapshot.svg
+```
+
+### Transparent Debug Overlay HUD
+Launch a transparent Cocoa click-through HUD overlay directly on top of the target application to visualize bounding boxes in real time:
+```bash
+desktop-dom overlay --app "Spotify"
+```
+
+### Action Dispatch & Reactive Wait
+```bash
+# Synchronously wait for an element
+desktop-dom wait-for --app "Calculator" --name "Equals" --timeout 5.0
+
+# Click by element ID
 desktop-dom click --app "Spotify" --id "btn_play_4c1e"
 
-# Type into a focused element or specified ID
+# Type into focused element or specified ID
 desktop-dom type --app "TextEdit" --text "Hello world" --clear
 
 # Send keyboard shortcuts
@@ -104,41 +218,29 @@ Record human interactions and generate ready-to-run Python agent automation scri
 desktop-dom record --app "Calculator" --out automate_calc.py
 ```
 
-### Built-in MCP Server
-Expose `desktop-dom` directly to AI coding agents (Claude Code, Codex, Antigravity, Cursor) via Model Context Protocol:
+### Built-in Model Context Protocol (MCP) Server
+Expose `desktop-dom` directly to AI coding agents (Claude Code, Cursor, Codex, Antigravity) via MCP:
 ```bash
 desktop-dom serve --app "Calculator"
 ```
 
 ---
 
-## 4. Python SDK Quickstart
+## 7. OS & Window Manager Edge-Case Handling
 
-```python
-from desktop_dom import DesktopApp
+Desktop environments present unique challenges that break generic automation libraries. `desktop-dom` implements dedicated engineering solutions for each OS edge case:
 
-# Attach to running desktop application
-app = DesktopApp.attach("Spotify")
-
-# 1. Fetch token-pruned JSON tree (~150 tokens)
-tree = app.get_tree(max_depth=8, as_dict=True)
-
-# 2. Search for elements
-play_btn = app.find(role="button", name="Play")
-
-# 3. Deterministic click
-app.click(play_btn.id)
-
-# 4. Type into search input
-search_bar = app.find(role="input")
-if search_bar:
-    app.type(search_bar.id, text="Diljit Dosanjh", clear_first=True)
-    app.press("return")
-```
+| Edge Case | Root Cause | Engineering Solution |
+| :--- | :--- | :--- |
+| **Electron / Chromium Blank Tree** | Chrome and Electron apps disable accessibility trees by default to conserve CPU. | Detects Chromium process and dispatches `kAXManualAccessibility` / `AXEnhancedUserInterface` to hydrate the accessibility tree. |
+| **Retina / HiDPI Coordinate Drift** | OS reports accessibility bounds in logical points; hardware event taps require physical pixels. | Queries display backing scale factor (`NSScreen.backingScaleFactor` / `GetDpiForSystem`) and calibrates physical coordinates. |
+| **Transient State & Stale IDs** | Dynamic UI changes (dropdowns, popups, lazy lists) invalidate older IDs held by LLMs. | Generational counter + automatic delta-refresh + weighted `FuzzyResolver` matching nearest role, name, and spatial proximity. |
+| **Modal Focus Traps** | Modal dialog opens, making background root window unresponsive. | Adapter dynamically inspects `AXFocusedWindow` / active window handle rather than relying on stale root window pointers. |
+| **Window Activation & Event Delivery** | Synthetic mouse/keyboard events may be dropped if target application is not active. | WindowServer activation polling (`NSRunningApplication.activate` / `SetForegroundWindow`) ensures reliable event dispatch. |
 
 ---
 
-## 5. AI Agent Framework Integration
+## 8. AI Agent Framework Integration
 
 ### LangChain / LangGraph
 ```python
@@ -157,24 +259,44 @@ agent = create_react_agent(
 )
 
 agent.invoke({
-    "messages": [("user", "Export this active document as a PDF named report.pdf")]
+    "messages": [("user", "Export the active document as a PDF named report.pdf")]
 })
+```
+
+### Claude Code & Cursor MCP Configuration
+Add `desktop-dom` to your `claude.json` or `mcpServers` configuration:
+
+```json
+{
+  "mcpServers": {
+    "desktop-dom": {
+      "command": "desktop-dom",
+      "args": ["serve", "--app", "Finder"]
+    }
+  }
+}
 ```
 
 ---
 
-## 6. Enterprise Edge-Case Mitigation Matrix
+## 9. Community & Contributing
 
-| Edge Case | Root Cause | Engineering Solution |
-| :--- | :--- | :--- |
-| **Electron / Chromium Blank Tree** | Chrome/Electron apps disable accessibility trees to conserve CPU. | Detects Chromium binary and dispatches `kAXManualAccessibility` / `AXEnhancedUserInterface` to hydrate the tree. |
-| **Retina / HiDPI Coordinate Drift** | OS reports accessibility bounds in points; event taps require physical pixels. | Queries display backing scale factor (`NSScreen.backingScaleFactor` / `GetDpiForSystem`) and calibrates coordinates. |
-| **Transient State (Stale IDs)** | Dynamic UI changes (dropdowns, popups) invalidate older IDs held by LLMs. | Generational counter + automatic delta-refresh + fuzzy semantic fallback matching nearest role and label. |
-| **Modal Focus Traps** | Modal dialog opens, making background window unresponsive. | Adapter dynamically inspects `AXFocusedWindow` / active window rather than relying on stale root handles. |
-| **Headless CI & Testing** | Cloud CI environments lack GUI servers. | Headless test fixtures and adapter interfaces enable 100% test coverage hermetically without OS window servers. |
+We welcome contributions from the community!
+
+- **Follow on X:** Follow [@PDgit12 on X](https://x.com/PDgit12) for announcements, benchmarks, and updates.
+- **GitHub Discussions:** Join discussions and share agent workflows on [GitHub Discussions](https://github.com/PDgit12/desktop-dom/discussions).
+- **Issues & Bug Reports:** Submit issues or feature requests via [GitHub Issues](https://github.com/PDgit12/desktop-dom/issues).
+
+To contribute code:
+```bash
+git clone https://github.com/PDgit12/desktop-dom.git
+cd desktop-dom
+pip install -e ".[dev]"
+pytest -v
+```
 
 ---
 
-## 7. License
+## 10. License
 
-Apache-2.0. Created by Piyush Dua.
+[Apache-2.0](LICENSE) © 2026 [PDgit12](https://github.com/PDgit12).
