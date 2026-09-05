@@ -1,7 +1,7 @@
 from __future__ import annotations
 import sys
 import logging
-from typing import List, Optional, Literal, Dict, Any
+from typing import List, Optional, Literal, Dict, Any, Set
 
 from desktop_dom.adapters.base import BasePlatformAdapter, PlatformNotSupportedError
 from desktop_dom.schema import DesktopNode, BoundingBox, ElementStates
@@ -35,16 +35,56 @@ UIA_ROLE_MAP: Dict[str, str] = {
     "Custom": "group",
 }
 
+# Windows Virtual Keycode Map
+WIN_KEYCODES: Dict[str, int] = {
+    "enter": 0x0D,
+    "return": 0x0D,
+    "tab": 0x09,
+    "space": 0x20,
+    "backspace": 0x08,
+    "escape": 0x1B,
+    "esc": 0x1B,
+    "delete": 0x2E,
+    "up": 0x26,
+    "down": 0x28,
+    "left": 0x25,
+    "right": 0x27,
+    "home": 0x24,
+    "end": 0x23,
+    "pageup": 0x21,
+    "pagedown": 0x22,
+    "ctrl": 0x11,
+    "control": 0x11,
+    "alt": 0x12,
+    "shift": 0x10,
+    "win": 0x5B,
+    "windows": 0x5B,
+    "f1": 0x70,
+    "f2": 0x71,
+    "f3": 0x72,
+    "f4": 0x73,
+    "f5": 0x74,
+    "f6": 0x75,
+    "f7": 0x76,
+    "f8": 0x77,
+    "f9": 0x78,
+    "f10": 0x79,
+    "f11": 0x7A,
+    "f12": 0x7B,
+}
+
 class WindowsAdapter(BasePlatformAdapter):
     """
     Windows Platform Adapter binding directly to UI Automation 3 (IUIAutomation / CUIAutomation8)
     via comtypes or ctypes.
     Uses ControlViewWalker and IUIAutomationCacheRequest to avoid per-property IPC roundtrips.
+    Dispatches hardware actions via native Win32 SendInput.
     """
 
     def __init__(self):
         if sys.platform != "win32":
             self._is_win32 = False
+            self.uia = None
         else:
             self._is_win32 = True
             self._init_uia()
@@ -70,7 +110,7 @@ class WindowsAdapter(BasePlatformAdapter):
         return {
             "platform": "win32",
             "accessibility_trusted": True,
-            "message": "Windows UI Automation available.",
+            "message": "Windows UI Automation COM subsystem available.",
         }
 
     def list_applications(self) -> List[Dict[str, Any]]:
@@ -103,11 +143,109 @@ class WindowsAdapter(BasePlatformAdapter):
 
     def get_root_window(self, app_identifier: str | int) -> DesktopNode:
         self._require_windows()
-        raise NotImplementedError("Windows native tree extraction driver.")
+        target_elem = self._resolve_target(app_identifier)
+        if not target_elem:
+            raise ProcessLookupError(f"Could not find running desktop application matching '{app_identifier}'")
+
+        visited: Set[int] = set()
+        root_node = self._traverse_element(target_elem, visited, depth=0, max_depth=10)
+        if not root_node:
+            raise RuntimeError(f"Failed to extract accessibility DOM from application '{app_identifier}'")
+        return root_node
+
+    def _resolve_target(self, app_identifier: str | int) -> Any:
+        walker = self.uia.CreateTreeWalker(self.uia.ControlViewCondition)
+        root = self.uia.GetRootElement()
+        elem = walker.GetFirstChildElement(root)
+
+        is_pid = isinstance(app_identifier, int) or (isinstance(app_identifier, str) and app_identifier.isdigit())
+        target_pid = int(app_identifier) if is_pid else None
+        target_str = str(app_identifier).lower()
+
+        while elem:
+            try:
+                if target_pid is not None and elem.CurrentProcessId == target_pid:
+                    return elem
+                name = (elem.CurrentName or "").lower()
+                if target_pid is None and target_str in name:
+                    return elem
+            except Exception:
+                pass
+            elem = walker.GetNextSiblingElement(elem)
+        return None
+
+    def _traverse_element(self, elem: Any, visited: Set[int], depth: int, max_depth: int) -> Optional[DesktopNode]:
+        if depth > max_depth or not elem:
+            return None
+
+        try:
+            raw_role = elem.CurrentLocalizedControlType or "Control"
+            ctrl_type = elem.CurrentControlType
+            role = UIA_ROLE_MAP.get(raw_role, "group")
+            name = (elem.CurrentName or "").strip()
+
+            rect = elem.CurrentBoundingRectangle
+            bbox = BoundingBox(
+                x=int(rect.left),
+                y=int(rect.top),
+                width=max(0, int(rect.right - rect.left)),
+                height=max(0, int(rect.bottom - rect.top)),
+            )
+
+            is_focused = bool(elem.CurrentHasKeyboardFocus)
+            is_enabled = bool(elem.CurrentIsEnabled)
+            states = ElementStates(
+                focused=is_focused,
+                focusable=bool(elem.CurrentIsKeyboardFocusable),
+                disabled=not is_enabled,
+                clickable=role in {"button", "checkbox", "radio", "combobox", "menuitem", "tab", "link"},
+                editable=role in {"input"},
+            )
+
+            value = None
+            try:
+                # Check Value pattern
+                val_pat = elem.GetCurrentPattern(10002)  # UIA_ValuePatternId
+                if val_pat:
+                    value = val_pat.CurrentValue
+            except Exception:
+                pass
+
+            # Traverse children
+            children: List[DesktopNode] = []
+            walker = self.uia.CreateTreeWalker(self.uia.ControlViewCondition)
+            child = walker.GetFirstChildElement(elem)
+            while child:
+                c_node = self._traverse_element(child, visited, depth + 1, max_depth)
+                if c_node:
+                    children.append(c_node)
+                child = walker.GetNextSiblingElement(child)
+
+            return DesktopNode(
+                id=f"win_{depth}",
+                role=role,
+                name=name,
+                value=value,
+                bbox=bbox,
+                states=states,
+                children=children,
+                raw_role=raw_role,
+                depth=depth,
+            )
+        except Exception as e:
+            logger.debug(f"Error traversing UIA node at depth {depth}: {e}")
+            return None
 
     def get_active_window(self) -> Optional[DesktopNode]:
         self._require_windows()
-        raise NotImplementedError("Windows active window query.")
+        try:
+            focused_elem = self.uia.GetFocusedElement()
+            if focused_elem:
+                visited: Set[int] = set()
+                return self._traverse_element(focused_elem, visited, depth=0, max_depth=1)
+        except Exception as e:
+            logger.error(f"Error fetching active window: {e}")
+        return None
 
     def click(self, node: DesktopNode, button: Literal["left", "right", "double"] = "left") -> None:
         self._require_windows()
@@ -159,5 +297,21 @@ class WindowsAdapter(BasePlatformAdapter):
 
     def press_key(self, key_combination: str) -> None:
         self._require_windows()
-        # Native Windows SendInput keyboard chord
-        pass
+        import ctypes
+        KEYEVENTF_KEYUP = 0x0002
+
+        parts = [p.strip().lower() for p in key_combination.split("+")]
+        modifiers = []
+        for mod in parts[:-1]:
+            vk = WIN_KEYCODES.get(mod)
+            if vk:
+                modifiers.append(vk)
+                ctypes.windll.user32.keybd_event(vk, 0, 0, 0)
+
+        main_key = parts[-1]
+        vk_main = WIN_KEYCODES.get(main_key) or ord(main_key.upper())
+        ctypes.windll.user32.keybd_event(vk_main, 0, 0, 0)
+        ctypes.windll.user32.keybd_event(vk_main, 0, KEYEVENTF_KEYUP, 0)
+
+        for vk in reversed(modifiers):
+            ctypes.windll.user32.keybd_event(vk, 0, KEYEVENTF_KEYUP, 0)
