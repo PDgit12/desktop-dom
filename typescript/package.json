@@ -17,7 +17,7 @@
     "playwright",
     "mcp"
   ],
-  "author": "Piyush Dua <pdua@purdue.edu>",
+  "author": "PDgit12 <piyushdua01@gmail.com>",
   "license": "Apache-2.0",
   "devDependencies": {
     "typescript": "^5.4.0",
