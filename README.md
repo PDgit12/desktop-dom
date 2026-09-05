@@ -71,7 +71,12 @@ Traditional "computer-use" AI agents capture fullscreen screenshots, compress mu
 
 ---
 
-## 3. Installation
+## 3. Frictionless Quickstart
+
+### One-Line Install (macOS / Linux / Windows)
+```bash
+curl -fsSL https://raw.githubusercontent.com/PDgit12/desktop-dom/main/install.sh | bash
+```
 
 ### Python SDK & CLI
 ```bash
@@ -83,13 +88,22 @@ pip install "desktop-dom[macos]"    # macOS (PyObjC, Quartz, Cocoa)
 pip install "desktop-dom[windows]"  # Windows (comtypes, CUIAutomation8)
 pip install "desktop-dom[linux]"    # Linux (jeepney, AT-SPI2 D-Bus)
 
-# With AI agent integrations (LangChain, MCP):
+# With all AI agent integrations (LangChain, MCP):
 pip install "desktop-dom[all]"
 ```
 
 ### TypeScript SDK
 ```bash
 npm install @desktop-dom/core
+```
+
+### Zero-Friction Setup: Auto-Fix Permissions & Connect MCP
+```bash
+# Verify and automatically open OS Accessibility Settings if needed:
+desktop-dom doctor --fix
+
+# 1-Click install into Claude Desktop or Cursor:
+desktop-dom install-mcp
 ```
 
 ---

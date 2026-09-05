@@ -20,7 +20,9 @@ app = typer.Typer(
 console = Console()
 
 @app.command()
-def doctor():
+def doctor(
+    fix: bool = typer.Option(False, "--fix", help="Automatically launch OS accessibility settings to grant permissions")
+):
     """Validates OS accessibility permissions, display scale factors, and dependencies."""
     adapter = get_platform_adapter()
     perms = adapter.check_permissions()
@@ -38,6 +40,16 @@ def doctor():
 
     console.print(table)
     if not perms["accessibility_trusted"]:
+        if fix:
+            import subprocess
+            if sys.platform == "darwin":
+                console.print("\n[bold cyan]Attempting auto-fix: Opening macOS Accessibility Settings...[/bold cyan]")
+                subprocess.run(["open", "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"])
+            elif sys.platform.startswith("linux"):
+                console.print("\n[bold cyan]Attempting auto-fix: Enabling GNOME accessibility...[/bold cyan]")
+                subprocess.run(["gsettings", "set", "org.gnome.desktop.interface", "toolkit-accessibility", "true"])
+        else:
+            console.print("\n[yellow]Tip: Run 'desktop-dom doctor --fix' to automatically open your OS accessibility settings.[/yellow]")
         sys.exit(1)
 
 @app.command()
@@ -217,14 +229,64 @@ def overlay(
 
 @app.command()
 def serve(
-
-
     target: Optional[str] = typer.Option(None, "--app", "-a", help="Target application name or PID"),
 ):
     """Starts the Model Context Protocol (MCP) server on stdio."""
     from desktop_dom.integrations.mcp import DesktopDomMCPServer
     server = DesktopDomMCPServer(target_app=target)
     server.run_stdio()
+
+@app.command(name="install-mcp")
+def install_mcp(
+    client: str = typer.Option("claude", "--client", "-c", help="Target AI client ('claude' or 'cursor')"),
+):
+    """Auto-configures desktop-dom MCP server in Claude Desktop or Cursor configuration."""
+    from pathlib import Path
+    import os
+
+    config_path: Optional[Path] = None
+    if client.lower() == "claude":
+        if sys.platform == "darwin":
+            config_path = Path.home() / "Library" / "Application Support" / "Claude" / "claude_desktop_config.json"
+        elif sys.platform.startswith("win"):
+            appdata = os.environ.get("APPDATA", "")
+            if appdata:
+                config_path = Path(appdata) / "Claude" / "claude_desktop_config.json"
+        else:
+            config_path = Path.home() / ".config" / "Claude" / "claude_desktop_config.json"
+    elif client.lower() == "cursor":
+        config_path = Path.home() / ".cursor" / "mcp.json"
+
+    if not config_path:
+        console.print(f"[bold red]Unsupported client or platform:[/bold red] {client} on {sys.platform}", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        data = {}
+        if config_path.exists():
+            try:
+                with open(config_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+            except Exception:
+                data = {}
+
+        if "mcpServers" not in data:
+            data["mcpServers"] = {}
+
+        data["mcpServers"]["desktop-dom"] = {
+            "command": "desktop-dom",
+            "args": ["serve"]
+        }
+
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+
+        console.print(f"[bold green]✓ Successfully configured desktop-dom MCP in:[/bold green]\n  {config_path}")
+        console.print("[dim]Restart your AI assistant to start using desktop-dom tools natively.[/dim]")
+    except Exception as e:
+        console.print(f"[bold red]Failed to write configuration:[/bold red] {e}", file=sys.stderr)
+        sys.exit(1)
 
 if __name__ == "__main__":
     app()

@@ -43,3 +43,16 @@ def test_cli_snapshot(tmp_path):
         content = f.read()
     assert "<!DOCTYPE html>" in content
     assert "svg" in content
+
+def test_cli_doctor_fix():
+    result = runner.invoke(app, ["doctor", "--help"])
+    assert result.exit_code == 0
+    assert "--fix" in result.output
+
+def test_cli_install_mcp(tmp_path, monkeypatch):
+    mock_home = tmp_path / "userhome"
+    mock_home.mkdir()
+    monkeypatch.setattr("pathlib.Path.home", lambda: mock_home)
+    result = runner.invoke(app, ["install-mcp", "--client", "claude"])
+    assert result.exit_code == 0
+    assert "Successfully configured desktop-dom MCP" in result.output
