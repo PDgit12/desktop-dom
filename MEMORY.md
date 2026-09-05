@@ -24,17 +24,19 @@ Eliminates vision agent flaws (>90% token waste, 3–6 second latency, pixel coo
    - Stdio MCP Server (`src/desktop_dom/integrations/mcp.py`).
    - Reactive Engine (`DesktopApp.wait_for`, `wait_until_hidden`, `observe`).
    - Visual HUD Overlay & HTML Snapshot (`desktop-dom overlay`, `desktop-dom snapshot`).
-   - CLI (`desktop-dom doctor`, `apps`, `inspect`, `click`, `type-text`, `press`, `record`, `wait-for`, `snapshot`, `overlay`, `serve`).
-5. **Distribution & Release Automation:**
+   - CLI (`desktop-dom doctor --fix`, `apps`, `inspect`, `click`, `type-text`, `press`, `record`, `wait-for`, `snapshot`, `overlay`, `serve`, `install-mcp`).
+5. **Distribution & Frictionless DX:**
+   - Single-command installer: `install.sh` (`curl -fsSL ... | bash`).
+   - 1-click MCP configurator: `desktop-dom install-mcp` (Claude Desktop / Cursor).
+   - Git Flow branching: `main` (production-ready stable) and `develop` (active integration) with `CONTRIBUTING.md`.
    - Pre-flight scripts: `scripts/publish_pypi.sh` and `scripts/publish_npm.sh`.
    - CI/CD workflows: `.github/workflows/ci.yml` (multi-OS test matrix) and `.github/workflows/publish.yml` (tag release automation).
 
 ## Test & Integration Status
-- 30 unit and integration tests passing (`pytest tests`).
+- 32 unit and integration tests passing (`pytest tests`).
+- Branches: `main` (stable) and `develop` (integration) tracked on `PDgit12/desktop-dom`.
 - Verified against live macOS window server on Calculator: executed `25 × 4 = 100` via centroid clicks and verified output `100` in the accessibility DOM.
 - Registered as enabled MCP server in Antigravity (`agy mcp list`).
-- Passive event listener implemented in `desktop-dom record` using `pynput` mouse interception.
 - TypeScript SDK `@desktop-dom/core` compiled and verified with `npm pack --dry-run`.
 - Python wheel and sdist validated 100% with `twine check`.
-- Remote repository live on GitHub at `https://github.com/PDgit12/desktop-dom`.
-
+- Remote repository live on GitHub at `https://github.com/PDgit12/desktop-dom` with 100% sole contributor attribution for PDgit12.
