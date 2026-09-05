@@ -1,0 +1,26 @@
+{
+  "name": "@desktop-dom/core",
+  "version": "0.1.0",
+  "description": "Playwright for Desktop: Semantic Accessibility DOM and Deterministic Action Engine for AI Agents (TypeScript SDK)",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "desktop-automation",
+    "accessibility",
+    "ai-agents",
+    "computer-use",
+    "playwright",
+    "mcp"
+  ],
+  "author": "Piyush Dua <pdua@purdue.edu>",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/node": "^20.0.0"
+  }
+}
