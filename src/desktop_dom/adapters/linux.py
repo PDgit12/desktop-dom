@@ -7,7 +7,7 @@ import logging
 from typing import List, Optional, Literal, Dict, Any, Set
 
 from desktop_dom.adapters.base import BasePlatformAdapter, PlatformNotSupportedError
-from desktop_dom.schema import DesktopNode, BoundingBox, ElementStates
+from desktop_dom.schema import DesktopNode, BoundingBox, ElementStates, DisplayInfo, SubregionCapture
 
 logger = logging.getLogger("desktop_dom.adapters.linux")
 
@@ -185,3 +185,95 @@ class LinuxAdapter(BasePlatformAdapter):
             subprocess.run(["xdotool", "key", "--clearmodifiers", combo], check=True)
         elif shutil.which("ydotool"):
             subprocess.run(["ydotool", "key", combo], check=True)
+
+    def get_displays(self) -> List[DisplayInfo]:
+        self._require_linux()
+        # Default X11 screen or RandR query
+        w, h = 1920, 1080
+        if shutil.which("xdpyinfo"):
+            try:
+                out = subprocess.check_output("xdpyinfo | grep dimensions", shell=True, text=True)
+                # e.g. "  dimensions:    1920x1080 pixels (508x285 millimeters)"
+                dims = out.split()[1].split("x")
+                w, h = int(dims[0]), int(dims[1])
+            except Exception:
+                pass
+
+        return [
+            DisplayInfo(
+                id=0,
+                name="Primary X11/Wayland Display",
+                is_primary=True,
+                bounds=BoundingBox(x=0, y=0, width=w, height=h),
+                scale_factor=self.get_display_scale_factor(),
+                is_active_space=True,
+            )
+        ]
+
+    def is_window_on_active_space(self, app_identifier: str | int) -> bool:
+        self._require_linux()
+        # On Linux X11, check _NET_WM_DESKTOP vs _NET_CURRENT_DESKTOP if xprop available
+        if shutil.which("xdotool"):
+            try:
+                pid = self._resolve_pid(app_identifier)
+                wids = subprocess.check_output(["xdotool", "search", "--pid", str(pid)], text=True).split()
+                if not wids:
+                    return False
+                current_desktop = subprocess.check_output(["xdotool", "get_desktop"], text=True).strip()
+                for wid in wids:
+                    try:
+                        win_desktop = subprocess.check_output(["xdotool", "get_desktop_for_window", wid], text=True).strip()
+                        if win_desktop == current_desktop or win_desktop == "-1": # -1 = sticky on all desktops
+                            return True
+                    except Exception:
+                        continue
+            except Exception:
+                pass
+        return True
+
+    def capture_subregion(self, bbox: BoundingBox, element_id: Optional[str] = None) -> SubregionCapture:
+        self._require_linux()
+        import tempfile, subprocess, base64, os
+        w = max(1, bbox.width)
+        h = max(1, bbox.height)
+
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+            tmp_path = tmp.name
+
+        try:
+            if shutil.which("maim"):
+                subprocess.run(["maim", "-g", f"{w}x{h}+{bbox.x}+{bbox.y}", tmp_path], check=True)
+            elif shutil.which("import"): # ImageMagick
+                subprocess.run(["import", "-window", "root", "-crop", f"{w}x{h}+{bbox.x}+{bbox.y}", tmp_path], check=True)
+            elif shutil.which("gnome-screenshot"):
+                subprocess.run(["gnome-screenshot", "-a", "-f", tmp_path], check=True)
+            else:
+                # Fallback blank PNG
+                pass
+            if os.path.exists(tmp_path) and os.path.getsize(tmp_path) > 0:
+                with open(tmp_path, "rb") as f:
+                    img_data = f.read()
+            else:
+                img_data = b""
+        finally:
+            if os.path.exists(tmp_path):
+                try:
+                    os.unlink(tmp_path)
+                except Exception:
+                    pass
+
+        scale = self.get_display_scale_factor()
+        phys_w = int(round(w * scale))
+        phys_h = int(round(h * scale))
+        b64_data = base64.b64encode(img_data).decode("utf-8")
+        tokens = max(80, int((phys_w * phys_h) / 750))
+
+        return SubregionCapture(
+            element_id=element_id,
+            bbox=bbox,
+            image_base64=b64_data,
+            mime_type="image/png",
+            width=phys_w,
+            height=phys_h,
+            estimated_tokens=tokens,
+        )

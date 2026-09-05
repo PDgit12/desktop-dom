@@ -288,5 +288,77 @@ def install_mcp(
         console.print(f"[bold red]Failed to write configuration:[/bold red] {e}", file=sys.stderr)
         sys.exit(1)
 
+@app.command()
+def displays():
+    """Enumerates all connected physical and virtual displays, bounds, and scale factors."""
+    adapter = get_platform_adapter()
+    disp_list = adapter.get_displays()
+
+    table = Table(title="Connected Displays & Coordinates")
+    table.add_column("ID", style="cyan", no_wrap=True)
+    table.add_column("Display Name", style="bold green")
+    table.add_column("Origin (X, Y)", style="yellow")
+    table.add_column("Dimensions (WxH)", style="magenta")
+    table.add_column("Scale", style="blue")
+    table.add_column("Primary", style="green")
+
+    for d in disp_list:
+        table.add_row(
+            str(d.id),
+            d.name,
+            f"({d.bounds.x}, {d.bounds.y})",
+            f"{d.bounds.width}x{d.bounds.height}",
+            f"{d.scale_factor}x",
+            "✓" if d.is_primary else "",
+        )
+
+    console.print(table)
+
+@app.command()
+def spaces(
+    target: str = typer.Option(..., "--app", "-a", help="Application name or PID"),
+):
+    """Checks whether the application window is present on the currently active virtual space."""
+    adapter = get_platform_adapter()
+    is_active = adapter.is_window_on_active_space(target)
+    if is_active:
+        console.print(f"[bold green]✓ '{target}' is visible on the current active virtual space.[/bold green]")
+    else:
+        console.print(f"[bold yellow]! '{target}' is currently NOT visible on the active virtual space (minimized, hidden, or on another Space).[/bold yellow]")
+
+@app.command()
+def crop(
+    target: str = typer.Option(..., "--app", "-a", help="Application name or PID"),
+    element_id: Optional[str] = typer.Option(None, "--id", "-i", help="Element ID to crop"),
+    bbox_str: Optional[str] = typer.Option(None, "--bbox", "-b", help="Bounding box as 'x,y,width,height'"),
+    output: str = typer.Option("crop.png", "--out", "-o", help="Output image file path"),
+):
+    """Crops an exact subregion bounding box for multimodal vision fallback with token estimation."""
+    from desktop_dom.schema import BoundingBox
+    try:
+        adapter = get_platform_adapter()
+        app_instance = DesktopApp.attach(target, adapter=adapter)
+        if element_id:
+            capture = app_instance.crop_element(element_id)
+        elif bbox_str:
+            parts = [int(p.strip()) for p in bbox_str.split(",")]
+            if len(parts) != 4:
+                raise ValueError("Bounding box must be 'x,y,width,height'")
+            box = BoundingBox(x=parts[0], y=parts[1], width=parts[2], height=parts[3])
+            capture = app_instance.crop_region(box)
+        else:
+            tree = app_instance.get_tree(as_dict=False)
+            capture = app_instance.crop_region(tree.bbox)
+
+        capture.save(output)
+        console.print(
+            f"[bold green]✓ Saved subregion image to:[/bold green] {output}\n"
+            f"[dim]Dimensions: {capture.width}x{capture.height}px | "
+            f"Estimated Vision LLM Tokens: ~{capture.estimated_tokens} tokens (>90% savings vs 4K)[/dim]"
+        )
+    except Exception as e:
+        console.print(f"[bold red]Error cropping subregion for '{target}':[/bold red] {e}")
+        sys.exit(1)
+
 if __name__ == "__main__":
     app()

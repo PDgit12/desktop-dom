@@ -16,7 +16,7 @@ except ImportError:
     HAS_MACOS_DEPS = False
 
 from desktop_dom.adapters.base import BasePlatformAdapter
-from desktop_dom.schema import DesktopNode, BoundingBox, ElementStates
+from desktop_dom.schema import DesktopNode, BoundingBox, ElementStates, DisplayInfo, SubregionCapture
 
 # Canonical role mapping from macOS AX roles
 MACOS_ROLE_MAP: Dict[str, str] = {
@@ -115,6 +115,9 @@ class MacOSAdapter(BasePlatformAdapter):
     """
 
     def __init__(self):
+        self._require_macos()
+
+    def _require_macos(self):
         if not HAS_MACOS_DEPS:
             raise RuntimeError(
                 "macOS dependencies are missing. Please run:\n"
@@ -547,3 +550,121 @@ class MacOSAdapter(BasePlatformAdapter):
         if modifiers:
             Quartz.CGEventSetFlags(up, modifiers)
         Quartz.CGEventPost(Quartz.kCGHIDEventTap, up)
+
+    def get_displays(self) -> List[DisplayInfo]:
+        """
+        Enumerates all attached macOS displays and translates Cocoa bottom-left frames
+        into Quartz global coordinates with support for negative coordinate monitors.
+        """
+        self._require_macos()
+        screens = NSScreen.screens()
+        if not screens:
+            return []
+
+        primary_height = screens[0].frame().size.height
+        displays: List[DisplayInfo] = []
+
+        for i, screen in enumerate(screens):
+            frame = screen.frame()
+            # Convert Cocoa frame to Quartz global coordinate space (top-left origin)
+            quartz_x = frame.origin.x
+            quartz_y = primary_height - (frame.origin.y + frame.size.height)
+            scale = float(screen.backingScaleFactor())
+            
+            # Localized display name if available
+            name = f"Display {i}"
+            if hasattr(screen, "localizedName"):
+                try:
+                    name = str(screen.localizedName())
+                except Exception:
+                    pass
+
+            disp_bounds = BoundingBox(
+                x=int(round(quartz_x)),
+                y=int(round(quartz_y)),
+                width=int(round(frame.size.width)),
+                height=int(round(frame.size.height)),
+            )
+
+            displays.append(
+                DisplayInfo(
+                    id=i,
+                    name=name,
+                    is_primary=(i == 0),
+                    bounds=disp_bounds,
+                    scale_factor=scale,
+                    is_active_space=True,
+                )
+            )
+
+        return displays
+
+    def is_window_on_active_space(self, app_identifier: str | int) -> bool:
+        """
+        Queries WindowServer to determine if the target application has any visible
+        window present on the currently active macOS virtual space.
+        """
+        self._require_macos()
+        try:
+            pid = self._resolve_pid(app_identifier)
+        except Exception:
+            return False
+
+        # Query windows only on the active screen / space
+        options = Quartz.kCGWindowListOptionOnScreenOnly | Quartz.kCGWindowListExcludeDesktopElements
+        window_list = Quartz.CGWindowListCopyWindowInfo(options, Quartz.kCGNullWindowID)
+        if not window_list:
+            return False
+
+        for w in window_list:
+            if w.get("kCGWindowOwnerPID") == pid:
+                bounds = w.get("kCGWindowBounds", {})
+                if bounds.get("Width", 0) > 10 and bounds.get("Height", 0) > 10:
+                    return True
+
+        return False
+
+    def capture_subregion(self, bbox: BoundingBox, element_id: Optional[str] = None) -> SubregionCapture:
+        """
+        Captures an exact bounding box subregion using native screencapture, avoiding
+        fullscreen 4K screenshot encoding and saving >90% multimodal vision tokens.
+        """
+        self._require_macos()
+        import subprocess
+        import tempfile
+        import base64
+        import os
+
+        w = max(1, bbox.width)
+        h = max(1, bbox.height)
+
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+            tmp_path = tmp.name
+
+        try:
+            cmd = ["screencapture", "-R", f"{bbox.x},{bbox.y},{w},{h}", "-x", "-t", "png", tmp_path]
+            subprocess.run(cmd, check=True, capture_output=True)
+            with open(tmp_path, "rb") as f:
+                img_data = f.read()
+        finally:
+            if os.path.exists(tmp_path):
+                try:
+                    os.unlink(tmp_path)
+                except Exception:
+                    pass
+
+        scale = self.get_display_scale_factor()
+        phys_w = int(round(w * scale))
+        phys_h = int(round(h * scale))
+        b64_data = base64.b64encode(img_data).decode("utf-8")
+        tokens = max(80, int((phys_w * phys_h) / 750))
+
+        return SubregionCapture(
+            element_id=element_id,
+            bbox=bbox,
+            image_base64=b64_data,
+            mime_type="image/png",
+            width=phys_w,
+            height=phys_h,
+            estimated_tokens=tokens,
+        )

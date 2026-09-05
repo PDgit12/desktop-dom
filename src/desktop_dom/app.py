@@ -7,7 +7,7 @@ from typing import Optional, List, Dict, Any, Literal, Union, Callable
 
 from desktop_dom.adapters import get_platform_adapter
 from desktop_dom.adapters.base import BasePlatformAdapter
-from desktop_dom.schema import DesktopNode
+from desktop_dom.schema import DesktopNode, BoundingBox, DisplayInfo, SubregionCapture
 from desktop_dom.pruner import TreePruner, FuzzyResolver
 
 logger = logging.getLogger("desktop_dom.app")
@@ -258,6 +258,57 @@ class DesktopApp:
 
         return events
 
+    def get_displays(self) -> List[DisplayInfo]:
+        """
+        Enumerates all attached physical and virtual monitors with their coordinate bounds.
+        """
+        return self.adapter.get_displays()
+
+    def is_on_active_space(self) -> bool:
+        """
+        Determines whether the target application is visible on the current virtual space.
+        """
+        return self.adapter.is_window_on_active_space(self.target)
+
+    def crop_element(self, element_id: str) -> SubregionCapture:
+        """
+        Crops and encodes a subregion image of a specific element ID.
+        Ideal for custom canvases, WebGL, or unknown nodes requiring vision fallback.
+        """
+        node = self._resolve_node(element_id)
+        return self.adapter.capture_subregion(node.bbox, element_id=node.id)
+
+    def crop_region(self, bbox: BoundingBox) -> SubregionCapture:
+        """
+        Captures an exact bounding box subregion.
+        """
+        return self.adapter.capture_subregion(bbox)
+
+    def find_or_fallback(
+        self,
+        role: Optional[str] = None,
+        name: Optional[str] = None,
+        fallback_to_vision: bool = True,
+    ) -> Tuple[Optional[DesktopNode], Optional[SubregionCapture]]:
+        """
+        Hybrid resolution: searches accessibility tree for node.
+        If found but node is an opaque canvas without actionable children,
+        or if node is missing and fallback_to_vision=True, captures subregion of window/canvas.
+        """
+        node = self.find(role=role, name=name)
+        if node is not None:
+            # Check if it's an opaque canvas
+            if node.role in ("image", "pane", "unknown") and not node.children:
+                sub = self.adapter.capture_subregion(node.bbox, element_id=node.id)
+                return node, sub
+            return node, None
+
+        if fallback_to_vision and self._last_tree:
+            # Fallback to root window subregion
+            sub = self.adapter.capture_subregion(self._last_tree.bbox, element_id=self._last_tree.id)
+            return None, sub
+
+        return None, None
 
     def _resolve_node(self, element_id: str) -> DesktopNode:
         """

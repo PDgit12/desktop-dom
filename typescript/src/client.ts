@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { DesktopNode, ActionResult } from "./types.js";
+import { DesktopNode, ActionResult, DisplayInfo, SubregionCapture } from "./types.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -70,5 +70,13 @@ export class DesktopApp {
   async press(keyCombination: string): Promise<ActionResult> {
     const { stdout } = await execFileAsync(this.cliBinary, ["press", "--key", keyCombination]);
     return { status: "success", action: "press", key: keyCombination, rawOutput: stdout.trim() };
+  }
+
+  /**
+   * Checks whether the application window is present on the currently active virtual space.
+   */
+  async isOnActiveSpace(): Promise<boolean> {
+    const { stdout } = await execFileAsync(this.cliBinary, ["spaces", "--app", this.target]);
+    return stdout.includes("is visible on the current active virtual space");
   }
 }

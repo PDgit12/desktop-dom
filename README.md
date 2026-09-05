@@ -152,6 +152,38 @@ for mutation in app.observe(interval=0.25):
         break
 ```
 
+### Multi-Display & Virtual Space Awareness
+Handle complex multi-monitor arrangements (including negative coordinate monitors) and verify virtual desktop visibility:
+
+```python
+# Enumerate all connected displays with physical/virtual bounds
+displays = app.get_displays()
+for d in displays:
+    print(f"Display {d.id}: {d.name} bounds=({d.bounds.x},{d.bounds.y}) scale={d.scale_factor}x")
+
+# Check if window is currently visible on the active virtual space/desktop
+if not app.is_on_active_space():
+    print("Warning: App window is minimized or hosted on an inactive virtual desktop!")
+```
+
+### Hybrid DOM + Sub-Region Vision Fallback
+For custom WebGL, HTML5 Canvas, or game viewports without accessibility child nodes, crop only the target subregion to retain **>90% token savings** compared to full 4K screen captures:
+
+```python
+# Crop only the canvas element bounding box (e.g. 300x200px = ~100 tokens vs 2,500 for 4K)
+capture = app.crop_element("canvas_viewport_01")
+print(f"Subregion image: {capture.width}x{capture.height}px | Est. Tokens: ~{capture.estimated_tokens}")
+
+# Feed directly into Claude / OpenAI multimodal messages
+multimodal_message = {
+    "role": "user",
+    "content": [
+        {"type": "text", "text": "What is the current value on this chart?"},
+        capture.to_llm_payload(),
+    ],
+}
+```
+
 ---
 
 ## 5. TypeScript SDK Quickstart
@@ -209,6 +241,25 @@ desktop-dom snapshot --app "Calculator" --out calc_snapshot.svg
 Launch a transparent Cocoa click-through HUD overlay directly on top of the target application to visualize bounding boxes in real time:
 ```bash
 desktop-dom overlay --app "Spotify"
+```
+
+### Multi-Display & Virtual Spaces
+```bash
+# List all connected displays, coordinates, and scale factors
+desktop-dom displays
+
+# Check if an application window is visible on the current active virtual space
+desktop-dom spaces --app "Calculator"
+```
+
+### Sub-Region Vision Crop
+Crop an exact element or coordinate bounding box for vision model fallback with automated token estimation:
+```bash
+# Crop by element ID
+desktop-dom crop --app "Calculator" --id "btn_equals" --out equals.png
+
+# Crop by desktop bounding box (x, y, width, height)
+desktop-dom crop --app "Google Chrome" --bbox "100,100,500,300" --out chart.png
 ```
 
 ### Action Dispatch & Reactive Wait

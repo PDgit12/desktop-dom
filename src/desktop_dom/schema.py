@@ -74,6 +74,61 @@ class BoundingBox(BaseModel):
             height=int(round(self.height * factor)),
         )
 
+    def to_display_local(self, display: "DisplayInfo") -> BoundingBox:
+        """Converts global desktop coordinates to local coordinates relative to a specific display's origin."""
+        return BoundingBox(
+            x=self.x - display.bounds.x,
+            y=self.y - display.bounds.y,
+            width=self.width,
+            height=self.height,
+        )
+
+    def find_display(self, displays: List["DisplayInfo"]) -> Optional["DisplayInfo"]:
+        """Identifies which display contains this bounding box centroid."""
+        cx, cy = self.centroid
+        for disp in displays:
+            if disp.bounds.contains(cx, cy):
+                return disp
+        # Fallback to primary if centroid is outside detected monitors
+        for disp in displays:
+            if disp.is_primary:
+                return disp
+        return displays[0] if displays else None
+
+class DisplayInfo(BaseModel):
+    id: int = Field(description="Display identifier or index")
+    name: str = Field(default="", description="Display name or model identifier")
+    is_primary: bool = Field(default=False, description="Whether this is the primary system display")
+    bounds: BoundingBox = Field(description="Display bounds in global desktop coordinates (origin can be negative)")
+    scale_factor: float = Field(default=1.0, description="Display backing/DPI scaling multiplier (e.g. 2.0 for Retina)")
+    is_active_space: bool = Field(default=True, description="Whether display currently hosts the active virtual space")
+
+class SubregionCapture(BaseModel):
+    element_id: Optional[str] = Field(default=None, description="Element ID if captured from a DesktopNode")
+    bbox: BoundingBox = Field(description="Captured bounding box in global desktop coordinates")
+    image_base64: str = Field(description="Base64-encoded image data")
+    mime_type: str = Field(default="image/png", description="MIME type of image (image/png or image/jpeg)")
+    width: int = Field(description="Captured image width in physical pixels")
+    height: int = Field(description="Captured image height in physical pixels")
+    estimated_tokens: int = Field(description="Estimated multimodal vision tokens required for LLM prompt")
+
+    def to_llm_payload(self) -> Dict[str, Any]:
+        """Formats sub-region image for Claude/OpenAI multimodal message payload."""
+        return {
+            "type": "image",
+            "source": {
+                "type": "base64",
+                "media_type": self.mime_type,
+                "data": self.image_base64,
+            },
+        }
+
+    def save(self, filepath: str) -> None:
+        """Saves binary image to local disk."""
+        import base64
+        with open(filepath, "wb") as f:
+            f.write(base64.b64decode(self.image_base64))
+
 class ElementStates(BaseModel):
     focused: bool = Field(default=False, description="Whether the element currently holds keyboard focus")
     focusable: bool = Field(default=False, description="Whether the element can receive keyboard focus")

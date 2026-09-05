@@ -4,7 +4,7 @@ import logging
 from typing import List, Optional, Literal, Dict, Any, Set
 
 from desktop_dom.adapters.base import BasePlatformAdapter, PlatformNotSupportedError
-from desktop_dom.schema import DesktopNode, BoundingBox, ElementStates
+from desktop_dom.schema import DesktopNode, BoundingBox, ElementStates, DisplayInfo, SubregionCapture
 
 logger = logging.getLogger("desktop_dom.adapters.windows")
 
@@ -315,3 +315,81 @@ class WindowsAdapter(BasePlatformAdapter):
 
         for vk in reversed(modifiers):
             ctypes.windll.user32.keybd_event(vk, 0, KEYEVENTF_KEYUP, 0)
+
+    def get_displays(self) -> List[DisplayInfo]:
+        self._require_windows()
+        import ctypes
+        SM_CMONITORS = 80
+        SM_XVIRTUALSCREEN = 76
+        SM_YVIRTUALSCREEN = 77
+        SM_CXVIRTUALSCREEN = 78
+        SM_CYVIRTUALSCREEN = 79
+
+        vx = ctypes.windll.user32.GetSystemMetrics(SM_XVIRTUALSCREEN)
+        vy = ctypes.windll.user32.GetSystemMetrics(SM_YVIRTUALSCREEN)
+        vw = ctypes.windll.user32.GetSystemMetrics(SM_CXVIRTUALSCREEN)
+        vh = ctypes.windll.user32.GetSystemMetrics(SM_CYVIRTUALSCREEN)
+        scale = self.get_display_scale_factor()
+
+        return [
+            DisplayInfo(
+                id=0,
+                name="Primary Windows Display",
+                is_primary=True,
+                bounds=BoundingBox(x=vx, y=vy, width=vw, height=vh),
+                scale_factor=scale,
+                is_active_space=True,
+            )
+        ]
+
+    def is_window_on_active_space(self, app_identifier: str | int) -> bool:
+        self._require_windows()
+        import ctypes
+        pid = self._resolve_pid(app_identifier)
+        hwnd = self._find_hwnd_for_pid(pid)
+        if not hwnd:
+            return False
+        return bool(ctypes.windll.user32.IsWindowVisible(hwnd))
+
+    def capture_subregion(self, bbox: BoundingBox, element_id: Optional[str] = None) -> SubregionCapture:
+        self._require_windows()
+        import tempfile, subprocess, base64, os
+        scale = self.get_display_scale_factor()
+        phys_w = int(round(bbox.width * scale))
+        phys_h = int(round(bbox.height * scale))
+
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+            tmp_path = tmp.name
+
+        try:
+            ps_script = f"""
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+$bmp = New-Object System.Drawing.Bitmap({phys_w}, {phys_h})
+$g = [System.Drawing.Graphics]::FromImage($bmp)
+$g.CopyFromScreen({bbox.x}, {bbox.y}, 0, 0, (New-Object System.Drawing.Size({phys_w}, {phys_h})))
+$bmp.Save('{tmp_path}', [System.Drawing.Imaging.ImageFormat]::Png)
+$g.Dispose()
+$bmp.Dispose()
+"""
+            subprocess.run(["powershell", "-NoProfile", "-Command", ps_script], check=True, capture_output=True)
+            with open(tmp_path, "rb") as f:
+                img_data = f.read()
+        finally:
+            if os.path.exists(tmp_path):
+                try:
+                    os.unlink(tmp_path)
+                except Exception:
+                    pass
+
+        b64_data = base64.b64encode(img_data).decode("utf-8")
+        tokens = max(80, int((phys_w * phys_h) / 750))
+        return SubregionCapture(
+            element_id=element_id,
+            bbox=bbox,
+            image_base64=b64_data,
+            mime_type="image/png",
+            width=phys_w,
+            height=phys_h,
+            estimated_tokens=tokens,
+        )

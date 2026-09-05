@@ -1,6 +1,6 @@
 import pytest
 from desktop_dom.adapters.base import BasePlatformAdapter
-from desktop_dom.schema import DesktopNode, BoundingBox, ElementStates
+from desktop_dom.schema import DesktopNode, BoundingBox, ElementStates, DisplayInfo, SubregionCapture
 
 class TestPlatformAdapter(BasePlatformAdapter):
     """
@@ -129,6 +129,45 @@ class TestPlatformAdapter(BasePlatformAdapter):
 
     def press_key(self, key_combination):
         self.dispatched_keys.append(key_combination)
+
+    def get_displays(self):
+        return [
+            DisplayInfo(
+                id=0,
+                name="Built-in Retina Display",
+                is_primary=True,
+                bounds=BoundingBox(x=0, y=0, width=1710, height=1112),
+                scale_factor=2.0,
+                is_active_space=True,
+            ),
+            DisplayInfo(
+                id=1,
+                name="External 4K Monitor",
+                is_primary=False,
+                bounds=BoundingBox(x=-1920, y=0, width=1920, height=1080),
+                scale_factor=1.0,
+                is_active_space=True,
+            ),
+        ]
+
+    def is_window_on_active_space(self, app_identifier):
+        return True
+
+    def capture_subregion(self, bbox, element_id=None):
+        mock_b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+        scale = self.get_display_scale_factor()
+        phys_w = int(bbox.width * scale)
+        phys_h = int(bbox.height * scale)
+        tokens = max(80, int((phys_w * phys_h) / 750))
+        return SubregionCapture(
+            element_id=element_id,
+            bbox=bbox,
+            image_base64=mock_b64,
+            mime_type="image/png",
+            width=phys_w,
+            height=phys_h,
+            estimated_tokens=tokens,
+        )
 
 @pytest.fixture
 def test_adapter():

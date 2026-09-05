@@ -1,7 +1,7 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import List, Optional, Literal, Dict, Any
-from desktop_dom.schema import DesktopNode
+from desktop_dom.schema import DesktopNode, DisplayInfo, BoundingBox, SubregionCapture
 
 class PlatformNotSupportedError(RuntimeError):
     """Raised when an OS adapter is invoked on an incompatible host operating system."""
@@ -74,5 +74,26 @@ class BasePlatformAdapter(ABC):
     def check_permissions(self) -> Dict[str, Any]:
         """
         Checks whether the host OS has granted accessibility / event tap rights to the running process.
+        """
+        pass
+
+    @abstractmethod
+    def get_displays(self) -> List[DisplayInfo]:
+        """
+        Enumerates all attached displays with their global coordinate bounds and scale factors.
+        """
+        pass
+
+    @abstractmethod
+    def is_window_on_active_space(self, app_identifier: str | int) -> bool:
+        """
+        Determines whether the target application window is present on the currently active virtual space.
+        """
+        pass
+
+    @abstractmethod
+    def capture_subregion(self, bbox: BoundingBox, element_id: Optional[str] = None) -> SubregionCapture:
+        """
+        Captures a high-resolution subregion image for vision model fallback, returning base64 and token estimates.
         """
         pass

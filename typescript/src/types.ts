@@ -56,3 +56,22 @@ export interface ActionResult {
   action: string;
   [key: string]: any;
 }
+
+export interface DisplayInfo {
+  id: number;
+  name: string;
+  is_primary: boolean;
+  bounds: BoundingBox;
+  scale_factor: number;
+  is_active_space: boolean;
+}
+
+export interface SubregionCapture {
+  element_id?: string | null;
+  bbox: BoundingBox;
+  image_base64: string;
+  mime_type: string;
+  width: number;
+  height: number;
+  estimated_tokens: number;
+}
