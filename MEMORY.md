@@ -22,12 +22,19 @@ Eliminates vision agent flaws (>90% token waste, 3–6 second latency, pixel coo
 4. **Agent & CLI Tooling:**
    - LangChain / LangGraph standard toolset (`src/desktop_dom/integrations/langchain.py`).
    - Stdio MCP Server (`src/desktop_dom/integrations/mcp.py`).
-   - CLI (`desktop-dom doctor`, `apps`, `inspect`, `click`, `type-text`, `press`, `record`, `serve`).
+   - Reactive Engine (`DesktopApp.wait_for`, `wait_until_hidden`, `observe`).
+   - Visual HUD Overlay & HTML Snapshot (`desktop-dom overlay`, `desktop-dom snapshot`).
+   - CLI (`desktop-dom doctor`, `apps`, `inspect`, `click`, `type-text`, `press`, `record`, `wait-for`, `snapshot`, `overlay`, `serve`).
+5. **Distribution & Release Automation:**
+   - Pre-flight scripts: `scripts/publish_pypi.sh` and `scripts/publish_npm.sh`.
+   - CI/CD workflows: `.github/workflows/ci.yml` (multi-OS test matrix) and `.github/workflows/publish.yml` (tag release automation).
 
 ## Test & Integration Status
-- 23 unit and integration tests passing (`pytest tests`).
+- 30 unit and integration tests passing (`pytest tests`).
 - Verified against live macOS window server on Calculator: executed `25 × 4 = 100` via centroid clicks and verified output `100` in the accessibility DOM.
 - Registered as enabled MCP server in Antigravity (`agy mcp list`).
 - Passive event listener implemented in `desktop-dom record` using `pynput` mouse interception.
-- TypeScript SDK `@desktop-dom/core` scaffolded and compiled in `typescript/dist`.
-- GitHub Actions CI workflow created in `.github/workflows/ci.yml`.
+- TypeScript SDK `@desktop-dom/core` compiled and verified with `npm pack --dry-run`.
+- Python wheel and sdist validated 100% with `twine check`.
+- Remote repository live on GitHub at `https://github.com/PDgit12/desktop-dom`.
+
