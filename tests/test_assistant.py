@@ -32,6 +32,25 @@ def test_assistant_fast_path_spotify(brain):
         assert res_skip["status"] == "success"
         assert res_skip["action"] == "spotify_next track"
 
+def test_assistant_fast_path_model_status_and_switch(brain):
+    with patch.object(brain, "get_model_status") as mock_status:
+        mock_status.return_value = {
+            "connected": True,
+            "host": "http://localhost:11434",
+            "current_model": "ministral-3:8b",
+            "available_models": ["ministral-3:8b"],
+            "latency_ms": 1.2
+        }
+        res = brain.execute_intent("/model")
+        assert res["status"] == "success"
+        assert res["action"] == "model_status"
+        assert "ministral-3:8b" in res["response"]
+
+    res_switch = brain.execute_intent("use model qwen3:8b")
+    assert res_switch["status"] == "success"
+    assert res_switch["action"] == "model_switch"
+    assert brain.preferred_model == "qwen3:8b"
+
 def test_assistant_fast_path_calculator(brain):
     res = brain.execute_intent("calculate 125 * 40 + 15")
     assert res["status"] == "success"
@@ -278,6 +297,29 @@ def test_floating_omnibar_logic():
     import time
     time.sleep(0.25)
     brain.execute_intent.assert_called_with("calculate 4 + 4")
+
+def test_omnibar_model_switching_and_clipboard():
+    from desktop_dom.assistant.omnibar import FloatingOmnibar
+    brain = MagicMock()
+    brain.get_model_status.return_value = {
+        "connected": True,
+        "current_model": "ministral-3:8b",
+        "available_models": ["ministral-3:8b", "qwen3:8b"]
+    }
+    bar = FloatingOmnibar(brain=brain)
+    bar._webview = MagicMock()
+
+    # Test model status requested
+    bar.on_model_status_requested()
+    brain.get_model_status.assert_called_once()
+    assert bar._webview.evaluateJavaScript_completionHandler_.call_count == 2
+
+    # Test dynamic model switch
+    bar.on_model_switch("qwen3:8b")
+    brain.set_model.assert_called_with("qwen3:8b")
+
+    # Test clipboard copy
+    assert bar.copy_text("Result text to copy") is not False
 
 def test_omnibar_resize_and_status_item():
     from desktop_dom.assistant.omnibar import FloatingOmnibar

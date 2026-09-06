@@ -4,7 +4,7 @@ import json
 import time
 import logging
 import threading
-from typing import Optional
+from typing import Optional, Dict, Any
 
 logger = logging.getLogger("desktop_dom.assistant.omnibar")
 
@@ -144,6 +144,30 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     border: 1px solid rgba(0, 240, 255, 0.25);
     flex-shrink: 0;
   }
+  .progress-line {
+    height: 2px;
+    width: 100%;
+    background: transparent;
+    position: relative;
+    overflow: hidden;
+  }
+  .progress-line.active {
+    background: rgba(255, 255, 255, 0.06);
+  }
+  .progress-line.active::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 40%;
+    background: linear-gradient(90deg, transparent, #00f0ff, #ff007f, transparent);
+    animation: progressSlide 1.1s infinite cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  @keyframes progressSlide {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(350%); }
+  }
   .tray {
     display: flex;
     flex-direction: column;
@@ -200,6 +224,158 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     color: #00f0ff;
     border-color: rgba(0, 240, 255, 0.3);
   }
+
+  /* Result Drawer Styles */
+  .result-drawer {
+    display: none;
+    flex-direction: column;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(8, 10, 16, 0.65);
+    padding: 14px 18px;
+    gap: 12px;
+    max-height: 280px;
+    overflow-y: auto;
+  }
+  .result-drawer.visible {
+    display: flex;
+  }
+  .result-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .result-pills {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .pill {
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+  }
+  .pill-success {
+    background: rgba(57, 255, 20, 0.15);
+    color: #39ff14;
+    border: 1px solid rgba(57, 255, 20, 0.3);
+  }
+  .pill-fast {
+    background: rgba(0, 240, 255, 0.15);
+    color: #00f0ff;
+    border: 1px solid rgba(0, 240, 255, 0.3);
+  }
+  .pill-llm {
+    background: rgba(112, 0, 255, 0.2);
+    color: #c084fc;
+    border: 1px solid rgba(112, 0, 255, 0.35);
+  }
+  .result-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .action-btn {
+    padding: 3px 9px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .action-btn:hover {
+    background: rgba(255, 255, 255, 0.16);
+  }
+  .action-btn.active {
+    background: #00f0ff;
+    color: #000;
+    border-color: #00f0ff;
+  }
+  .result-body {
+    color: #f1f5f9;
+    font-size: 14px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    user-select: text;
+    -webkit-user-select: text;
+    word-break: break-word;
+  }
+
+  /* Model Drawer Styles */
+  .model-drawer {
+    display: none;
+    flex-direction: column;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(7, 9, 15, 0.85);
+    padding: 12px 16px;
+    gap: 8px;
+    max-height: 250px;
+    overflow-y: auto;
+  }
+  .model-drawer.visible {
+    display: flex;
+  }
+  .model-drawer-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .model-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .model-card:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
+  }
+  .model-card.active {
+    background: rgba(0, 240, 255, 0.08);
+    border-color: rgba(0, 240, 255, 0.35);
+  }
+  .model-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .model-name {
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .model-desc {
+    color: rgba(255, 255, 255, 0.45);
+    font-size: 11px;
+  }
+  .model-tag {
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.7);
+  }
+  .model-card.active .model-tag {
+    background: #00f0ff;
+    color: #000;
+    font-weight: 700;
+  }
+
   .footer-bar {
     height: 34px;
     border-top: 1px solid rgba(255, 255, 255, 0.06);
@@ -234,6 +410,14 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     display: flex;
     align-items: center;
     gap: 6px;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: background 0.15s ease;
+  }
+  .local-tag:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
   }
   .dot-green {
     width: 6px;
@@ -242,12 +426,19 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     background: #39ff14;
     box-shadow: 0 0 8px #39ff14;
   }
+  .dot-amber {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #ffb703;
+    box-shadow: 0 0 8px #ffb703;
+  }
 </style>
 </head>
 <body>
   <div class="omnibar-card" id="card">
     <div class="header-bar">
-      <div class="brand-orb" id="brand-orb" title="Aura AI">⚡</div>
+      <div class="brand-orb" id="brand-orb" title="Aura AI - Click for Models">⚡</div>
       <div class="input-wrap">
         <input id="query-input" type="text" placeholder="Ask anything, or speak... (e.g. 'Play Starboy on Spotify')" autocomplete="off" autofocus />
       </div>
@@ -262,8 +453,34 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       <div class="status-badge" id="badge">Ready</div>
     </div>
 
+    <div class="progress-line" id="progress"></div>
+
     <div class="tray" id="tray">
       <!-- Dynamically generated suggestions -->
+    </div>
+
+    <div class="result-drawer" id="result-drawer">
+      <div class="result-header">
+        <div class="result-pills" id="result-pills">
+          <span class="pill pill-success" id="result-status-pill">Success</span>
+          <span class="pill pill-fast" id="result-engine-pill">Fast-Path</span>
+        </div>
+        <div class="result-actions">
+          <button class="action-btn" id="copy-btn">📋 Copy</button>
+          <button class="action-btn" id="done-btn">Done (Esc)</button>
+        </div>
+      </div>
+      <div class="result-body" id="result-body"></div>
+    </div>
+
+    <div class="model-drawer" id="model-drawer">
+      <div class="model-drawer-title">
+        <span>Active AI Engine & Models</span>
+        <span id="model-conn-status">● Checking...</span>
+      </div>
+      <div id="model-list" style="display: flex; flex-direction: column; gap: 6px;">
+        <!-- Dynamically rendered models -->
+      </div>
     </div>
 
     <div class="footer-bar">
@@ -273,9 +490,9 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         <span class="kbd-pill"><span class="kbd">Tab</span> Complete</span>
         <span class="kbd-pill"><span class="kbd">Esc</span> Dismiss</span>
       </div>
-      <div class="local-tag">
-        <div class="dot-green"></div>
-        <span>100% Local • Ollama + Whisper</span>
+      <div class="local-tag" id="footer-model-tag" title="Click to view & switch local models">
+        <div class="dot-green" id="model-dot"></div>
+        <span id="footer-model-name">Loading models...</span>
       </div>
     </div>
   </div>
@@ -286,6 +503,20 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     const badge = document.getElementById("badge");
     const micBtn = document.getElementById("mic-btn");
     const tray = document.getElementById("tray");
+    const progress = document.getElementById("progress");
+    const resultDrawer = document.getElementById("result-drawer");
+    const resultBody = document.getElementById("result-body");
+    const resultStatusPill = document.getElementById("result-status-pill");
+    const resultEnginePill = document.getElementById("result-engine-pill");
+    const copyBtn = document.getElementById("copy-btn");
+    const doneBtn = document.getElementById("done-btn");
+    const modelDrawer = document.getElementById("model-drawer");
+    const modelList = document.getElementById("model-list");
+    const modelConnStatus = document.getElementById("model-conn-status");
+    const footerModelTag = document.getElementById("footer-model-tag");
+    const footerModelName = document.getElementById("footer-model-name");
+    const modelDot = document.getElementById("model-dot");
+    const brandOrb = document.getElementById("brand-orb");
     const canvas = document.getElementById("waveform-canvas");
     const ctx = canvas.getContext("2d");
 
@@ -293,6 +524,9 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     let waveOffset = 0;
     let selectedIndex = 0;
     let currentSuggestions = [];
+    let currentResultRaw = "";
+    let autoCloseTimer = null;
+    let isDrawerOpen = false;
 
     // Multi-harmonic fluid sine wave visualizer
     function drawWave() {
@@ -334,16 +568,29 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       { icon: "🧮", title: "Instant Math", subtitle: "Calculate 125 * 40 + 15", query: "Calculate 125 * 40 + 15", badge: "AST Eval" },
       { icon: "🔊", title: "Adjust System Volume", subtitle: "Set volume to 80%", query: "Set volume to 80", badge: "Hardware" },
       { icon: "⚡", title: "Launch Application", subtitle: "Open Calculator", query: "Open Calculator", badge: "DesktopApp" },
-      { icon: "🌐", title: "Web Search", subtitle: "Search for quantum computing", query: "Search for quantum computing", badge: "Browser" }
+      { icon: "🖥️", title: "Inspect Screen", subtitle: "What is on my screen?", query: "what is on my screen", badge: "Zero-Vision" },
+      { icon: "🧠", title: "AI Model Status", subtitle: "Switch or view local Ollama models", query: "/model", badge: "Models" }
     ];
 
     function updateSuggestions() {
+      if (isDrawerOpen) return;
       const q = input.value.trim();
       currentSuggestions = [];
 
       if (!q) {
         currentSuggestions = defaultActions;
       } else {
+        // 0. Model command
+        if (q.startsWith("/model") || q === "models" || q === "status") {
+          currentSuggestions.push({
+            icon: "🧠",
+            title: "View & Switch Local Models",
+            subtitle: "Manage Ollama connections & zero-model fast path",
+            query: "/model",
+            badge: "Engine"
+          });
+        }
+
         // 1. Math match
         const mathClean = q.replace(/[^0-9+*/.() -]/g, "").trim();
         if (mathClean && /[+*/-]/.test(mathClean) && !mathClean.includes("**")) {
@@ -395,15 +642,14 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
           });
         }
 
-        // 5. Web Search
-        if (q.toLowerCase().startsWith("search ") || q.toLowerCase().startsWith("google ")) {
-          const queryTerm = q.replace(/^(search|google)\s+(for\s+)?/i, "").trim();
+        // 5. Screen introspection
+        if (q.toLowerCase().includes("screen") || q.toLowerCase().includes("window")) {
           currentSuggestions.push({
-            icon: "🌐",
-            title: `Search Google for "${queryTerm}"`,
-            subtitle: "Default Web Browser Query",
+            icon: "🖥️",
+            title: "Inspect Active Screen & UI Elements",
+            subtitle: "Sub-50ms deterministic accessibility tree inspection",
             query: q,
-            badge: "Browser"
+            badge: "Zero-Vision"
           });
         }
 
@@ -422,6 +668,11 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
 
     function renderSuggestions() {
       tray.innerHTML = "";
+      tray.style.display = "flex";
+      resultDrawer.classList.remove("visible");
+      modelDrawer.classList.remove("visible");
+      isDrawerOpen = false;
+
       if (selectedIndex >= currentSuggestions.length) {
         selectedIndex = 0;
       }
@@ -443,9 +694,19 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         tray.appendChild(el);
       });
 
-      // Notify Python to dynamically resize window frame
-      const totalHeight = 70 + (currentSuggestions.length * 48) + 34 + 16;
-      const targetHeight = Math.min(380, Math.max(80, totalHeight));
+      notifyResize();
+    }
+
+    function notifyResize() {
+      let contentHeight = 70 + 34 + 16;
+      if (resultDrawer.classList.contains("visible")) {
+        contentHeight = 70 + resultDrawer.scrollHeight + 34 + 18;
+      } else if (modelDrawer.classList.contains("visible")) {
+        contentHeight = 70 + modelDrawer.scrollHeight + 34 + 18;
+      } else {
+        contentHeight = 70 + (currentSuggestions.length * 48) + 34 + 16;
+      }
+      const targetHeight = Math.min(440, Math.max(80, contentHeight));
       window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({
         action: "resize",
         height: targetHeight
@@ -464,30 +725,72 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     input.addEventListener("keydown", (e) => {
       if (e.key === "ArrowDown") {
         e.preventDefault();
-        selectedIndex = (selectedIndex + 1) % currentSuggestions.length;
-        renderSuggestions();
+        if (!isDrawerOpen && currentSuggestions.length > 0) {
+          selectedIndex = (selectedIndex + 1) % currentSuggestions.length;
+          renderSuggestions();
+        }
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
-        selectedIndex = (selectedIndex - 1 + currentSuggestions.length) % currentSuggestions.length;
-        renderSuggestions();
+        if (!isDrawerOpen && currentSuggestions.length > 0) {
+          selectedIndex = (selectedIndex - 1 + currentSuggestions.length) % currentSuggestions.length;
+          renderSuggestions();
+        }
       } else if (e.key === "Tab") {
         e.preventDefault();
-        if (currentSuggestions[selectedIndex]) {
+        if (!isDrawerOpen && currentSuggestions[selectedIndex]) {
           input.value = currentSuggestions[selectedIndex].query;
           updateSuggestions();
         }
       } else if (e.key === "Enter") {
-        const item = currentSuggestions[selectedIndex];
-        const val = item ? item.query : input.value.trim();
-        if (val) {
-          submitQuery(val);
+        if (isDrawerOpen) {
+          closeDrawers();
+        } else {
+          const item = currentSuggestions[selectedIndex];
+          const val = item ? item.query : input.value.trim();
+          if (val) submitQuery(val);
         }
       } else if (e.key === "Escape") {
-        window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({ action: "close" }));
+        if (isDrawerOpen) {
+          closeDrawers();
+        } else {
+          window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({ action: "close" }));
+        }
       }
     });
 
     micBtn.addEventListener("click", toggleMic);
+    brandOrb.addEventListener("click", toggleModelDrawer);
+    footerModelTag.addEventListener("click", toggleModelDrawer);
+
+    copyBtn.addEventListener("click", () => {
+      if (currentResultRaw) {
+        window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({
+          action: "copy_to_clipboard",
+          text: currentResultRaw
+        }));
+        copyBtn.innerText = "✓ Copied!";
+        copyBtn.classList.add("active");
+        setTimeout(() => {
+          copyBtn.innerText = "📋 Copy";
+          copyBtn.classList.remove("active");
+        }, 1500);
+      }
+    });
+
+    doneBtn.addEventListener("click", closeDrawers);
+
+    function closeDrawers() {
+      if (autoCloseTimer) clearTimeout(autoCloseTimer);
+      resultDrawer.classList.remove("visible");
+      modelDrawer.classList.remove("visible");
+      tray.style.display = "flex";
+      isDrawerOpen = false;
+      badge.innerText = "Ready";
+      badge.style.color = "#00f0ff";
+      badge.style.borderColor = "rgba(0, 240, 255, 0.25)";
+      card.classList.remove("executing");
+      updateSuggestions();
+    }
 
     function toggleMic() {
       isListening = !isListening;
@@ -509,25 +812,147 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     }
 
     function submitQuery(query) {
+      if (autoCloseTimer) clearTimeout(autoCloseTimer);
       card.classList.remove("listening");
       card.classList.add("executing");
       badge.innerText = "Executing";
       badge.style.color = "#39ff14";
       badge.style.borderColor = "rgba(57, 255, 20, 0.4)";
-      window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({ action: "submit_query", query: query }));
+      progress.classList.add("active");
+
+      window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({
+        action: "submit_query",
+        query: query
+      }));
     }
 
-    // Called from Python bridge
-    window.updateOmnibar = function(status, text) {
-      badge.innerText = status;
-      if (text) {
-        input.value = text;
-        updateSuggestions();
+    function toggleModelDrawer() {
+      if (modelDrawer.classList.contains("visible")) {
+        closeDrawers();
+      } else {
+        window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({ action: "get_model_status" }));
+      }
+    }
+
+    // Called from Python bridge: window.displayResult(payload)
+    window.displayResult = function(payload) {
+      progress.classList.remove("active");
+      card.classList.remove("executing");
+      tray.style.display = "none";
+      modelDrawer.classList.remove("visible");
+      resultDrawer.classList.add("visible");
+      isDrawerOpen = true;
+
+      const respText = payload.response || "Task completed successfully.";
+      currentResultRaw = respText;
+      resultBody.innerText = respText;
+
+      const engine = payload.engine || "fast_path";
+      const latency = payload.latency_ms ? `${payload.latency_ms}ms` : "";
+
+      if (engine === "fast_path") {
+        resultEnginePill.innerText = `⚡ Fast-Path • ${latency}`;
+        resultEnginePill.className = "pill pill-fast";
+      } else if (engine === "ollama") {
+        resultEnginePill.innerText = `🧠 Ollama • ${latency}`;
+        resultEnginePill.className = "pill pill-llm";
+      } else {
+        resultEnginePill.innerText = latency ? `⚡ ${latency}` : "Done";
+        resultEnginePill.className = "pill pill-fast";
+      }
+
+      badge.innerText = "Completed";
+      badge.style.color = "#39ff14";
+      badge.style.borderColor = "rgba(57, 255, 20, 0.4)";
+
+      notifyResize();
+
+      // Transient actions auto-close after 2.8s
+      const action = payload.action || "";
+      if (["volume", "dark_mode", "clipboard_copy", "notes"].includes(action)) {
+        autoCloseTimer = setTimeout(() => {
+          window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({ action: "close" }));
+        }, 2800);
+      }
+    };
+
+    // Called from Python bridge: window.displayModelDrawer(status)
+    window.displayModelDrawer = function(status) {
+      progress.classList.remove("active");
+      tray.style.display = "none";
+      resultDrawer.classList.remove("visible");
+      modelDrawer.classList.add("visible");
+      isDrawerOpen = true;
+
+      const isConn = status.connected;
+      const current = status.current_model || "Zero-Model Fast-Path";
+      const models = status.available_models || [];
+
+      modelConnStatus.innerHTML = isConn 
+        ? `<span style="color:#39ff14">● Connected (${status.latency_ms}ms)</span>`
+        : `<span style="color:#ffb703">● Offline (0MB RAM Mode)</span>`;
+
+      modelList.innerHTML = "";
+
+      // Option 1: Fast-Path
+      const fpCard = document.createElement("div");
+      fpCard.className = "model-card" + (current === "Zero-Model Fast-Path" ? " active" : "");
+      fpCard.innerHTML = `
+        <div class="model-info">
+          <div class="model-name">⚡ Zero-Model Fast-Path</div>
+          <div class="model-desc">Sub-25ms deterministic AST dispatch, 0MB RAM overhead</div>
+        </div>
+        <div class="model-tag">${current === "Zero-Model Fast-Path" ? "ACTIVE" : "SELECT"}</div>
+      `;
+      fpCard.addEventListener("click", () => {
+        window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({
+          action: "set_model",
+          model: "Zero-Model Fast-Path"
+        }));
+      });
+      modelList.appendChild(fpCard);
+
+      // Options 2..N: Ollama local models
+      models.forEach(m => {
+        const isAct = (current === m);
+        const cardEl = document.createElement("div");
+        cardEl.className = "model-card" + (isAct ? " active" : "");
+        cardEl.innerHTML = `
+          <div class="model-info">
+            <div class="model-name">🧠 ${escapeHtml(m)}</div>
+            <div class="model-desc">Local neural reasoning model via Ollama (localhost:11434)</div>
+          </div>
+          <div class="model-tag">${isAct ? "ACTIVE" : "SELECT"}</div>
+        `;
+        cardEl.addEventListener("click", () => {
+          window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({
+            action: "set_model",
+            model: m
+          }));
+        });
+        modelList.appendChild(cardEl);
+      });
+
+      notifyResize();
+    };
+
+    // Called from Python bridge: window.updateModelStatus(status)
+    window.updateModelStatus = function(status) {
+      if (!status) return;
+      const cur = status.current_model || "Zero-Model Fast-Path";
+      footerModelName.innerText = cur.length > 22 ? cur.slice(0, 20) + "…" : cur;
+      if (status.connected) {
+        modelDot.className = "dot-green";
+      } else {
+        modelDot.className = "dot-amber";
       }
     };
 
     // Initial render
     updateSuggestions();
+    setTimeout(() => {
+      window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({ action: "get_model_status" }));
+    }, 200);
   </script>
 </body>
 </html>
@@ -554,6 +979,14 @@ class OmnibarScriptHandler:
                 self.controller.resize_window(new_h)
             elif action == "close":
                 self.controller.hide()
+            elif action == "get_model_status":
+                self.controller.on_model_status_requested()
+            elif action == "set_model":
+                model_name = payload.get("model", "")
+                self.controller.on_model_switch(model_name)
+            elif action == "copy_to_clipboard":
+                text = payload.get("text", "")
+                self.controller.copy_text(text)
         except Exception as e:
             logger.warning(f"Error handling script message: {e}")
 
@@ -561,7 +994,7 @@ class FloatingOmnibar:
     """
     Native macOS floating glassmorphic spotlight bar powered by Cocoa & WebKit.
     Floats on top of all windows and spaces on hotkey (Cmd+Shift+Space),
-    with dynamic height expansion and menubar status item.
+    with dynamic height expansion, multi-display mouse tracking, and menubar status item.
     """
 
     def __init__(self, brain=None, audio=None):
@@ -575,6 +1008,32 @@ class FloatingOmnibar:
         self._is_visible = False
         self._base_width = 720
         self._base_height = 360
+
+    def dispatch_main(self, fn):
+        """Safely dispatches a callable to the macOS main UI thread."""
+        if threading.current_thread() is threading.main_thread():
+            fn()
+            return
+        try:
+            import Cocoa
+            app = Cocoa.NSApplication.sharedApplication()
+            if app and app.isRunning():
+                Cocoa.NSOperationQueue.mainQueue().addOperationWithBlock_(fn)
+            else:
+                fn()
+        except Exception:
+            fn()
+
+    def evaluate_js(self, js_code: str):
+        """Evaluates JavaScript inside the WKWebView on the main thread."""
+        if not self._webview:
+            return
+        def _do():
+            try:
+                self._webview.evaluateJavaScript_completionHandler_(js_code, None)
+            except Exception as e:
+                logger.debug(f"JS eval error: {e}")
+        self.dispatch_main(_do)
 
     def setup_ui(self):
         """Initializes the Cocoa window, WebKit view, and status bar item."""
@@ -615,6 +1074,19 @@ class FloatingOmnibar:
             Cocoa.NSWindowCollectionBehaviorFullScreenAuxiliary
         )
 
+        # Native Frosted Vibrancy View
+        try:
+            vibrancy = Cocoa.NSVisualEffectView.alloc().initWithFrame_(
+                Cocoa.NSMakeRect(0, 0, bar_width, bar_height)
+            )
+            vibrancy.setMaterial_(Cocoa.NSVisualEffectMaterialHUDWindow)
+            vibrancy.setBlendingMode_(Cocoa.NSVisualEffectBlendingModeBehindWindow)
+            vibrancy.setState_(Cocoa.NSVisualEffectStateActive)
+            vibrancy.setAutoresizingMask_(Cocoa.NSViewWidthSizable | Cocoa.NSViewHeightSizable)
+            self._panel.contentView().addSubview_(vibrancy)
+        except Exception as e:
+            logger.debug(f"VisualEffectView not loaded: {e}")
+
         # Configure WebKit View
         config = WebKit.WKWebViewConfiguration.alloc().init()
         
@@ -648,6 +1120,12 @@ class FloatingOmnibar:
                             self.ctrl.resize_window(new_h)
                         elif act == "close":
                             self.ctrl.hide()
+                        elif act == "get_model_status":
+                            self.ctrl.on_model_status_requested()
+                        elif act == "set_model":
+                            self.ctrl.on_model_switch(payload.get("model", ""))
+                        elif act == "copy_to_clipboard":
+                            self.ctrl.copy_text(payload.get("text", ""))
                     except Exception as e:
                         logger.warning(f"Bridge dispatch error: {e}")
 
@@ -736,23 +1214,42 @@ class FloatingOmnibar:
         """Dynamically animates the Cocoa NSPanel frame height when suggestions expand."""
         if not self._panel:
             return
-        try:
-            import Cocoa
-            frame = self._panel.frame()
-            if abs(frame.size.height - new_height) < 4:
-                return
-            delta = new_height - frame.size.height
-            new_y = frame.origin.y - delta
-            new_frame = Cocoa.NSMakeRect(frame.origin.x, new_y, frame.size.width, new_height)
-            if self._webview:
-                self._webview.setFrame_(Cocoa.NSMakeRect(0, 0, frame.size.width, new_height))
-            self._panel.setFrame_display_animate_(new_frame, True, True)
-        except Exception as e:
-            logger.warning(f"Error resizing omnibar window: {e}")
+        def _do():
+            try:
+                import Cocoa
+                frame = self._panel.frame()
+                if abs(frame.size.height - new_height) < 4:
+                    return
+                delta = new_height - frame.size.height
+                new_y = frame.origin.y - delta
+                new_frame = Cocoa.NSMakeRect(frame.origin.x, new_y, frame.size.width, new_height)
+                if self._webview:
+                    self._webview.setFrame_(Cocoa.NSMakeRect(0, 0, frame.size.width, new_height))
+                self._panel.setFrame_display_animate_(new_frame, True, True)
+            except Exception as e:
+                logger.warning(f"Error resizing omnibar window: {e}")
+        self.dispatch_main(_do)
 
     def show(self):
-        """Displays and focuses the floating Omnibar."""
+        """Displays and focuses the floating Omnibar, centered on the monitor where the cursor is."""
         if self._panel:
+            try:
+                import Cocoa
+                mouse_loc = Cocoa.NSEvent.mouseLocation()
+                target_screen = Cocoa.NSScreen.mainScreen()
+                for s in Cocoa.NSScreen.screens():
+                    if Cocoa.NSPointInRect(mouse_loc, s.frame()):
+                        target_screen = s
+                        break
+                
+                screen_frame = target_screen.frame()
+                cur_frame = self._panel.frame()
+                new_x = screen_frame.origin.x + (screen_frame.size.width - cur_frame.size.width) / 2
+                new_y = screen_frame.origin.y + (screen_frame.size.height * 0.58)
+                self._panel.setFrameOrigin_(Cocoa.NSMakePoint(new_x, new_y))
+            except Exception as e:
+                logger.debug(f"Could not recenter to mouse screen: {e}")
+
             self._panel.makeKeyAndOrderFront_(None)
             self._panel.setAlphaValue_(1.0)
             self._is_visible = True
@@ -770,19 +1267,55 @@ class FloatingOmnibar:
         else:
             self.show()
 
+    def copy_text(self, text: str) -> bool:
+        """Copies text to the macOS system clipboard."""
+        try:
+            import Cocoa
+            pb = Cocoa.NSPasteboard.generalPasteboard()
+            pb.clearContents()
+            pb.setString_forType_(text, Cocoa.NSPasteboardTypeString)
+            return True
+        except Exception:
+            try:
+                import pyperclip
+                pyperclip.copy(text)
+                return True
+            except Exception as e:
+                logger.warning(f"Could not copy to clipboard: {e}")
+                return False
+
+    def on_model_status_requested(self):
+        """Retrieves model status and updates the UI drawer."""
+        if not self.brain:
+            return
+        status = self.brain.get_model_status()
+        self.evaluate_js(f"window.displayModelDrawer({json.dumps(status)});")
+        self.evaluate_js(f"window.updateModelStatus({json.dumps(status)});")
+
+    def on_model_switch(self, model_name: str):
+        """Dynamically switches active reasoning model."""
+        if self.brain:
+            self.brain.set_model(model_name)
+            status = self.brain.get_model_status()
+            self.evaluate_js(f"window.displayModelDrawer({json.dumps(status)});")
+            self.evaluate_js(f"window.updateModelStatus({json.dumps(status)});")
+
     def on_query_submitted(self, query: str):
-        """Called when user presses Enter with text."""
+        """Processes submitted query with zero flicker and expands Result Drawer."""
         logger.info(f"Omnibar query submitted: '{query}'")
         
         def _execute():
-            time.sleep(0.12)
-            self.hide()
-            
-            if self.brain:
-                res = self.brain.execute_intent(query)
-                answer = res.get("response", "Task completed.")
-                if self.audio:
-                    self.audio.speak(answer)
+            if not self.brain:
+                return
+
+            res = self.brain.execute_intent(query)
+            # Dispatch result payload to webview
+            self.evaluate_js(f"window.displayResult({json.dumps(res)});")
+
+            # Speak response if audio active
+            answer = res.get("response", "Task completed.")
+            if self.audio and not res.get("silent", False):
+                self.audio.speak(answer)
 
         threading.Thread(target=_execute, daemon=True).start()
 
@@ -793,6 +1326,7 @@ class FloatingOmnibar:
             if self.audio:
                 text = self.audio.record_and_transcribe(duration=3.5)
                 if text:
+                    self.evaluate_js(f"document.getElementById('query-input').value = {json.dumps(text)};")
                     self.on_query_submitted(text)
                 else:
                     self.audio.speak("I didn't catch that.")

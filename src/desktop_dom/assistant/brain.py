@@ -57,6 +57,38 @@ class AssistantBrain:
         except Exception:
             return None
 
+    def get_model_status(self) -> Dict[str, Any]:
+        """Returns connection health and installed models from local Ollama server."""
+        import urllib.request
+        ping_start = time.time()
+        try:
+            req = urllib.request.Request(f"{self.ollama_host}/api/tags", headers={"User-Agent": "desktop-dom"})
+            with urllib.request.urlopen(req, timeout=1.2) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                models = [m.get("name") for m in data.get("models", [])]
+                latency = round((time.time() - ping_start) * 1000, 1)
+                return {
+                    "connected": True,
+                    "host": self.ollama_host,
+                    "current_model": self.preferred_model or (models[0] if models else "llama3.2:3b"),
+                    "available_models": models,
+                    "latency_ms": latency,
+                }
+        except Exception:
+            return {
+                "connected": False,
+                "host": self.ollama_host,
+                "current_model": self.preferred_model or "Zero-Model Fast-Path",
+                "available_models": [],
+                "latency_ms": None,
+            }
+
+    def set_model(self, model_name: str) -> bool:
+        """Dynamically switches the active reasoning model."""
+        self.preferred_model = model_name
+        logger.info(f"Aura active reasoning model switched to: '{model_name}'")
+        return True
+
     def execute_intent(self, prompt: str) -> Dict[str, Any]:
         """
         Processes a natural language user query.
@@ -66,20 +98,29 @@ class AssistantBrain:
         if not clean_prompt:
             return {"status": "empty", "response": "I didn't catch that."}
 
+        start_t = time.time()
         self._notify_action("thinking", f"Processing: '{prompt}'")
 
         # 1. Fast-Path: Deterministic Intent Handling
         fast_result = self._try_deterministic_fast_path(clean_prompt, raw_prompt=prompt)
         if fast_result is not None:
+            fast_result["latency_ms"] = round((time.time() - start_t) * 1000, 1)
+            fast_result["engine"] = "fast_path"
             return fast_result
 
         # 2. General Local LLM ReAct Planning
         if self.preferred_model:
-            return self._execute_with_local_llm(prompt)
+            llm_result = self._execute_with_local_llm(prompt)
+            llm_result["latency_ms"] = round((time.time() - start_t) * 1000, 1)
+            llm_result["engine"] = "ollama"
+            return llm_result
 
+        elapsed_ms = round((time.time() - start_t) * 1000, 1)
         return {
             "status": "unhandled",
             "response": f"I heard '{prompt}', but couldn't find a matching local handler or active Ollama model.",
+            "latency_ms": elapsed_ms,
+            "engine": "none",
         }
 
     def _try_deterministic_fast_path(self, prompt: str, raw_prompt: str) -> Optional[Dict[str, Any]]:
@@ -87,6 +128,40 @@ class AssistantBrain:
         Ultra-fast, zero-hallucination deterministic action dispatch for common workflows.
         Executes in <150ms without waiting for LLM tokens.
         """
+        # 0. Model Status & Dynamic Switching
+        if prompt in {"/model", "/models", "/status", "model status", "check models", "what model"}:
+            status = self.get_model_status()
+            if status["connected"]:
+                available = ", ".join(status["available_models"]) if status["available_models"] else "None detected"
+                resp = (
+                    f"Ollama connected ({status['host']}) with {status['latency_ms']}ms latency. "
+                    f"Active Model: {status['current_model']}. Available Models: {available}."
+                )
+            else:
+                resp = (
+                    f"Active: {status['current_model']}. Ollama is currently offline at {status['host']}. "
+                    "Zero-Model Fast-Path is active (0MB RAM, sub-25ms response)."
+                )
+            self._notify_action("completed", f"Model: {status['current_model']}")
+            return {
+                "status": "success",
+                "action": "model_status",
+                "model_status": status,
+                "response": resp,
+            }
+
+        model_switch = re.match(r"^(?:/model|use model|switch model to|set model)\s+([a-zA-Z0-9._:\-]+)", prompt)
+        if model_switch:
+            new_model = model_switch.group(1).strip()
+            self.set_model(new_model)
+            self._notify_action("completed", f"Switched to {new_model}")
+            return {
+                "status": "success",
+                "action": "model_switch",
+                "model": new_model,
+                "response": f"Active reasoning model switched to '{new_model}'.",
+            }
+
         # 1. Screen Introspection & Active Window Reading
         if any(p in prompt for p in ["what is on my screen", "what's on my screen", "inspect screen", "read screen", "inspect active window", "read active window", "summarize screen", "what is on screen"]):
             return self._control_inspect_screen(prompt)
