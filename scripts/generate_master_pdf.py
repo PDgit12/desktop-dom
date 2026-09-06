@@ -540,7 +540,7 @@ def create_pdf(output_path):
     ))
     story.append(Paragraph(
         "Instead of falling back to a wasteful full-screen 4K capture, desktop-dom uses <b>Targeted Subregion Vision</b> "
-        "([`src/desktop_dom/subregion_vision.py`](file:///Users/piyushdua/desktop-dom/src/desktop_dom/subregion_vision.py)):",
+        "(<code>src/desktop_dom/subregion_vision.py</code>):",
         body_style
     ))
     story.append(Paragraph("1. Desktop-DOM locates the canvas element in the accessibility DOM (e.g. <code>canvas_figma_viewport</code>).", bullet_style))
@@ -596,7 +596,7 @@ def create_pdf(output_path):
 
     story.append(Paragraph(
         "Aura's user interface is a native macOS floating pill inspired by Raycast and Spotlight "
-        "([`src/desktop_dom/assistant/omnibar.py`](file:///Users/piyushdua/desktop-dom/src/desktop_dom/assistant/omnibar.py)):",
+        "(<code>src/desktop_dom/assistant/omnibar.py</code>):",
         body_style
     ))
 
@@ -621,7 +621,7 @@ def create_pdf(output_path):
         body_style
     ))
     story.append(Paragraph(
-        "Desktop-DOM achieves this via [`tests/conftest.py`](file:///Users/piyushdua/desktop-dom/tests/conftest.py), which implements an in-memory mock calculator tree adapter. "
+        "Desktop-DOM achieves this via <code>tests/conftest.py</code>, which implements an in-memory mock calculator tree adapter. "
         "The test suite covers schema validation, pruner algorithms, fuzzy recovery, reactive timeouts, multi-display negative coordinate calibration, "
         "audio thread concurrency, and packaging scripts across <b>83 tests passing in 3.2 seconds</b>.",
         body_style
@@ -629,7 +629,7 @@ def create_pdf(output_path):
 
     story.append(Paragraph("10.2 Cross-Platform Release Packaging Pipeline", h2_style))
     story.append(Paragraph(
-        "The unified packaging script ([`scripts/build_app.py`](file:///Users/piyushdua/desktop-dom/scripts/build_app.py) & <code>desktop-dom package --platform all</code>) builds native releases:",
+        "The unified packaging script (<code>scripts/build_app.py</code> & <code>desktop-dom package --platform all</code>) builds native releases:",
         body_style
     ))
     story.append(Paragraph("• <b>macOS:</b> Bundles <code>Aura.app</code> with portable source trees, renders <code>AppIcon.icns</code> using Pillow, and creates a 753 KB drag-and-drop <code>.dmg</code> installer via <code>hdiutil</code>.", bullet_style))
