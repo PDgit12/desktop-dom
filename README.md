@@ -108,7 +108,59 @@ desktop-dom install-mcp
 
 ---
 
-## 4. Python SDK Quickstart
+## 4. Personal Desktop Assistant (Aura): The Local Spotlight / Raycast Omnibar
+
+`desktop-dom` packages all semantic accessibility and deterministic control capabilities into **Aura** — a completely local, consumer-facing desktop assistant.
+
+Instead of slow, fragile cloud vision models, Aura runs **100% on-device** using local Speech-to-Text (`faster-whisper`), local LLM planning (`Ollama`), native zero-latency speech synthesis (`say`), and direct `desktop-dom` hardware execution.
+
+### The Floating Glassmorphic Omnibar
+* **Global Summon Shortcut:** Press `Cmd+Shift+Space` anywhere on macOS to bring up the floating pill bar over any full-screen app or virtual space.
+* **Liquid Glass HUD:** Built using a native borderless Cocoa `NSPanel` (`NSFloatingWindowLevel`) and WebKit background blur (`backdrop-filter: blur(32px)` with vibrant cyan/magenta neon glow).
+* **Live Audio Waveform:** Real-time animated audio visualizer responsive to speech activity.
+* **Sub-50ms Fast-Path Execution:** Eliminates LLM latency entirely for daily tasks (music, math, system settings, window switching, web search).
+
+### Fast-Path Actions vs. Local LLM Reasoning
+
+| Action Category | Example Natural Language Query | Execution Mechanism | Latency |
+| :--- | :--- | :--- | :--- |
+| **Media Playback** | *"Play Starboy on Spotify"*, *"Pause music"*, *"Next track"* | AppleScript + `desktop-dom` Spotify DOM search | **<120 ms** |
+| **Instant Math** | *"Calculate 125 * 40 + 15"*, *"What is 250 / 5"* | Restricted Python AST evaluation + GUI Calculator sync | **<25 ms** |
+| **System Audio** | *"Set volume to 80"*, *"Mute volume"*, *"Volume up"* | Native OS Audio Hardware Bus | **<30 ms** |
+| **App Launching** | *"Open Calculator"*, *"Switch to Slack"* | `DesktopApp.attach` + Native Window Activation | **<80 ms** |
+| **Instant Search** | *"Search for quantum computing"* | Default Web Browser Direct Query | **<90 ms** |
+| **Screen Capture** | *"Take a screenshot"* | Native OS Screen Capture | **<100 ms** |
+| **Autonomous Reasoning** | *"Summarize the open windows on my screen"* | Local Ollama ReAct Planning (`ministral-3:8b`, `qwen3:8b`) | **~350 ms** |
+
+### Assistant CLI Commands
+```bash
+# Launch the floating Spotlight Omnibar (summon with Cmd+Shift+Space)
+desktop-dom assistant
+
+# Launch conversational terminal HUD mode
+desktop-dom assistant --cli
+
+# Point to custom Ollama endpoint or preferred local model
+desktop-dom assistant --ollama-host http://localhost:11434 --model qwen3:8b
+
+# Disable voice synthesis (text-only)
+desktop-dom assistant --mute
+```
+
+### Python Assistant API
+```python
+from desktop_dom.assistant import DesktopAssistant
+
+assistant = DesktopAssistant()
+
+# Ask questions or execute commands programmatically
+response = assistant.ask("Calculate 125 * 40")
+print(response)  # "The answer is 5000."
+```
+
+---
+
+## 5. Python SDK Quickstart
 
 ### Basic Automation
 ```python
@@ -186,7 +238,7 @@ multimodal_message = {
 
 ---
 
-## 5. TypeScript SDK Quickstart
+## 6. TypeScript SDK Quickstart
 
 `@desktop-dom/core` provides a type-safe TypeScript client that connects directly to the `desktop-dom` engine:
 
@@ -207,7 +259,7 @@ await app.press("enter");
 
 ---
 
-## 6. Developer CLI & Visual Tooling
+## 7. Developer CLI & Visual Tooling
 
 ### Health Check & Permissions
 ```bash
@@ -291,7 +343,7 @@ desktop-dom serve --app "Calculator"
 
 ---
 
-## 7. OS & Window Manager Edge-Case Handling
+## 8. OS & Window Manager Edge-Case Handling
 
 Desktop environments present unique challenges that break generic automation libraries. `desktop-dom` implements dedicated engineering solutions for each OS edge case:
 
@@ -305,7 +357,7 @@ Desktop environments present unique challenges that break generic automation lib
 
 ---
 
-## 8. AI Agent Framework Integration
+## 9. AI Agent Framework Integration
 
 ### LangChain / LangGraph
 ```python
@@ -344,7 +396,7 @@ Add `desktop-dom` to your `claude.json` or `mcpServers` configuration:
 
 ---
 
-## 9. Community & Contributing
+## 10. Community & Contributing
 
 We welcome contributions from the community!
 
@@ -362,6 +414,6 @@ pytest -v
 
 ---
 
-## 10. License
+## 11. License
 
 [Apache-2.0](LICENSE) © 2026 [PDgit12](https://github.com/PDgit12).

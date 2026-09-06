@@ -360,5 +360,28 @@ def crop(
         console.print(f"[bold red]Error cropping subregion for '{target}':[/bold red] {e}")
         sys.exit(1)
 
+@app.command()
+def assistant(
+    mode: str = typer.Option("omnibar", "--mode", "-m", help="'omnibar' (floating Spotlight HUD) or 'cli' (conversational terminal)"),
+    cli: bool = typer.Option(False, "--cli", help="Shorthand for conversational terminal HUD mode"),
+    ollama_host: str = typer.Option("http://localhost:11434", "--ollama-host", help="Local Ollama endpoint"),
+    model: Optional[str] = typer.Option(None, "--model", help="Preferred Ollama model name (e.g. 'ministral-3:8b', 'qwen3:8b')"),
+    mute: bool = typer.Option(False, "--mute", help="Disable voice speech feedback (TTS)"),
+):
+    """Launches the Personal Desktop Assistant (Aura): Floating Spotlight Omnibar or Terminal HUD."""
+    from desktop_dom.assistant import DesktopAssistant
+    assistant_inst = DesktopAssistant(ollama_host=ollama_host, preferred_model=model)
+    if mute:
+        assistant_inst.audio.speak = lambda text, wait=False, rate=210: None
+
+    if cli or mode.lower() == "cli":
+        assistant_inst.run_cli_session()
+    else:
+        try:
+            assistant_inst.launch_omnibar()
+        except Exception as e:
+            console.print(f"[bold yellow]Omnibar note:[/bold yellow] {e}. Falling back to CLI mode.")
+            assistant_inst.run_cli_session()
+
 if __name__ == "__main__":
     app()
