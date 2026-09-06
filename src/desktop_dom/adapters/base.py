@@ -97,3 +97,20 @@ class BasePlatformAdapter(ABC):
         Captures a high-resolution subregion image for vision model fallback, returning base64 and token estimates.
         """
         pass
+
+    def _resolve_pid(self, app_identifier: str | int) -> Optional[int]:
+        """
+        Resolves an application name, bundle ID, or process ID to a numerical PID.
+        """
+        if isinstance(app_identifier, int):
+            return app_identifier
+        try:
+            for app in self.list_applications():
+                if str(app.get("name", "")).lower() == str(app_identifier).lower():
+                    return app.get("pid")
+                if str(app.get("bundle_id", "")).lower() == str(app_identifier).lower():
+                    return app.get("pid")
+        except Exception:
+            pass
+        return None
+

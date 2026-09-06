@@ -72,3 +72,40 @@ def test_app_stale_id_recovery():
     res = app.click("btn_clear")
     assert res["status"] == "success"
     assert res["element_id"].startswith("btn_clear_")
+
+def test_chromium_accessibility_hydration():
+    from unittest.mock import MagicMock, patch
+    from desktop_dom.adapters.macos import MacOSAdapter
+
+    adapter = MacOSAdapter.__new__(MacOSAdapter)
+    mock_app_ref = MagicMock()
+
+    with patch("desktop_dom.adapters.macos.ApplicationServices.AXUIElementSetAttributeValue") as mock_set:
+        adapter._hydrate_electron_accessibility(mock_app_ref)
+        assert mock_set.call_count == 2
+        calls = [c[0] for c in mock_set.call_args_list]
+        assert calls[0] == (mock_app_ref, "AXEnhancedUserInterface", True)
+        assert calls[1] == (mock_app_ref, "AXManualAccessibility", True)
+
+def test_chromium_accessibility_hydration_resilience():
+    from unittest.mock import MagicMock, patch
+    from desktop_dom.adapters.macos import MacOSAdapter
+
+    adapter = MacOSAdapter.__new__(MacOSAdapter)
+    mock_app_ref = MagicMock()
+
+    with patch("desktop_dom.adapters.macos.ApplicationServices.AXUIElementSetAttributeValue", side_effect=RuntimeError("AX error")):
+        # Must catch exception and continue without failing
+        adapter._hydrate_electron_accessibility(mock_app_ref)
+
+def test_app_as_tools(test_adapter):
+    app = DesktopApp.attach("Calculator", adapter=test_adapter)
+    tools = app.as_tools()
+    assert len(tools) == 4
+    tool_names = [t.name if hasattr(t, "name") else t["function"]["name"] for t in tools]
+    assert "desktop_get_screen_dom" in tool_names
+    assert "desktop_click_element" in tool_names
+    assert "desktop_type_text" in tool_names
+    assert "desktop_press_key" in tool_names
+
+

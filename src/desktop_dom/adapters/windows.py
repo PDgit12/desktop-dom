@@ -342,6 +342,30 @@ class WindowsAdapter(BasePlatformAdapter):
             )
         ]
 
+    def _find_hwnd_for_pid(self, pid: Optional[int]) -> Optional[int]:
+        if not pid:
+            return None
+        import ctypes
+        from ctypes import wintypes
+
+        found_hwnd = None
+
+        def enum_windows_callback(hwnd, extra):
+            nonlocal found_hwnd
+            lpdw_pid = wintypes.DWORD()
+            ctypes.windll.user32.GetWindowThreadProcessId(hwnd, ctypes.byref(lpdw_pid))
+            if lpdw_pid.value == pid and ctypes.windll.user32.IsWindowVisible(hwnd):
+                found_hwnd = hwnd
+                return False
+            return True
+
+        WNDENUMPROC = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+        try:
+            ctypes.windll.user32.EnumWindows(WNDENUMPROC(enum_windows_callback), 0)
+        except Exception:
+            pass
+        return found_hwnd
+
     def is_window_on_active_space(self, app_identifier: str | int) -> bool:
         self._require_windows()
         import ctypes

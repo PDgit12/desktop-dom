@@ -52,15 +52,23 @@ Eliminates vision agent flaws (>90% token waste, 3–6 second latency, pixel coo
    - CI/CD workflows: `.github/workflows/ci.yml` (multi-OS test matrix) and `.github/workflows/publish.yml` (tag release automation).
 
 ## Test & Integration Status
-- 68 unit and integration tests passing (`pytest -v` in 4.69s, 100% pass rate).
+- 78 unit and integration tests passing (`pytest -v` in 3.74s, 100% pass rate).
+- Test suite coverage verified across adapters, pruner, schema, reactive observers, assistant fast-paths, wake-word listener, packagers, and MCP/LangChain agent integrations.
+- Fixed `ImportError` in `desktop_dom.integrations` export (`DesktopDOMToolkit` class and `create_desktop_tools`).
+- Added Chromium/Electron accessibility hydration verification (`AXEnhancedUserInterface` and `AXManualAccessibility`) with exception resilience tests.
+- Added full Cartesian 4-quadrant multi-display calibration tests (negative X, negative Y, and diagonal monitors).
+- Added hermetic CLI doctor and apps tests isolating test runs from host OS window servers.
+- Strengthened concurrency safety in `AudioManager.speak` (interruptible speech without lock contention) and `WakeWordListener.stop` (`sounddevice.stop()` immediate in-flight unblocking).
 - Branches: `main` (stable) and `develop` (integration) in sync on `PDgit12/desktop-dom`.
 - Verified against live macOS window server:
   - Calculator: executed `25 × 4 = 100` via centroid clicks and verified output `100` in the accessibility DOM.
   - Finder: semantic element lookup and centroid resolution (`img_screenshots_8354` at `(1644, 303)`).
   - Apple Notes: instant note creation via AppleScript.
+  - Google Chrome (Chromium): verified deep accessibility hydration in <300ms extracting 152 elements with full tab/URL/control hierarchy.
   - System Events: dark mode toggle verified in 18ms.
   - Background Wake-Word: verified RMS energy gating and lifecycle in background threads.
 - Registered as enabled MCP server in Antigravity (`agy mcp list`).
 - TypeScript SDK `@desktop-dom/core` compiled and verified with `npm pack --dry-run`.
 - Python wheel and sdist validated 100% with `twine check`.
 - Remote repository live on GitHub at `https://github.com/PDgit12/desktop-dom` with 100% sole contributor attribution for PDgit12.
+

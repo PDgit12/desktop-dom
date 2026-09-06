@@ -31,8 +31,8 @@ class AudioManager:
             return
 
         def _run_speak():
+            self.stop_speaking()
             with self._lock:
-                self.stop_speaking()
                 try:
                     if sys.platform == "darwin":
                         self._current_speech_proc = subprocess.Popen(
@@ -51,6 +51,7 @@ class AudioManager:
                         self._current_speech_proc.wait()
                 except Exception as e:
                     logger.warning(f"Failed local speech playback: {e}")
+
 
         if wait:
             _run_speak()
@@ -200,9 +201,15 @@ class WakeWordListener:
         """Stops the background wake-word listener and releases audio streams."""
         self._is_running = False
         self._stop_event.set()
+        try:
+            import sounddevice as sd
+            sd.stop()
+        except Exception:
+            pass
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=1.5)
         logger.info("WakeWordListener stopped.")
+
 
     def _listen_loop(self) -> None:
         """Internal worker loop running audio capture and energy-gated wake detection."""

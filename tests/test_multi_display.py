@@ -69,3 +69,44 @@ def test_cli_displays_and_spaces(test_adapter, monkeypatch):
     result_spaces = runner.invoke(app, ["spaces", "--app", "Calculator"])
     assert result_spaces.exit_code == 0
     assert "visible on the current active virtual space" in result_spaces.output
+
+def test_negative_y_and_diagonal_display_calibration():
+    # 4-quadrant monitor layout:
+    # Top-Left: (-1920, -1080), Top-Right: (0, -1080)
+    # Bottom-Left: (-1920, 0), Primary (Bottom-Right): (0, 0)
+    primary = DisplayInfo(
+        id=0, name="Primary", is_primary=True,
+        bounds=BoundingBox(x=0, y=0, width=1920, height=1080), scale_factor=2.0
+    )
+    disp_left = DisplayInfo(
+        id=1, name="Left Monitor", is_primary=False,
+        bounds=BoundingBox(x=-1920, y=0, width=1920, height=1080), scale_factor=1.0
+    )
+    disp_top = DisplayInfo(
+        id=2, name="Top Monitor", is_primary=False,
+        bounds=BoundingBox(x=0, y=-1080, width=1920, height=1080), scale_factor=1.0
+    )
+    disp_top_left = DisplayInfo(
+        id=3, name="Top-Left Monitor", is_primary=False,
+        bounds=BoundingBox(x=-1920, y=-1080, width=1920, height=1080), scale_factor=1.0
+    )
+    displays = [primary, disp_left, disp_top, disp_top_left]
+
+    # 1. Element on Top Monitor (x=500, y=-600)
+    box_top = BoundingBox(x=500, y=-600, width=200, height=100)
+    matched_top = box_top.find_display(displays)
+    assert matched_top is not None
+    assert matched_top.id == 2
+    local_top = box_top.to_display_local(matched_top)
+    assert local_top.x == 500 - 0
+    assert local_top.y == -600 - (-1080)  # 480
+
+    # 2. Element on Top-Left Monitor (x=-1000, y=-500)
+    box_tl = BoundingBox(x=-1000, y=-500, width=150, height=80)
+    matched_tl = box_tl.find_display(displays)
+    assert matched_tl is not None
+    assert matched_tl.id == 3
+    local_tl = box_tl.to_display_local(matched_tl)
+    assert local_tl.x == -1000 - (-1920)  # 920
+    assert local_tl.y == -500 - (-1080)   # 580
+

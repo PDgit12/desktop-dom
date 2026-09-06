@@ -406,3 +406,49 @@ def test_cli_assistant_wake_word_flag():
     assert result.exit_code == 0
     assert "--wake-word" in result.output or "-w" in result.output
 
+def test_build_macos_packager(tmp_path):
+    from pathlib import Path
+    import sys
+    scripts_dir = Path(__file__).resolve().parent.parent / "scripts"
+    if str(scripts_dir) not in sys.path:
+        sys.path.insert(0, str(scripts_dir))
+    from build_app import build_app_bundle
+
+    app_dir = build_app_bundle(tmp_path, create_zip=True)
+    assert app_dir.exists()
+    assert (app_dir / "Contents" / "Info.plist").exists()
+    assert (app_dir / "Contents" / "MacOS" / "Aura").exists()
+    assert (tmp_path / "Aura-v0.2.0-macOS.zip").exists()
+
+def test_audio_manager_stop_speaking_concurrency():
+    audio = AudioManager()
+    mock_proc = MagicMock()
+    mock_proc.poll.return_value = None
+    audio._current_speech_proc = mock_proc
+
+    # Verify stop_speaking terminates process and clears reference
+    audio.stop_speaking()
+    mock_proc.terminate.assert_called_once()
+    assert audio._current_speech_proc is None
+
+def test_wake_word_listener_thread_termination():
+    from desktop_dom.assistant.audio import WakeWordListener
+    audio = MagicMock()
+    listener = WakeWordListener(wake_words=["aura"], audio_manager=audio)
+
+    mock_thread = MagicMock()
+    mock_thread.is_alive.return_value = True
+
+    with patch("threading.Thread", return_value=mock_thread):
+        listener.start()
+        assert listener.is_running
+        assert not listener._stop_event.is_set()
+        mock_thread.start.assert_called_once()
+
+        listener.stop()
+        assert not listener.is_running
+        assert listener._stop_event.is_set()
+        mock_thread.join.assert_called_once_with(timeout=1.5)
+
+
+

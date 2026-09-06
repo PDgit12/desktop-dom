@@ -94,3 +94,16 @@ def create_desktop_tools(app: DesktopApp) -> List[Any]:
                 "call": lambda key_combination: app.press(key_combination=key_combination),
             },
         ]
+
+class DesktopDOMToolkit:
+    """
+    Toolkit wrapping desktop-dom deterministic action and DOM query tools
+    for LangChain / LangGraph agents.
+    """
+
+    def __init__(self, app: DesktopApp):
+        self.app = app
+
+    def get_tools(self) -> List[Any]:
+        return create_desktop_tools(self.app)
+
