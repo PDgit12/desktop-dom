@@ -15,23 +15,23 @@ pytest -v
 
 # 3. Clean and build release distributions
 echo "Building wheel and source distributions..."
-rm -rf dist/
-python -m build
+rm -f dist/desktop_dom-*.whl dist/desktop_dom-*.tar.gz
+python -m build --outdir dist/
 
 # 4. Twine validation
 echo "Validating distributions with twine..."
-twine check dist/*
+twine check dist/desktop_dom-*.whl dist/desktop_dom-*.tar.gz
 
 # 5. Publishing
 echo ""
 echo "Distributions built and verified:"
-ls -lh dist/
+ls -lh dist/desktop_dom-*.whl dist/desktop_dom-*.tar.gz
 echo ""
 
 read -p "Upload to PyPI (production)? (y/N) " confirm
 if [[ "$confirm" =~ ^[Yy]$ ]]; then
-  twine upload dist/*
+  twine upload dist/desktop_dom-*.whl dist/desktop_dom-*.tar.gz
   echo "✓ Successfully published to PyPI!"
 else
-  echo "Upload skipped. You can manually upload anytime via: twine upload dist/*"
+  echo "Upload skipped. You can manually upload anytime via: twine upload dist/desktop_dom-*.whl dist/desktop_dom-*.tar.gz"
 fi

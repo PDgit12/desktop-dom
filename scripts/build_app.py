@@ -218,23 +218,43 @@ exec "$PYTHON" -m desktop_dom.cli.main assistant "$@"
     return app_dir
 
 def main():
-    parser = argparse.ArgumentParser(description="Build and package native Aura macOS application bundle.")
+    parser = argparse.ArgumentParser(description="Build and package native Aura application bundles.")
     parser.add_argument("--output-dir", "-o", default="./dist", help="Output directory for built artifacts")
     parser.add_argument("--version", "-v", default="0.2.0", help="Application version string")
-    parser.add_argument("--install", "-i", action="store_true", help="Install to ~/Applications/Aura.app")
-    parser.add_argument("--dmg", "-d", action="store_true", help="Build drag-and-drop .dmg installer")
+    parser.add_argument("--platform", "-p", default="macos", choices=["macos", "windows", "linux", "all"], help="Target platform to build for")
+    parser.add_argument("--install", "-i", action="store_true", help="Install to ~/Applications/Aura.app (macOS)")
+    parser.add_argument("--dmg", "-d", action="store_true", help="Build drag-and-drop .dmg installer (macOS)")
     parser.add_argument("--zip", "-z", action="store_true", help="Build compressed .zip archive")
     args = parser.parse_args()
 
     out = Path(args.output_dir).resolve()
     out.mkdir(parents=True, exist_ok=True)
-    build_app_bundle(
-        output_dir=out,
-        version=args.version,
-        install=args.install,
-        create_dmg=args.dmg,
-        create_zip=args.zip,
-    )
+
+    scripts_dir = Path(__file__).resolve().parent
+    if str(scripts_dir) not in sys.path:
+        sys.path.insert(0, str(scripts_dir))
+
+    target_platform = args.platform.lower()
+
+    if target_platform in ("macos", "all"):
+        if sys.platform == "darwin":
+            build_app_bundle(
+                output_dir=out,
+                version=args.version,
+                install=args.install,
+                create_dmg=args.dmg,
+                create_zip=args.zip,
+            )
+        else:
+            print("Note: macOS .app bundle packaging requires macOS host.")
+
+    if target_platform in ("windows", "all"):
+        from build_windows import build_windows_package
+        build_windows_package(out)
+
+    if target_platform in ("linux", "all"):
+        from build_linux import build_linux_package
+        build_linux_package(out)
 
 if __name__ == "__main__":
     main()

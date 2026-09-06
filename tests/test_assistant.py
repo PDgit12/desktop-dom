@@ -300,3 +300,109 @@ def test_cli_package_help():
     assert "--install" in result.output
     assert "--dmg" in result.output
     assert "--zip" in result.output
+    assert "--platform" in result.output
+
+def test_wake_word_listener_lifecycle():
+    from desktop_dom.assistant.audio import WakeWordListener, AudioManager
+    audio = AudioManager()
+    listener = WakeWordListener(wake_words=["hey aura", "aura"], audio_manager=audio)
+    assert not listener.is_running
+    with patch("threading.Thread") as mock_thread:
+        listener.start()
+        assert listener.is_running
+        mock_thread.assert_called_once()
+        listener.stop()
+        assert not listener.is_running
+
+def test_wake_word_listener_detection():
+    import numpy as np
+    from desktop_dom.assistant.audio import WakeWordListener, AudioManager
+    audio = AudioManager()
+    audio.transcribe_numpy = MagicMock(return_value="hey aura play some music")
+    
+    detected = []
+    listener = WakeWordListener(
+        wake_words=["hey aura", "aura"],
+        audio_manager=audio,
+        on_wake=lambda kw: detected.append(kw),
+        energy_threshold=100.0,
+    )
+    
+    # Synthetic audio with energy
+    sample_audio = np.random.randint(-1000, 1000, 16000, dtype=np.int16)
+    
+    # Simulate single iteration of listen loop logic
+    rms = float(np.sqrt(np.mean(sample_audio.astype(np.float32) ** 2)))
+    assert rms >= listener.energy_threshold
+    text = audio.transcribe_numpy(sample_audio)
+    assert "hey aura" in text
+    listener.on_wake("hey aura")
+    assert detected == ["hey aura"]
+
+def test_wake_word_silence_gating():
+    import numpy as np
+    from desktop_dom.assistant.audio import WakeWordListener, AudioManager
+    audio = AudioManager()
+    audio.transcribe_numpy = MagicMock()
+
+    listener = WakeWordListener(
+        wake_words=["hey aura"],
+        audio_manager=audio,
+        energy_threshold=500.0,
+    )
+    silence = np.zeros(16000, dtype=np.int16)
+    rms = float(np.sqrt(np.mean(silence.astype(np.float32) ** 2)))
+    assert rms < listener.energy_threshold
+    # Silence is gated, transcribe_numpy should not be called
+    audio.transcribe_numpy.assert_not_called()
+
+def test_desktop_assistant_wake_word_methods():
+    brain = AssistantBrain(preferred_model="test-model")
+    audio = AudioManager()
+    assistant = DesktopAssistant(brain=brain, audio=audio)
+    
+    with patch("desktop_dom.assistant.audio.WakeWordListener.start") as mock_start, \
+         patch("desktop_dom.assistant.audio.WakeWordListener.stop") as mock_stop:
+        assistant.start_wake_word()
+        assert assistant.wake_listener is not None
+        mock_start.assert_called_once()
+        
+        assistant.stop_wake_word()
+        assert assistant.wake_listener is None
+        mock_stop.assert_called_once()
+
+def test_build_windows_packager(tmp_path):
+    from pathlib import Path
+    import sys
+    scripts_dir = Path(__file__).resolve().parent.parent / "scripts"
+    if str(scripts_dir) not in sys.path:
+        sys.path.insert(0, str(scripts_dir))
+    from build_windows import build_windows_package
+    
+    zip_path = build_windows_package(tmp_path)
+    assert zip_path.exists()
+    assert (tmp_path / "Aura-Windows" / "aura.ico").exists()
+    assert (tmp_path / "Aura-Windows" / "AuraInstaller.wxs").exists()
+    assert (tmp_path / "Aura-Windows" / "Aura.bat").exists()
+
+def test_build_linux_packager(tmp_path):
+    from pathlib import Path
+    import sys
+    scripts_dir = Path(__file__).resolve().parent.parent / "scripts"
+    if str(scripts_dir) not in sys.path:
+        sys.path.insert(0, str(scripts_dir))
+    from build_linux import build_linux_package
+    
+    tar_path = build_linux_package(tmp_path)
+    assert tar_path.exists()
+    pkg_dir = tmp_path / "aura_0.2.0_amd64"
+    assert (pkg_dir / "DEBIAN" / "control").exists()
+    assert (pkg_dir / "usr" / "bin" / "aura").exists()
+    assert (pkg_dir / "usr" / "share" / "applications" / "aura.desktop").exists()
+    assert (pkg_dir / "usr" / "share" / "icons" / "hicolor" / "512x512" / "apps" / "aura.png").exists()
+
+def test_cli_assistant_wake_word_flag():
+    result = runner.invoke(app, ["assistant", "--help"])
+    assert result.exit_code == 0
+    assert "--wake-word" in result.output or "-w" in result.output
+

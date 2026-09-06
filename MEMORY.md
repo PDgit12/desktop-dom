@@ -38,9 +38,13 @@ Eliminates vision agent flaws (>90% token waste, 3–6 second latency, pixel coo
      - Spotify playback/search/controls, Calculator GUI sync, system audio volume, app switching, web search, screenshots.
      - Context-enriched ReAct fallback to local Ollama models (`ministral-3:8b`, `qwen3:8b`) with active application DOM injected into the prompt.
    - Local Audio Manager (`audio.py`): Native OS TTS (`say`) and local STT (`faster-whisper` `tiny.en` on CPU/int8) for zero cloud cost and full privacy.
-   - High-Level Coordinator (`__init__.py`): `DesktopAssistant` with `launch_omnibar()`, `run_cli_session()`, and `ask()`.
-5. **Distribution, Packaging & Frictionless DX:**
-   - Standalone Native macOS Application Bundle (`scripts/build_app.py` & `desktop-dom package`): Builds `Aura.app` with custom PIL-rendered high-res `AppIcon.icns` (compiled with `iconutil`), `Info.plist` (`LSUIElement: 1`), launcher executable, installed to `~/Applications`, and native drag-and-drop `.dmg` installer (202 KB) via `hdiutil`.
+   - Continuous Wake-Word Engine (`audio.py`): `WakeWordListener` with sliding audio capture and RMS energy thresholding (<0.5% idle CPU). Listens for "Hey Aura" / "Aura" and activates the Omnibar or assistant callback on-device.
+   - High-Level Coordinator (`__init__.py`): `DesktopAssistant` with `launch_omnibar(enable_wake_word=True)`, `start_wake_word()`, `run_cli_session()`, and `ask()`.
+5. **Distribution, Packaging & Multi-Platform Matrix:**
+   - Unified Packager (`scripts/build_app.py` & `desktop-dom package --platform [macos|windows|linux|all]`):
+     - macOS: Standalone `Aura.app` bundle, PIL-rendered `AppIcon.icns`, installed to `~/Applications`, and native `.dmg` drag-and-drop installer (202 KB) via `hdiutil`.
+     - Windows: Standalone `Aura-Windows` bundle, multi-size `aura.ico`, WiX Toolset `.msi` installer spec (`AuraInstaller.wxs`), and `.zip` archive.
+     - Linux: Debian package structure (`DEBIAN/control`, `/usr/bin/aura`, `/usr/share/applications/aura.desktop`), `AppRun` for AppImage, and `.tar.gz` archive.
    - Single-command installer: `install.sh` (`curl -fsSL ... | bash`).
    - 1-click MCP configurator: `desktop-dom install-mcp` (Claude Desktop / Cursor).
    - Git Flow branching: `main` (production-ready stable) and `develop` (active integration) with `CONTRIBUTING.md`.
@@ -48,13 +52,14 @@ Eliminates vision agent flaws (>90% token waste, 3–6 second latency, pixel coo
    - CI/CD workflows: `.github/workflows/ci.yml` (multi-OS test matrix) and `.github/workflows/publish.yml` (tag release automation).
 
 ## Test & Integration Status
-- 61 unit and integration tests passing (`pytest -v` in 2.27s, 100% pass rate).
+- 68 unit and integration tests passing (`pytest -v` in 4.69s, 100% pass rate).
 - Branches: `main` (stable) and `develop` (integration) in sync on `PDgit12/desktop-dom`.
 - Verified against live macOS window server:
   - Calculator: executed `25 × 4 = 100` via centroid clicks and verified output `100` in the accessibility DOM.
   - Finder: semantic element lookup and centroid resolution (`img_screenshots_8354` at `(1644, 303)`).
   - Apple Notes: instant note creation via AppleScript.
   - System Events: dark mode toggle verified in 18ms.
+  - Background Wake-Word: verified RMS energy gating and lifecycle in background threads.
 - Registered as enabled MCP server in Antigravity (`agy mcp list`).
 - TypeScript SDK `@desktop-dom/core` compiled and verified with `npm pack --dry-run`.
 - Python wheel and sdist validated 100% with `twine check`.

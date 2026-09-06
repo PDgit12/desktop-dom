@@ -364,6 +364,7 @@ def crop(
 def assistant(
     mode: str = typer.Option("omnibar", "--mode", "-m", help="'omnibar' (floating Spotlight HUD) or 'cli' (conversational terminal)"),
     cli: bool = typer.Option(False, "--cli", help="Shorthand for conversational terminal HUD mode"),
+    wake_word: bool = typer.Option(False, "--wake-word", "-w", help="Enable continuous on-device wake-word detection ('Hey Aura')"),
     ollama_host: str = typer.Option("http://localhost:11434", "--ollama-host", help="Local Ollama endpoint"),
     model: Optional[str] = typer.Option(None, "--model", help="Preferred Ollama model name (e.g. 'ministral-3:8b', 'qwen3:8b')"),
     mute: bool = typer.Option(False, "--mute", help="Disable voice speech feedback (TTS)"),
@@ -373,6 +374,10 @@ def assistant(
     assistant_inst = DesktopAssistant(ollama_host=ollama_host, preferred_model=model)
     if mute:
         assistant_inst.audio.speak = lambda text, wait=False, rate=210: None
+
+    if wake_word:
+        console.print("[dim]Starting on-device background wake-word listener ('Hey Aura')...[/dim]")
+        assistant_inst.start_wake_word()
 
     if cli or mode.lower() == "cli":
         assistant_inst.run_cli_session()
@@ -385,16 +390,13 @@ def assistant(
 
 @app.command()
 def package(
-    install: bool = typer.Option(False, "--install", "-i", help="Automatically install Aura.app to ~/Applications"),
-    dmg: bool = typer.Option(False, "--dmg", "-d", help="Create drag-and-drop .dmg disk image installer"),
+    platform: str = typer.Option("macos" if sys.platform == "darwin" else "all", "--platform", "-p", help="Target OS platform ('macos', 'windows', 'linux', or 'all')"),
+    install: bool = typer.Option(False, "--install", "-i", help="Automatically install Aura.app to ~/Applications (macOS)"),
+    dmg: bool = typer.Option(False, "--dmg", "-d", help="Create drag-and-drop .dmg disk image installer (macOS)"),
     zip_archive: bool = typer.Option(False, "--zip", "-z", help="Create compressed .zip release archive"),
     out: str = typer.Option("./dist", "--out", "-o", help="Output directory for built packages"),
 ):
-    """Packages Aura as a native macOS Application Bundle (.app), DMG installer, or ZIP."""
-    if sys.platform != "darwin":
-        console.print("[bold yellow]Native .app packaging is currently supported on macOS.[/bold yellow]")
-        sys.exit(1)
-
+    """Packages Aura as a native application installer (.dmg, .zip, .msi, or .deb)."""
     from pathlib import Path
     import subprocess
     script_path = Path(__file__).resolve().parent.parent.parent.parent / "scripts" / "build_app.py"
@@ -402,7 +404,7 @@ def package(
         console.print(f"[bold red]Packaging script not found at:[/bold red] {script_path}")
         sys.exit(1)
 
-    cmd = [sys.executable, str(script_path), "--output-dir", out]
+    cmd = [sys.executable, str(script_path), "--output-dir", out, "--platform", platform]
     if install:
         cmd.append("--install")
     if dmg:

@@ -1,10 +1,10 @@
 from __future__ import annotations
 import sys
 import logging
-from typing import Optional
+from typing import Optional, Callable
 
 from desktop_dom.assistant.brain import AssistantBrain
-from desktop_dom.assistant.audio import AudioManager
+from desktop_dom.assistant.audio import AudioManager, WakeWordListener
 from desktop_dom.assistant.omnibar import FloatingOmnibar
 
 logger = logging.getLogger("desktop_dom.assistant")
@@ -12,7 +12,8 @@ logger = logging.getLogger("desktop_dom.assistant")
 class DesktopAssistant:
     """
     Unified high-level entrypoint for the Personal Desktop Assistant (Aura).
-    Orchestrates speech-to-text, local LLM brain, desktop-dom action dispatch, and floating HUD Omnibar.
+    Orchestrates speech-to-text, local LLM brain, desktop-dom action dispatch, floating HUD Omnibar,
+    and continuous on-device wake-word detection.
     """
 
     def __init__(
@@ -25,8 +26,26 @@ class DesktopAssistant:
         self.brain = brain or AssistantBrain(ollama_host=ollama_host, preferred_model=preferred_model)
         self.audio = audio or AudioManager()
         self.omnibar = None
+        self.wake_listener: Optional[WakeWordListener] = None
         if sys.platform == "darwin":
             self.omnibar = FloatingOmnibar(brain=self.brain, audio=self.audio)
+
+    def start_wake_word(self, on_wake: Optional[Callable[[str], None]] = None):
+        """Starts background wake-word listening ('Hey Aura', 'Aura')."""
+        def _default_on_wake(kw: str):
+            logger.info(f"Wake word '{kw}' activated Aura.")
+            if self.omnibar:
+                self.omnibar.toggle()
+
+        cb = on_wake or _default_on_wake
+        self.wake_listener = WakeWordListener(audio_manager=self.audio, on_wake=cb)
+        self.wake_listener.start()
+
+    def stop_wake_word(self):
+        """Stops background wake-word listening."""
+        if self.wake_listener:
+            self.wake_listener.stop()
+            self.wake_listener = None
 
     def ask(self, prompt: str) -> str:
         """Processes a query and speaks confirmation."""
@@ -35,10 +54,12 @@ class DesktopAssistant:
         self.audio.speak(reply)
         return reply
 
-    def launch_omnibar(self):
+    def launch_omnibar(self, enable_wake_word: bool = False):
         """Launches the native floating Spotlight/Raycast Omnibar."""
         if not self.omnibar:
             raise RuntimeError("Floating Omnibar currently requires macOS Cocoa & WebKit.")
+        if enable_wake_word:
+            self.start_wake_word()
         self.omnibar.run()
 
     def run_cli_session(self):
@@ -80,4 +101,4 @@ class DesktopAssistant:
                 console.print("\n[dim]Session terminated.[/dim]")
                 break
 
-__all__ = ["DesktopAssistant", "AssistantBrain", "AudioManager", "FloatingOmnibar"]
+__all__ = ["DesktopAssistant", "AssistantBrain", "AudioManager", "FloatingOmnibar", "WakeWordListener"]
