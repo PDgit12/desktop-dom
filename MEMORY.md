@@ -28,11 +28,19 @@ Eliminates vision agent flaws (>90% token waste, 3–6 second latency, pixel coo
 4. **Personal Desktop Assistant (Aura & Floating Omnibar):**
    - Package: `src/desktop_dom/assistant/`
    - Floating Spotlight Omnibar (`omnibar.py`): Native borderless Cocoa `NSPanel` (`NSFloatingWindowLevel`), `WKWebView` with liquid glass blur (`backdrop-filter: blur(40px) saturate(210%)`), dynamic frame height expansion via `setFrame_display_animate_`, live contextual suggestion tray (with instant arithmetic computation), full keyboard navigation (`↑`/`↓`/`Tab`/`↵`/`Esc`), triple-harmonic canvas waveform visualizer, and native macOS menu bar status item (`NSStatusItem`) with `⚡` icon.
-   - Dual-Engine Brain (`brain.py`): Sub-50ms deterministic fast-paths for Spotify playback/search/controls, Calculator GUI sync, system audio volume, app switching, web search, screenshots, plus ReAct fallback to local Ollama models (`ministral-3:8b`, `qwen3:8b`).
+   - Dual-Engine Brain (`brain.py`): Sub-50ms deterministic fast-paths for:
+     - Screen introspection ("what is on my screen / inspect active window") extracting semantic DOM hierarchies in <50ms without multimodal vision tokens.
+     - Appearance mode toggling (Dark/Light mode) via macOS System Events.
+     - Apple Notes creation with automated title and body parsing.
+     - Clipboard read/write inspection and native system notification dispatch.
+     - Window management (minimize, maximize, close).
+     - Semantic UI actions: click, type, and press by role or name with pixel-accurate centroid resolution.
+     - Spotify playback/search/controls, Calculator GUI sync, system audio volume, app switching, web search, screenshots.
+     - Context-enriched ReAct fallback to local Ollama models (`ministral-3:8b`, `qwen3:8b`) with active application DOM injected into the prompt.
    - Local Audio Manager (`audio.py`): Native OS TTS (`say`) and local STT (`faster-whisper` `tiny.en` on CPU/int8) for zero cloud cost and full privacy.
    - High-Level Coordinator (`__init__.py`): `DesktopAssistant` with `launch_omnibar()`, `run_cli_session()`, and `ask()`.
 5. **Distribution, Packaging & Frictionless DX:**
-   - Standalone Native macOS Application Bundle (`scripts/build_app.py` & `desktop-dom package`): Builds `Aura.app` with custom PIL-rendered high-res `AppIcon.icns` (compiled with `iconutil`), `Info.plist` (`LSUIElement: 1`), launcher executable, optional install to `~/Applications`, and native drag-and-drop `.dmg` installer via `hdiutil`.
+   - Standalone Native macOS Application Bundle (`scripts/build_app.py` & `desktop-dom package`): Builds `Aura.app` with custom PIL-rendered high-res `AppIcon.icns` (compiled with `iconutil`), `Info.plist` (`LSUIElement: 1`), launcher executable, installed to `~/Applications`, and native drag-and-drop `.dmg` installer (202 KB) via `hdiutil`.
    - Single-command installer: `install.sh` (`curl -fsSL ... | bash`).
    - 1-click MCP configurator: `desktop-dom install-mcp` (Claude Desktop / Cursor).
    - Git Flow branching: `main` (production-ready stable) and `develop` (active integration) with `CONTRIBUTING.md`.
@@ -40,9 +48,13 @@ Eliminates vision agent flaws (>90% token waste, 3–6 second latency, pixel coo
    - CI/CD workflows: `.github/workflows/ci.yml` (multi-OS test matrix) and `.github/workflows/publish.yml` (tag release automation).
 
 ## Test & Integration Status
-- 54 unit and integration tests passing (`pytest -v` in 4.27s, 100% pass rate).
+- 61 unit and integration tests passing (`pytest -v` in 2.27s, 100% pass rate).
 - Branches: `main` (stable) and `develop` (integration) in sync on `PDgit12/desktop-dom`.
-- Verified against live macOS window server on Calculator: executed `25 × 4 = 100` via centroid clicks and verified output `100` in the accessibility DOM.
+- Verified against live macOS window server:
+  - Calculator: executed `25 × 4 = 100` via centroid clicks and verified output `100` in the accessibility DOM.
+  - Finder: semantic element lookup and centroid resolution (`img_screenshots_8354` at `(1644, 303)`).
+  - Apple Notes: instant note creation via AppleScript.
+  - System Events: dark mode toggle verified in 18ms.
 - Registered as enabled MCP server in Antigravity (`agy mcp list`).
 - TypeScript SDK `@desktop-dom/core` compiled and verified with `npm pack --dry-run`.
 - Python wheel and sdist validated 100% with `twine check`.
