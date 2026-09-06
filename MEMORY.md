@@ -52,13 +52,18 @@ Eliminates vision agent flaws (>90% token waste, 3–6 second latency, pixel coo
    - CI/CD workflows: `.github/workflows/ci.yml` (multi-OS test matrix) and `.github/workflows/publish.yml` (tag release automation).
 
 ## Test & Integration Status
-- 81 unit and integration tests passing (`pytest -v` in 5.20s, 100% pass rate).
+- 83 unit and integration tests passing (`pytest -v` in 3.20s, 100% pass rate).
 - Completed 5 comprehensive multi-disciplinary subagent audits:
   1. Security Audit: B+ (81.6/100). Hardened shell=False, escaped PowerShell and AppleScript strings, prevented exponentiation DoS, fixed JS regex syntax error, and removed hardcoded developer paths from distributed launcher.
   2. UI/UX Audit: Aesthetic 88/100, UX 81/100. Liquid glass Omnibar, 3-harmonic audio waveform, result drawer pattern, dynamic frame animations.
   3. Code Quality & Performance Audit: B+ (86/100). Sub-millisecond pruning ($O(N)$ 0.31ms for 1,093 nodes, 96% reduction), bounded DOM cache to 1,000 items, zero-disk in-memory audio transcription.
-  4. Testing & QA Audit: 100% pass rate across 81 tests. Hermetic CI fixtures, Chromium hydration, 4-quadrant multi-display calibration, thread concurrency safety.
+  4. Testing & QA Audit: 100% pass rate across 83 tests. Hermetic CI fixtures, Chromium hydration, 4-quadrant multi-display calibration, thread concurrency safety.
   5. Product Strategy & Founder Alignment: Tailored thesis for Crcle.ai founders (Joshua Rayan & Cyril Rayan), competitive breakdown vs Claude/Gemini, 3-minute live demo script, and technical defense.
+- **Frictionless Local AI Model Switcher & Result Drawer:**
+  - 1-Click Model Drawer: Click the brand orb ⚡ or footer model tag, or type `/model`. Live-queries `localhost:11434/api/tags` and presents installed neural weights (`ministral-3:8b`, `qwen3:8b`) alongside the `Zero-Model Fast-Path` (0MB RAM, sub-25ms offline).
+  - Native Result Drawer: Expands cleanly beneath the input bar to display the formatted response, latency badge (`⚡ 18ms Fast-Path` vs `🧠 840ms Ollama`), `[📋 Copy]` to clipboard, and `[Done] (Esc)` dismissal. Transient system actions (volume, dark mode) auto-dismiss after 2.8s.
+  - Multi-Display Mouse Tracking: Uses `Cocoa.NSEvent.mouseLocation()` to detect the active monitor and center the Omnibar where the user is working.
+  - Hardware-Accelerated macOS Vibrancy: Combines `NSVisualEffectView` (`NSVisualEffectMaterialHUDWindow`) with transparent `WKWebView`.
 - **Cursor-Free Background Execution ("Don't Disturb My Cursor"):**
   - Priority 1: Direct Accessibility Invocations (`AXUIElementPerformAction(kAXPressAction)` on macOS, `InvokePattern` on Windows, `AtspiAction` on Linux). Executes clicks internally with ZERO physical mouse pointer movement, ZERO window activation, and ZERO focus theft!
   - Priority 2: Ghost Click Coordinate Preservation. Records current cursor position via `Quartz.CGEventGetLocation(CGEventCreate(None))` and seamlessly restores it instantly via `CGWarpMouseCursorPosition`, ensuring the user's cursor remains exactly where they are working.
