@@ -345,17 +345,19 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         currentSuggestions = defaultActions;
       } else {
         // 1. Math match
-        const mathClean = q.replace(/[^0-9+\\-*/.() ]/g, "").trim();
-        if (mathClean && /[+\\-*/]/.test(mathClean)) {
+        const mathClean = q.replace(/[^0-9+*/.() -]/g, "").trim();
+        if (mathClean && /[+*/-]/.test(mathClean) && !mathClean.includes("**")) {
           try {
             const evaluated = Function('"use strict";return (' + mathClean + ')')();
-            currentSuggestions.push({
-              icon: "🧮",
-              title: `= ${evaluated}`,
-              subtitle: `Calculate ${mathClean}`,
-              query: q,
-              badge: "Instant Math"
-            });
+            if (typeof evaluated === "number" && isFinite(evaluated)) {
+              currentSuggestions.push({
+                icon: "🧮",
+                title: `= ${evaluated}`,
+                subtitle: `Calculate ${mathClean}`,
+                query: q,
+                badge: "Instant Math"
+              });
+            }
           } catch(e) {}
         }
 

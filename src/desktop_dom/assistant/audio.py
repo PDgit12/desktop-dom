@@ -39,7 +39,8 @@ class AudioManager:
                             ["say", "-r", str(rate), text]
                         )
                     elif sys.platform.startswith("win"):
-                        ps_cmd = f"Add-Type -AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak('{text}')"
+                        safe_text = text.replace("'", "''")
+                        ps_cmd = f"Add-Type -AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak('{safe_text}')"
                         self._current_speech_proc = subprocess.Popen(["powershell", "-NoProfile", "-Command", ps_cmd])
                     else:
                         if shutil.which("spd-say"):
@@ -95,6 +96,11 @@ class AudioManager:
         if max_amplitude < 500: # Near silence
             logger.info("Microphone input below silence threshold.")
             return None
+
+        # Zero-disk in-memory transcription directly from numpy array
+        direct_text = self.transcribe_numpy(recording)
+        if direct_text:
+            return direct_text
 
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
             tmp_path = tmp.name

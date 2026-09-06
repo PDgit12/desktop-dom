@@ -448,29 +448,55 @@ class MacOSAdapter(BasePlatformAdapter):
             disabled=disabled,
         )
 
-    def click(self, node: DesktopNode, button: Literal["left", "right", "double"] = "left") -> None:
+    def click(self, node: DesktopNode, button: Literal["left", "right", "double"] = "left", cursor_free: bool = True) -> None:
         cx, cy = node.bbox.centroid
-        self.click_coords(cx, cy, button=button)
+        if cursor_free and button == "left":
+            try:
+                system_ref = ApplicationServices.AXUIElementCreateSystemWide()
+                err_elem, elem_ref = ApplicationServices.AXUIElementCopyElementAtPosition(system_ref, float(cx), float(cy), None)
+                if err_elem == 0 and elem_ref is not None:
+                    err_act, actions = ApplicationServices.AXUIElementCopyActionNames(elem_ref, None)
+                    if err_act == 0 and actions and ApplicationServices.kAXPressAction in actions:
+                        err_p = ApplicationServices.AXUIElementPerformAction(elem_ref, ApplicationServices.kAXPressAction)
+                        if err_p == 0:
+                            logger.debug(f"Direct AXPress succeeded on element at ({cx}, {cy}) with zero cursor disruption.")
+                            time.sleep(0.02)
+                            return
+            except Exception as e:
+                logger.debug(f"Direct accessibility action failed, falling back to ghost click: {e}")
 
-    def click_coords(self, x: int, y: int, button: Literal["left", "right", "double"] = "left") -> None:
+        self.click_coords(cx, cy, button=button, restore_cursor=cursor_free)
+
+    def click_coords(
+        self,
+        x: int,
+        y: int,
+        button: Literal["left", "right", "double"] = "left",
+        restore_cursor: bool = True,
+    ) -> None:
+        # 0. Save current physical mouse position to prevent user disruption
+        cur_pos = None
+        if restore_cursor:
+            try:
+                ev = Quartz.CGEventCreate(None)
+                if ev:
+                    cur_pos = Quartz.CGEventGetLocation(ev)
+            except Exception as e:
+                logger.debug(f"Could not record cursor position: {e}")
+
         pt = Quartz.CGPoint(x, y)
         btn_type = Quartz.kCGMouseButtonLeft if button in {"left", "double"} else Quartz.kCGMouseButtonRight
         down_type = Quartz.kCGEventLeftMouseDown if button in {"left", "double"} else Quartz.kCGEventRightMouseDown
         up_type = Quartz.kCGEventLeftMouseUp if button in {"left", "double"} else Quartz.kCGEventRightMouseUp
 
-        # 1. Smooth synthetic mouse move
-        move = Quartz.CGEventCreateMouseEvent(None, Quartz.kCGEventMouseMoved, pt, btn_type)
-        Quartz.CGEventPost(Quartz.kCGHIDEventTap, move)
-        time.sleep(0.02)
-
-        # 2. Click 1: Mouse down + up
+        # 1. Click 1: Mouse down + up directly at target coordinates
         down = Quartz.CGEventCreateMouseEvent(None, down_type, pt, btn_type)
         up = Quartz.CGEventCreateMouseEvent(None, up_type, pt, btn_type)
         Quartz.CGEventPost(Quartz.kCGHIDEventTap, down)
         time.sleep(0.01)
         Quartz.CGEventPost(Quartz.kCGHIDEventTap, up)
 
-        # 3. Double click dispatch
+        # 2. Double click dispatch
         if button == "double":
             time.sleep(0.05)
             down2 = Quartz.CGEventCreateMouseEvent(None, down_type, pt, btn_type)
@@ -481,11 +507,44 @@ class MacOSAdapter(BasePlatformAdapter):
             time.sleep(0.01)
             Quartz.CGEventPost(Quartz.kCGHIDEventTap, up2)
 
-        time.sleep(0.05)
+        # 3. Seamlessly restore user's physical cursor so user can keep working undisturbed
+        if restore_cursor and cur_pos is not None:
+            try:
+                Quartz.CGWarpMouseCursorPosition(cur_pos)
+            except Exception as e:
+                logger.debug(f"Could not restore cursor position: {e}")
 
-    def type_text(self, node: Optional[DesktopNode], text: str, clear_first: bool = False) -> None:
+        time.sleep(0.02)
+
+    def type_text(
+        self,
+        node: Optional[DesktopNode],
+        text: str,
+        clear_first: bool = False,
+        cursor_free: bool = True,
+    ) -> None:
+        if node is not None and cursor_free:
+            cx, cy = node.bbox.centroid
+            try:
+                system_ref = ApplicationServices.AXUIElementCreateSystemWide()
+                err_elem, elem_ref = ApplicationServices.AXUIElementCopyElementAtPosition(system_ref, float(cx), float(cy), None)
+                if err_elem == 0 and elem_ref is not None:
+                    err_sett, settable = ApplicationServices.AXUIElementIsAttributeSettable(
+                        elem_ref, ApplicationServices.kAXValueAttribute, None
+                    )
+                    if err_sett == 0 and settable:
+                        new_val = text if clear_first else ((node.value or "") + text)
+                        err_val = ApplicationServices.AXUIElementSetAttributeValue(
+                            elem_ref, ApplicationServices.kAXValueAttribute, new_val
+                        )
+                        if err_val == 0:
+                            logger.debug(f"Direct AXValue set to '{text}' without keyboard focus theft.")
+                            return
+            except Exception as e:
+                logger.debug(f"Direct AXValue setting failed, falling back to keystroke synthesis: {e}")
+
         if node is not None:
-            self.click(node, button="left")
+            self.click(node, button="left", cursor_free=cursor_free)
             time.sleep(0.05)
 
         if clear_first:

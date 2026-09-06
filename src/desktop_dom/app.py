@@ -1,8 +1,9 @@
 from __future__ import annotations
+import shlex
 import subprocess
 import time
 import logging
-from typing import Optional, List, Dict, Any, Literal, Union, Callable
+from typing import Optional, List, Dict, Any, Literal, Union, Callable, Tuple
 
 
 from desktop_dom.adapters import get_platform_adapter
@@ -35,10 +36,11 @@ class DesktopApp:
     @classmethod
     def launch(cls, command: str, app_name: Optional[str] = None, wait_seconds: float = 1.5) -> DesktopApp:
         """
-        Spawns an application subprocess, waits briefly for the window to render, and attaches.
+        Spawns an application subprocess safely without shell=True, waits briefly for the window to render, and attaches.
         """
         logger.info(f"Launching application command: {command}")
-        proc = subprocess.Popen(command, shell=True)
+        args = shlex.split(command) if isinstance(command, str) else list(command)
+        proc = subprocess.Popen(args, shell=False)
         time.sleep(wait_seconds)
         target = app_name or proc.pid
         return cls(target)
@@ -345,6 +347,9 @@ class DesktopApp:
 
     def _index_nodes(self, node: DesktopNode):
         self._node_lookup[node.id] = node
+        if len(self._cached_nodes_history) > 1000:
+            for k in list(self._cached_nodes_history.keys())[:200]:
+                self._cached_nodes_history.pop(k, None)
         self._cached_nodes_history[node.id] = node
         for child in node.children:
             self._index_nodes(child)

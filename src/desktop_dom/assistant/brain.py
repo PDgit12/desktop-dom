@@ -158,7 +158,7 @@ class AssistantBrain:
             if math_expr and any(op in math_expr for op in ["+", "-", "*", "/"]):
                 try:
                     allowed_chars = set("0123456789+-*/.() ")
-                    if all(c in allowed_chars for c in math_expr):
+                    if all(c in allowed_chars for c in math_expr) and "**" not in math_expr:
                         val = eval(math_expr, {"__builtins__": None}, {})
                         res_str = f"{val:g}" if isinstance(val, float) else str(val)
                         self._notify_action("completed", f"Result: {res_str}")
@@ -577,6 +577,7 @@ class AssistantBrain:
     def _control_spotify_play(self, query: str) -> Dict[str, Any]:
         """Plays a song or artist in Spotify using desktop-dom or native OSA dispatch."""
         if sys.platform == "darwin":
+            safe_query = query.replace('\\', '\\\\').replace('"', '\\"')
             osa = f'''
             tell application "Spotify"
                 activate
@@ -586,7 +587,7 @@ class AssistantBrain:
                 tell process "Spotify"
                     keystroke "l" using command down
                     delay 0.1
-                    keystroke "{query}"
+                    keystroke "{safe_query}"
                     delay 0.2
                     key code 36
                 end tell

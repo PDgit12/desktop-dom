@@ -108,4 +108,72 @@ def test_app_as_tools(test_adapter):
     assert "desktop_type_text" in tool_names
     assert "desktop_press_key" in tool_names
 
+def test_macos_adapter_cursor_free_direct_press():
+    from unittest.mock import MagicMock, patch
+    from desktop_dom.adapters.macos import MacOSAdapter
+    from desktop_dom.schema import DesktopNode, BoundingBox
+
+    adapter = MacOSAdapter.__new__(MacOSAdapter)
+    node = DesktopNode(
+        id="btn_1",
+        role="button",
+        name="Submit",
+        bbox=BoundingBox(x=100, y=200, width=80, height=30)
+    )
+
+    mock_elem = MagicMock()
+    with patch("desktop_dom.adapters.macos.ApplicationServices.AXUIElementCreateSystemWide") as mock_sys, \
+         patch("desktop_dom.adapters.macos.ApplicationServices.AXUIElementCopyElementAtPosition", return_value=(0, mock_elem)), \
+         patch("desktop_dom.adapters.macos.ApplicationServices.AXUIElementCopyActionNames", return_value=(0, ["AXPress"])), \
+         patch("desktop_dom.adapters.macos.ApplicationServices.AXUIElementPerformAction", return_value=0) as mock_perform, \
+         patch("desktop_dom.adapters.macos.Quartz.CGEventPost") as mock_post:
+
+        adapter.click(node, button="left", cursor_free=True)
+        # Direct action performed with ZERO synthetic mouse events posted
+        mock_perform.assert_called_once_with(mock_elem, "AXPress")
+        mock_post.assert_not_called()
+
+def test_macos_adapter_ghost_click_restore():
+    from unittest.mock import MagicMock, patch
+    from desktop_dom.adapters.macos import MacOSAdapter
+
+    adapter = MacOSAdapter.__new__(MacOSAdapter)
+    mock_cur_pos = MagicMock(x=500.0, y=500.0)
+
+    with patch("desktop_dom.adapters.macos.Quartz.CGEventCreate", return_value=MagicMock()), \
+         patch("desktop_dom.adapters.macos.Quartz.CGEventGetLocation", return_value=mock_cur_pos), \
+         patch("desktop_dom.adapters.macos.Quartz.CGEventCreateMouseEvent", return_value=MagicMock()), \
+         patch("desktop_dom.adapters.macos.Quartz.CGEventPost"), \
+         patch("desktop_dom.adapters.macos.Quartz.CGWarpMouseCursorPosition") as mock_warp:
+
+        adapter.click_coords(200, 300, button="left", restore_cursor=True)
+        # Mouse cursor restored to original user position
+        mock_warp.assert_called_once_with(mock_cur_pos)
+
+def test_macos_adapter_cursor_free_direct_value():
+    from unittest.mock import MagicMock, patch
+    from desktop_dom.adapters.macos import MacOSAdapter
+    from desktop_dom.schema import DesktopNode, BoundingBox
+
+    adapter = MacOSAdapter.__new__(MacOSAdapter)
+    node = DesktopNode(
+        id="inp_1",
+        role="input",
+        name="Search",
+        bbox=BoundingBox(x=100, y=200, width=200, height=30)
+    )
+
+    mock_elem = MagicMock()
+    with patch("desktop_dom.adapters.macos.ApplicationServices.AXUIElementCreateSystemWide"), \
+         patch("desktop_dom.adapters.macos.ApplicationServices.AXUIElementCopyElementAtPosition", return_value=(0, mock_elem)), \
+         patch("desktop_dom.adapters.macos.ApplicationServices.AXUIElementIsAttributeSettable", return_value=(0, True)), \
+         patch("desktop_dom.adapters.macos.ApplicationServices.AXUIElementSetAttributeValue", return_value=0) as mock_set_val, \
+         patch("desktop_dom.adapters.macos.Quartz.CGEventPost") as mock_post:
+
+        adapter.type_text(node, "hello world", cursor_free=True)
+        # Direct value set without keyboard focus theft
+        mock_set_val.assert_called_once_with(mock_elem, "AXValue", "hello world")
+        mock_post.assert_not_called()
+
+
 
