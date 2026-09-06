@@ -149,14 +149,20 @@ If an agent acts on an element ID after a UI mutation (e.g. clicking a dropdown 
 `desktop-dom` packages its core engine into a consumer-facing local assistant (**Aura**):
 1. **Floating Liquid Glass Omnibar (`FloatingOmnibar`):**
    * Employs native Cocoa `NSPanel` (`NSFloatingWindowLevel`, borderless, non-activating panel) with `drawsBackground: False` WebKit view.
-   * Renders glassmorphic backdrop with 32px Gaussian blur, animated cyan/magenta audio waveform canvas, autofocus text input, and status badge.
+   * Renders glassmorphic backdrop with 40px Gaussian blur, 3-layer harmonic sine wave canvas, autofocus text input, status badge, and dynamic suggestion tray.
+   * Supports smooth animated frame height expansion (`setFrame_display_animate_`) from 70px to 360px as the user types, with full keyboard navigation (`↑`/`↓`/`Tab`/`↵`/`Esc`).
    * Listens globally to `Cmd+Shift+Space` using system keyboard hooks to summon or dismiss the HUD instantly.
+   * Houses a native macOS Menu Bar item (`NSStatusItem`) with a `⚡` icon for quick access, model introspection, doctor diagnostics, and graceful exit.
 2. **Dual-Engine Brain Architecture (`AssistantBrain`):**
    * **Sub-50ms Deterministic Fast-Path:** Matches common desktop intentions (Spotify search/play/pause/skip, arithmetic evaluation with Calculator GUI sync, system volume controls, app switching, web search, screenshots) and executes them directly via system bindings without LLM inference delay.
    * **Autonomous Local LLM Reasoning:** Automatically queries local Ollama models (`ministral-3:8b`, `qwen3:8b`), providing active application DOM summaries to the system prompt for open-ended queries.
 3. **Local Audio Subsystem (`AudioManager`):**
    * Zero-latency local speech synthesis via native OS speech engine (`say`).
    * Microphone capture and local Speech-to-Text via `faster-whisper` (`tiny.en`), operating completely offline with zero cloud telemetry.
+4. **macOS Application Packaging (`scripts/build_app.py`):**
+   * Generates a native macOS Application Bundle (`Aura.app`) with high-res multi-tier `AppIcon.icns` compiled via `iconutil`.
+   * Configures `Info.plist` with `LSUIElement = true` for background menubar/omnibar daemon operation without Dock clutter.
+   * Builds drag-and-drop installer `.dmg` with `/Applications` symlink via macOS `hdiutil`.
 
 ---
 
@@ -197,7 +203,7 @@ If an agent acts on an element ID after a UI mutation (e.g. clicking a dropdown 
 ---
 
 ## 6. Verification & Test Architecture
-The test suite in `tests/` features 52 passing unit and integration tests (100% passing across all subsystems):
+The test suite in `tests/` features 54 passing unit and integration tests (100% passing across all subsystems):
 * `test_schema.py`: BoundingBox spatial operations, scaling, ElementStates actionable classification, DesktopNode serialization.
 * `test_pruner.py`: Zero-area elimination, offscreen bounds pruning, passive container flattening.
 * `test_id_stability.py`: Deterministic ephemeral hash repeatability and sibling collision avoidance.
@@ -205,6 +211,6 @@ The test suite in `tests/` features 52 passing unit and integration tests (100% 
 * `test_reactive.py`: Synchronous element polling (`wait_for`), modal dismissal (`wait_until_hidden`), live mutation streaming (`observe`).
 * `test_multi_display.py`: DisplayInfo model, negative coordinate calibration, active virtual space detection.
 * `test_subregion_vision.py`: Element/region cropping, sub-region vision fallback, token savings estimation.
-* `test_assistant.py`: Personal Desktop Assistant (Aura), deterministic fast-paths (Spotify, Math, Volume, Apps, Search), local LLM planning, audio management, and Omnibar HUD logic.
+* `test_assistant.py`: Personal Desktop Assistant (Aura), deterministic fast-paths (Spotify, Math, Volume, Apps, Search), local LLM planning, audio management, dynamic Omnibar resizing, and packaging CLI.
 * `test_app.py`: High-level SDK click, type, press, find, find_all, and stale ID recovery loops.
-* `test_cli.py`: Typer CLI commands (`doctor`, `apps`, `inspect`, `wait-for`, `snapshot`, `install-mcp`, `assistant`).
+* `test_cli.py`: Typer CLI commands (`doctor`, `apps`, `inspect`, `wait-for`, `snapshot`, `install-mcp`, `assistant`, `package`).

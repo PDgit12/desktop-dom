@@ -27,11 +27,12 @@ Eliminates vision agent flaws (>90% token waste, 3–6 second latency, pixel coo
    - CLI (`desktop-dom doctor --fix`, `apps`, `inspect`, `click`, `type-text`, `press`, `record`, `wait-for`, `snapshot`, `overlay`, `serve`, `install-mcp`).
 4. **Personal Desktop Assistant (Aura & Floating Omnibar):**
    - Package: `src/desktop_dom/assistant/`
-   - Floating Spotlight Omnibar (`omnibar.py`): Native borderless Cocoa `NSPanel` (`NSFloatingWindowLevel`), `WKWebView` with liquid glass blur (`backdrop-filter: blur(32px)`), live audio waveform canvas, autofocus query input, status badge, and global hotkey `Cmd+Shift+Space` via `pynput`.
+   - Floating Spotlight Omnibar (`omnibar.py`): Native borderless Cocoa `NSPanel` (`NSFloatingWindowLevel`), `WKWebView` with liquid glass blur (`backdrop-filter: blur(40px) saturate(210%)`), dynamic frame height expansion via `setFrame_display_animate_`, live contextual suggestion tray (with instant arithmetic computation), full keyboard navigation (`↑`/`↓`/`Tab`/`↵`/`Esc`), triple-harmonic canvas waveform visualizer, and native macOS menu bar status item (`NSStatusItem`) with `⚡` icon.
    - Dual-Engine Brain (`brain.py`): Sub-50ms deterministic fast-paths for Spotify playback/search/controls, Calculator GUI sync, system audio volume, app switching, web search, screenshots, plus ReAct fallback to local Ollama models (`ministral-3:8b`, `qwen3:8b`).
    - Local Audio Manager (`audio.py`): Native OS TTS (`say`) and local STT (`faster-whisper` `tiny.en` on CPU/int8) for zero cloud cost and full privacy.
    - High-Level Coordinator (`__init__.py`): `DesktopAssistant` with `launch_omnibar()`, `run_cli_session()`, and `ask()`.
-5. **Distribution & Frictionless DX:**
+5. **Distribution, Packaging & Frictionless DX:**
+   - Standalone Native macOS Application Bundle (`scripts/build_app.py` & `desktop-dom package`): Builds `Aura.app` with custom PIL-rendered high-res `AppIcon.icns` (compiled with `iconutil`), `Info.plist` (`LSUIElement: 1`), launcher executable, optional install to `~/Applications`, and native drag-and-drop `.dmg` installer via `hdiutil`.
    - Single-command installer: `install.sh` (`curl -fsSL ... | bash`).
    - 1-click MCP configurator: `desktop-dom install-mcp` (Claude Desktop / Cursor).
    - Git Flow branching: `main` (production-ready stable) and `develop` (active integration) with `CONTRIBUTING.md`.
@@ -39,7 +40,7 @@ Eliminates vision agent flaws (>90% token waste, 3–6 second latency, pixel coo
    - CI/CD workflows: `.github/workflows/ci.yml` (multi-OS test matrix) and `.github/workflows/publish.yml` (tag release automation).
 
 ## Test & Integration Status
-- 52 unit and integration tests passing (`pytest -v` in 2.58s, 100% pass rate).
+- 54 unit and integration tests passing (`pytest -v` in 4.27s, 100% pass rate).
 - Branches: `main` (stable) and `develop` (integration) in sync on `PDgit12/desktop-dom`.
 - Verified against live macOS window server on Calculator: executed `25 × 4 = 100` via centroid clicks and verified output `100` in the accessibility DOM.
 - Registered as enabled MCP server in Antigravity (`agy mcp list`).

@@ -163,3 +163,25 @@ def test_floating_omnibar_logic():
     import time
     time.sleep(0.25)
     brain.execute_intent.assert_called_with("calculate 4 + 4")
+
+def test_omnibar_resize_and_status_item():
+    from desktop_dom.assistant.omnibar import FloatingOmnibar
+    bar = FloatingOmnibar()
+    bar._panel = MagicMock()
+    bar._webview = MagicMock()
+    mock_frame = MagicMock()
+    mock_frame.size.height = 80
+    mock_frame.size.width = 720
+    mock_frame.origin.x = 100
+    mock_frame.origin.y = 500
+    bar._panel.frame.return_value = mock_frame
+
+    bar.resize_window(360.0)
+    bar._panel.setFrame_display_animate_.assert_called_once()
+
+def test_cli_package_help():
+    result = runner.invoke(app, ["package", "--help"])
+    assert result.exit_code == 0
+    assert "--install" in result.output
+    assert "--dmg" in result.output
+    assert "--zip" in result.output

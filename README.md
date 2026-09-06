@@ -114,11 +114,14 @@ desktop-dom install-mcp
 
 Instead of slow, fragile cloud vision models, Aura runs **100% on-device** using local Speech-to-Text (`faster-whisper`), local LLM planning (`Ollama`), native zero-latency speech synthesis (`say`), and direct `desktop-dom` hardware execution.
 
-### The Floating Glassmorphic Omnibar
+### The Floating Glassmorphic Omnibar & Menu Bar Item
 * **Global Summon Shortcut:** Press `Cmd+Shift+Space` anywhere on macOS to bring up the floating pill bar over any full-screen app or virtual space.
-* **Liquid Glass HUD:** Built using a native borderless Cocoa `NSPanel` (`NSFloatingWindowLevel`) and WebKit background blur (`backdrop-filter: blur(32px)` with vibrant cyan/magenta neon glow).
-* **Live Audio Waveform:** Real-time animated audio visualizer responsive to speech activity.
-* **Sub-50ms Fast-Path Execution:** Eliminates LLM latency entirely for daily tasks (music, math, system settings, window switching, web search).
+* **Liquid Glass HUD:** Built using a native borderless Cocoa `NSPanel` (`NSFloatingWindowLevel`) and WebKit background blur (`backdrop-filter: blur(40px) saturate(210%)` with vibrant cyan/magenta neon glow and specular highlight).
+* **Dynamic Auto-Expanding Tray:** The window smoothly resizes with Cocoa native animation (`setFrame_display_animate_`) from a 70px pill to a 360px suggestion tray as you type or navigate.
+* **Instant Live Computation:** As you type arithmetic (`125 * 40 + 15`), Aura evaluates the expression in real time without executing any cloud request.
+* **Full Keyboard Navigation:** `↑`/`↓` navigate suggestions, `Tab` autocompletes, `↵` executes, `Esc` dismisses.
+* **Triple-Harmonic Audio Waveform:** 3-layer real-time canvas visualizer responsive to speech activity and model thinking.
+* **Native macOS Menu Bar Item:** Sleek `⚡` icon in the macOS menu bar for quick access, model status, permissions check, and graceful exit.
 
 ### Fast-Path Actions vs. Local LLM Reasoning
 
@@ -131,6 +134,20 @@ Instead of slow, fragile cloud vision models, Aura runs **100% on-device** using
 | **Instant Search** | *"Search for quantum computing"* | Default Web Browser Direct Query | **<90 ms** |
 | **Screen Capture** | *"Take a screenshot"* | Native OS Screen Capture | **<100 ms** |
 | **Autonomous Reasoning** | *"Summarize the open windows on my screen"* | Local Ollama ReAct Planning (`ministral-3:8b`, `qwen3:8b`) | **~350 ms** |
+
+### Sophisticated macOS Packaging (`Aura.app` & DMG)
+You can package Aura into a first-class native macOS application with custom high-res icon and drag-and-drop installer:
+
+```bash
+# 1-Click build and install Aura.app to ~/Applications:
+desktop-dom package --install
+
+# Build a distributable drag-and-drop DMG installer:
+desktop-dom package --dmg
+
+# Build compressed release ZIP archive:
+desktop-dom package --zip
+```
 
 ### Assistant CLI Commands
 ```bash

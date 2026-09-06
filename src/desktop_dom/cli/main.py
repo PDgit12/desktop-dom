@@ -383,5 +383,36 @@ def assistant(
             console.print(f"[bold yellow]Omnibar note:[/bold yellow] {e}. Falling back to CLI mode.")
             assistant_inst.run_cli_session()
 
+@app.command()
+def package(
+    install: bool = typer.Option(False, "--install", "-i", help="Automatically install Aura.app to ~/Applications"),
+    dmg: bool = typer.Option(False, "--dmg", "-d", help="Create drag-and-drop .dmg disk image installer"),
+    zip_archive: bool = typer.Option(False, "--zip", "-z", help="Create compressed .zip release archive"),
+    out: str = typer.Option("./dist", "--out", "-o", help="Output directory for built packages"),
+):
+    """Packages Aura as a native macOS Application Bundle (.app), DMG installer, or ZIP."""
+    if sys.platform != "darwin":
+        console.print("[bold yellow]Native .app packaging is currently supported on macOS.[/bold yellow]")
+        sys.exit(1)
+
+    from pathlib import Path
+    import subprocess
+    script_path = Path(__file__).resolve().parent.parent.parent.parent / "scripts" / "build_app.py"
+    if not script_path.exists():
+        console.print(f"[bold red]Packaging script not found at:[/bold red] {script_path}")
+        sys.exit(1)
+
+    cmd = [sys.executable, str(script_path), "--output-dir", out]
+    if install:
+        cmd.append("--install")
+    if dmg:
+        cmd.append("--dmg")
+    if zip_archive:
+        cmd.append("--zip")
+
+    res = subprocess.run(cmd)
+    if res.returncode == 0:
+        console.print(f"[bold green]✓ Packaging complete in {out}[/bold green]")
+
 if __name__ == "__main__":
     app()
