@@ -25,6 +25,12 @@ Eliminates vision agent flaws (>90% token waste, 3–6 second latency, pixel coo
    - Reactive Engine (`DesktopApp.wait_for`, `wait_until_hidden`, `observe`).
    - Visual HUD Overlay & HTML Snapshot (`desktop-dom overlay`, `desktop-dom snapshot`).
    - CLI (`desktop-dom doctor --fix`, `apps`, `inspect`, `click`, `type-text`, `press`, `record`, `wait-for`, `snapshot`, `overlay`, `serve`, `install-mcp`).
+4. **Personal Desktop Assistant (Aura & Floating Omnibar):**
+   - Package: `src/desktop_dom/assistant/`
+   - Floating Spotlight Omnibar (`omnibar.py`): Native borderless Cocoa `NSPanel` (`NSFloatingWindowLevel`), `WKWebView` with liquid glass blur (`backdrop-filter: blur(32px)`), live audio waveform canvas, autofocus query input, status badge, and global hotkey `Cmd+Shift+Space` via `pynput`.
+   - Dual-Engine Brain (`brain.py`): Sub-50ms deterministic fast-paths for Spotify playback/search/controls, Calculator GUI sync, system audio volume, app switching, web search, screenshots, plus ReAct fallback to local Ollama models (`ministral-3:8b`, `qwen3:8b`).
+   - Local Audio Manager (`audio.py`): Native OS TTS (`say`) and local STT (`faster-whisper` `tiny.en` on CPU/int8) for zero cloud cost and full privacy.
+   - High-Level Coordinator (`__init__.py`): `DesktopAssistant` with `launch_omnibar()`, `run_cli_session()`, and `ask()`.
 5. **Distribution & Frictionless DX:**
    - Single-command installer: `install.sh` (`curl -fsSL ... | bash`).
    - 1-click MCP configurator: `desktop-dom install-mcp` (Claude Desktop / Cursor).
@@ -33,8 +39,8 @@ Eliminates vision agent flaws (>90% token waste, 3–6 second latency, pixel coo
    - CI/CD workflows: `.github/workflows/ci.yml` (multi-OS test matrix) and `.github/workflows/publish.yml` (tag release automation).
 
 ## Test & Integration Status
-- 32 unit and integration tests passing (`pytest tests`).
-- Branches: `main` (stable) and `develop` (integration) tracked on `PDgit12/desktop-dom`.
+- 52 unit and integration tests passing (`pytest -v` in 2.58s, 100% pass rate).
+- Branches: `main` (stable) and `develop` (integration) in sync on `PDgit12/desktop-dom`.
 - Verified against live macOS window server on Calculator: executed `25 × 4 = 100` via centroid clicks and verified output `100` in the accessibility DOM.
 - Registered as enabled MCP server in Antigravity (`agy mcp list`).
 - TypeScript SDK `@desktop-dom/core` compiled and verified with `npm pack --dry-run`.
