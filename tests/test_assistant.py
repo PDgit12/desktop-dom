@@ -90,18 +90,133 @@ def test_assistant_action_callback(brain):
     assert events[0][0] == "thinking"
     assert events[1][0] == "completed"
 
+def test_assistant_fast_path_dark_mode(brain):
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value.stdout = "true\n"
+        res = brain.execute_intent("toggle dark mode")
+        assert res["status"] == "success"
+        assert res["action"] == "toggle_dark_mode"
+        assert res["dark_mode"] is True
+
+        res_light = brain.execute_intent("switch to light mode")
+        assert res_light["status"] == "success"
+        assert res_light["action"] == "toggle_dark_mode"
+
+def test_assistant_fast_path_notes(brain):
+    with patch("subprocess.run") as mock_run:
+        res = brain.execute_intent("create note Standup: Completed sprint roadmap")
+        assert res["status"] == "success"
+        assert res["action"] == "create_note"
+        assert res["title"] == "Standup"
+        assert res["body"] == "Completed sprint roadmap"
+
+        res_quick = brain.execute_intent("take a note: pick up package")
+        assert res_quick["status"] == "success"
+        assert res_quick["action"] == "create_note"
+        assert "package" in res_quick["body"]
+
+def test_assistant_fast_path_clipboard(brain):
+    with patch("subprocess.Popen") as mock_popen, patch("subprocess.run") as mock_run:
+        mock_run.return_value.stdout = "desktop-dom-v0.2.0"
+        res_copy = brain.execute_intent("copy 42981 to clipboard")
+        assert res_copy["status"] == "success"
+        assert res_copy["action"] == "copy_clipboard"
+        assert res_copy["text"] == "42981"
+
+        res_read = brain.execute_intent("what is on my clipboard")
+        assert res_read["status"] == "success"
+        assert res_read["action"] == "read_clipboard"
+        assert "42" in res_read["response"] or "desktop-dom" in res_read["response"]
+
+def test_assistant_fast_path_notification(brain):
+    with patch("subprocess.run") as mock_run:
+        res = brain.execute_intent("notify me Task completed successfully")
+        assert res["status"] == "success"
+        assert res["action"] == "notify"
+        assert res["message"] == "Task completed successfully"
+
+def test_assistant_fast_path_window_management(brain):
+    with patch("subprocess.run") as mock_run:
+        res_min = brain.execute_intent("minimize window")
+        assert res_min["status"] == "success"
+        assert res_min["action"] == "window_minimize"
+
+        res_max = brain.execute_intent("maximize window")
+        assert res_max["status"] == "success"
+        assert res_max["action"] == "window_maximize"
+
+def test_assistant_fast_path_inspect_screen(brain):
+    with patch("desktop_dom.assistant.brain.AssistantBrain._get_frontmost_app_name", return_value="Finder"):
+        with patch("desktop_dom.app.DesktopApp.attach") as mock_attach:
+            mock_app = MagicMock()
+            from desktop_dom.schema import DesktopNode, BoundingBox
+            mock_node = DesktopNode(
+                id="win_finder",
+                role="window",
+                name="Finder",
+                bbox=BoundingBox(x=0, y=0, width=800, height=600),
+                children=[
+                    DesktopNode(
+                        id="btn_view",
+                        role="button",
+                        name="View Options",
+                        bbox=BoundingBox(x=50, y=50, width=80, height=30),
+                        children=[]
+                    )
+                ]
+            )
+            mock_app.get_tree.return_value = mock_node
+            mock_attach.return_value = mock_app
+
+            res = brain.execute_intent("what is on my screen")
+            assert res["status"] == "success"
+            assert res["action"] == "inspect_screen"
+            assert res["app"] == "Finder"
+            assert "View Options" in res["summary"]
+
+def test_assistant_fast_path_semantic_ui_actions(brain):
+    with patch("desktop_dom.app.DesktopApp.attach") as mock_attach:
+        mock_app = MagicMock()
+        from desktop_dom.schema import DesktopNode, BoundingBox
+        target_node = DesktopNode(
+            id="btn_submit",
+            role="button",
+            name="Submit",
+            bbox=BoundingBox(x=100, y=200, width=100, height=40),
+            children=[]
+        )
+        mock_app.find.return_value = target_node
+        mock_attach.return_value = mock_app
+
+        res_click = brain.execute_intent("click Submit in Finder")
+        assert res_click["status"] == "success"
+        assert res_click["action"] == "click"
+        assert res_click["element"] == "Submit"
+        assert res_click["centroid"] == [150, 220]
+        mock_app.click.assert_called_once_with("btn_submit")
+
+        res_type = brain.execute_intent("type 'hello world' in Finder")
+        assert res_type["status"] == "success"
+        assert res_type["action"] == "type"
+        assert res_type["text"] == "hello world"
+
+        res_press = brain.execute_intent("press enter in Finder")
+        assert res_press["status"] == "success"
+        assert res_press["action"] == "press"
+        assert res_press["key"] == "enter"
+
 def test_assistant_local_llm_reasoning(brain):
-    mock_response = io.BytesIO(json.dumps({"response": "Summary of active windows."}).encode("utf-8"))
+    mock_response = io.BytesIO(json.dumps({"response": "Quantum error correction uses entangled physical qubits."}).encode("utf-8"))
     with patch("urllib.request.urlopen", return_value=mock_response):
         with patch("desktop_dom.assistant.brain.get_platform_adapter") as mock_adapter_getter:
             mock_adapter = MagicMock()
             mock_adapter.list_applications.return_value = [{"name": "Finder"}, {"name": "Terminal"}]
             mock_adapter_getter.return_value = mock_adapter
 
-            res = brain.execute_intent("summarize what is on my screen right now")
+            res = brain.execute_intent("explain how quantum error correction works in one sentence")
             assert res["status"] == "success"
             assert res["action"] == "llm_reasoning"
-            assert res["response"] == "Summary of active windows."
+            assert "Quantum error correction" in res["response"]
 
 def test_audio_manager_speak():
     audio = AudioManager()
