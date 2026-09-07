@@ -140,10 +140,11 @@ def build_app_bundle(
         shutil.copytree(src_origin, bundled_src)
 
     # 3. Generate Executable Launcher
-    launcher_script = """#!/bin/bash
+    py_exec = sys.executable
+    launcher_script = f"""#!/bin/bash
 set -e
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+DIR="$( cd "$( dirname "${{BASH_SOURCE[0]}}" )" && pwd )"
 
 # Check if desktop-dom CLI is directly in PATH
 if command -v desktop-dom >/dev/null 2>&1; then
@@ -153,15 +154,16 @@ fi
 # Detect Python 3 runtime
 PYTHON=""
 CANDIDATES=(
-    "python3"
-    "/opt/homebrew/bin/python3"
-    "/usr/local/bin/python3"
+    "{py_exec}"
     "/opt/anaconda3/bin/python3"
+    "/opt/homebrew/bin/python3"
+    "python3"
+    "/usr/local/bin/python3"
     "$HOME/.pyenv/shims/python3"
     "/usr/bin/python3"
 )
 
-for p in "${CANDIDATES[@]}"; do
+for p in "${{CANDIDATES[@]}}"; do
     if command -v "$p" >/dev/null 2>&1; then
         PYTHON="$(command -v "$p")"
         break
