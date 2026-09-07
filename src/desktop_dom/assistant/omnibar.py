@@ -1130,6 +1130,7 @@ class FloatingOmnibar:
         self._panel.setMovableByWindowBackground_(True)
         self._panel.setBecomesKeyOnlyIfNeeded_(False)
         self._panel.setWorksWhenModal_(True)
+        self._panel.setHidesOnDeactivate_(False)
         self._panel.setAcceptsMouseMovedEvents_(True)
         self._panel.setCollectionBehavior_(
             Cocoa.NSWindowCollectionBehaviorCanJoinAllSpaces |
@@ -1269,8 +1270,12 @@ class FloatingOmnibar:
                 frame = self._panel.frame()
                 if abs(frame.size.height - new_height) < 2:
                     return
-                delta = new_height - frame.size.height
-                new_y = frame.origin.y - delta
+                # Top edge invariance: maintain fixed top anchor so window expands downwards
+                top_y = getattr(self, "_top_anchor", None)
+                if top_y is None:
+                    top_y = frame.origin.y + frame.size.height
+                    self._top_anchor = top_y
+                new_y = top_y - new_height
                 new_frame = Cocoa.NSMakeRect(frame.origin.x, new_y, frame.size.width, new_height)
                 if self._webview:
                     self._webview.setFrame_(Cocoa.NSMakeRect(0, 0, frame.size.width, new_height))
@@ -1296,7 +1301,9 @@ class FloatingOmnibar:
                 screen_frame = target_screen.frame()
                 cur_frame = self._panel.frame()
                 new_x = screen_frame.origin.x + (screen_frame.size.width - cur_frame.size.width) / 2
-                new_y = screen_frame.origin.y + (screen_frame.size.height * 0.58)
+                top_y = screen_frame.origin.y + (screen_frame.size.height * 0.72)
+                self._top_anchor = top_y
+                new_y = top_y - cur_frame.size.height
                 self._panel.setFrameOrigin_(Cocoa.NSMakePoint(new_x, new_y))
             except Exception as e:
                 logger.debug(f"Could not recenter to mouse screen: {e}")
@@ -1419,8 +1426,61 @@ class FloatingOmnibar:
         except Exception as e:
             logger.warning(f"Could not bind global hotkey: {e}")
 
+    def check_or_start_instance(self) -> bool:
+        """
+        Ensures only a single instance of Aura runs.
+        If another instance is active, sends 'show' command to bring it to front and returns False.
+        """
+        import socket
+        import os
+
+        socket_path = "/tmp/desktop_dom_aura.sock"
+
+        # Attempt to communicate with already-running instance
+        try:
+            s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            s.settimeout(0.6)
+            s.connect(socket_path)
+            s.sendall(b"show\n")
+            s.close()
+            logger.info("Aura already running; brought existing window to front.")
+            return False
+        except (socket.error, FileNotFoundError, ConnectionRefusedError):
+            pass
+
+        # Clean up stale socket file
+        try:
+            if os.path.exists(socket_path):
+                os.remove(socket_path)
+        except Exception:
+            pass
+
+        def _ipc_server():
+            try:
+                srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                srv.bind(socket_path)
+                srv.listen(5)
+                while True:
+                    conn, _ = srv.accept()
+                    data = conn.recv(1024)
+                    if b"show" in data or b"toggle" in data:
+                        self.show()
+                    elif b"hide" in data:
+                        self.hide()
+                    conn.close()
+            except Exception as e:
+                logger.debug(f"IPC socket server terminated: {e}")
+
+        t = threading.Thread(target=_ipc_server, daemon=True)
+        t.start()
+        return True
+
     def run(self):
         """Starts the native macOS Cocoa event loop."""
+        if sys.platform == "darwin":
+            if not self.check_or_start_instance():
+                print("Aura is already running. Summoned existing window to front.")
+                return
         self.setup_ui()
         self.start_global_hotkey_listener()
         self.show()
