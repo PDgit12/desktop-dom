@@ -21,6 +21,10 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     user-select: none;
     -webkit-user-select: none;
   }
+  input, textarea {
+    user-select: text !important;
+    -webkit-user-select: text !important;
+  }
   body {
     width: 100vw;
     height: 100vh;
@@ -83,6 +87,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     flex: 1;
     display: flex;
     align-items: center;
+    cursor: text;
   }
   input#query-input {
     width: 100%;
@@ -93,6 +98,9 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     font-size: 17px;
     font-weight: 500;
     letter-spacing: -0.25px;
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    cursor: text;
   }
   input#query-input::placeholder {
     color: rgba(255, 255, 255, 0.35);
@@ -948,11 +956,21 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       }
     };
 
-    // Initial render
+    // Initial render & auto-focus
     updateSuggestions();
+    input.focus();
+    card.addEventListener("click", (e) => {
+      if (!e.target.closest("#mic-btn") && !e.target.closest(".action-btn") && !e.target.closest("#footer-model-tag") && !e.target.closest(".model-card")) {
+        input.focus();
+      }
+    });
+    window.addEventListener("focus", () => {
+      setTimeout(() => input.focus(), 50);
+    });
     setTimeout(() => {
+      input.focus();
       window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({ action: "get_model_status" }));
-    }, 200);
+    }, 150);
   </script>
 </body>
 </html>
@@ -1056,10 +1074,25 @@ class FloatingOmnibar:
         pos_x = (screen_frame.size.width - bar_width) / 2
         pos_y = screen_frame.size.height * 0.58
 
-        # Create frameless floating NSPanel
-        self._panel = Cocoa.NSPanel.alloc().initWithContentRect_styleMask_backing_defer_(
+        # Create frameless floating KeyablePanel capable of accepting keyboard focus
+        try:
+            panel_cls = objc.lookUpClass("AuraKeyablePanelObjC")
+        except Exception:
+            panel_cls = None
+
+        if panel_cls is None:
+            class AuraKeyablePanelObjC(Cocoa.NSPanel):
+                def canBecomeKeyWindow(self):
+                    return True
+
+                def canBecomeMainWindow(self):
+                    return True
+
+            panel_cls = AuraKeyablePanelObjC
+
+        self._panel = panel_cls.alloc().initWithContentRect_styleMask_backing_defer_(
             Cocoa.NSMakeRect(pos_x, pos_y, bar_width, bar_height),
-            Cocoa.NSWindowStyleMaskBorderless | Cocoa.NSWindowStyleMaskNonactivatingPanel,
+            Cocoa.NSWindowStyleMaskBorderless,
             Cocoa.NSBackingStoreBuffered,
             False,
         )
@@ -1254,6 +1287,8 @@ class FloatingOmnibar:
                 self._app.activateIgnoringOtherApps_(True)
             self._panel.makeKeyAndOrderFront_(None)
             self._panel.orderFrontRegardless()
+            if self._webview:
+                self._panel.makeFirstResponder_(self._webview)
             self._panel.setAlphaValue_(1.0)
             self._is_visible = True
             self.evaluate_js("document.getElementById('query-input').focus();")
