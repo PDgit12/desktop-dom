@@ -725,6 +725,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       notifyResize();
     }
 
+    let lastReportedHeight = 0;
     function notifyResize() {
       let contentHeight = 52 + 32 + 16;
       if (resultDrawer.classList.contains("visible")) {
@@ -735,11 +736,31 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         contentHeight = 52 + 24 + (currentSuggestions.length * 38) + 32 + 12;
       }
       const targetHeight = Math.min(420, Math.max(80, contentHeight));
+      if (Math.abs(targetHeight - lastReportedHeight) < 4) {
+        return;
+      }
+      lastReportedHeight = targetHeight;
       window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({
         action: "resize",
         height: targetHeight
       }));
     }
+
+    window.resetOmnibar = function() {
+      if (autoCloseTimer) clearTimeout(autoCloseTimer);
+      resultDrawer.classList.remove("visible");
+      modelDrawer.classList.remove("visible");
+      commandSection.style.display = "block";
+      isDrawerOpen = false;
+      badgeText.innerText = "Ready";
+      statusDot.style.background = "#38bdf8";
+      card.classList.remove("executing");
+      progress.classList.remove("active");
+      input.value = "";
+      selectedIndex = 0;
+      updateSuggestions();
+      input.focus();
+    };
 
     function escapeHtml(str) {
       return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -778,11 +799,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
           if (val) submitQuery(val);
         }
       } else if (e.key === "Escape") {
-        if (isDrawerOpen) {
-          closeDrawers();
-        } else {
-          window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({ action: "close" }));
-        }
+        window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({ action: "close" }));
       }
     });
 
@@ -893,10 +910,18 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
 
       notifyResize();
 
-      if (["volume", "dark_mode", "clipboard_copy", "notes"].includes(action)) {
+      const bgActions = [
+        "open_app", "spotify_play", "spotify_playpause", "spotify_next track",
+        "set_volume", "volume_up", "volume_down", "mute", "unmute",
+        "create_note", "copy_clipboard", "web_search", "screenshot",
+        "toggle_dark_mode", "window_minimize", "window_maximize", "window_close",
+        "click", "type", "press"
+      ];
+      if (bgActions.includes(action)) {
+        const delay = action === "open_app" ? 350 : 700;
         autoCloseTimer = setTimeout(() => {
           window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({ action: "close" }));
-        }, 2600);
+        }, delay);
       }
     };
 
@@ -1130,12 +1155,35 @@ class FloatingOmnibar:
         self._panel.setMovableByWindowBackground_(True)
         self._panel.setBecomesKeyOnlyIfNeeded_(False)
         self._panel.setWorksWhenModal_(True)
-        self._panel.setHidesOnDeactivate_(False)
+        self._panel.setHidesOnDeactivate_(True)
         self._panel.setAcceptsMouseMovedEvents_(True)
         self._panel.setCollectionBehavior_(
             Cocoa.NSWindowCollectionBehaviorCanJoinAllSpaces |
             Cocoa.NSWindowCollectionBehaviorFullScreenAuxiliary
         )
+
+        # Panel Delegate for auto-hiding when clicking outside
+        try:
+            panel_del_cls = objc.lookUpClass("AuraPanelDelegateObjC")
+        except Exception:
+            panel_del_cls = None
+
+        if panel_del_cls is None:
+            class AuraPanelDelegateObjC(Cocoa.NSObject):
+                def initWithController_(self, ctrl):
+                    self = objc.super(AuraPanelDelegateObjC, self).init()
+                    if self:
+                        self.ctrl = ctrl
+                    return self
+
+                def windowDidResignKey_(self, notification):
+                    if self.ctrl and getattr(self.ctrl, "_is_visible", False):
+                        self.ctrl.hide()
+
+            panel_del_cls = AuraPanelDelegateObjC
+
+        self._panel_delegate = panel_del_cls.alloc().initWithController_(self)
+        self._panel.setDelegate_(self._panel_delegate)
 
         # Configure WebKit View
         config = WebKit.WKWebViewConfiguration.alloc().init()
@@ -1261,7 +1309,7 @@ class FloatingOmnibar:
             logger.warning(f"Could not initialize NSStatusItem: {e}")
 
     def resize_window(self, new_height: float):
-        """Dynamically animates the Cocoa NSPanel frame height when suggestions expand."""
+        """Instantly updates the Cocoa NSPanel frame height without blocking animation stutter."""
         if not self._panel:
             return
         def _do():
@@ -1279,7 +1327,7 @@ class FloatingOmnibar:
                 new_frame = Cocoa.NSMakeRect(frame.origin.x, new_y, frame.size.width, new_height)
                 if self._webview:
                     self._webview.setFrame_(Cocoa.NSMakeRect(0, 0, frame.size.width, new_height))
-                self._panel.setFrame_display_animate_(new_frame, True, True)
+                self._panel.setFrame_display_animate_(new_frame, True, False)
             except Exception as e:
                 logger.warning(f"Error resizing omnibar window: {e}")
         self.dispatch_main(_do)
@@ -1291,6 +1339,11 @@ class FloatingOmnibar:
                 return
             try:
                 import Cocoa
+                # Save previous frontmost application so we can restore focus upon dismissal
+                front_app = Cocoa.NSWorkspace.sharedWorkspace().frontmostApplication()
+                if front_app and (not self._app or front_app.bundleIdentifier() != self._app.bundleIdentifier()):
+                    self._prev_app = front_app
+
                 mouse_loc = Cocoa.NSEvent.mouseLocation()
                 target_screen = Cocoa.NSScreen.mainScreen()
                 for s in Cocoa.NSScreen.screens():
@@ -1316,15 +1369,25 @@ class FloatingOmnibar:
                 self._panel.makeFirstResponder_(self._webview)
             self._panel.setAlphaValue_(1.0)
             self._is_visible = True
-            self.evaluate_js("const inp = document.getElementById('query-input'); if (inp) { inp.focus(); inp.select(); }")
+            self.evaluate_js("if (window.resetOmnibar) { window.resetOmnibar(); } else { const inp = document.getElementById('query-input'); if (inp) { inp.focus(); inp.select(); } }")
         self.dispatch_main(_do)
 
     def hide(self):
-        """Hides the Omnibar."""
+        """Hides the Omnibar and restores focus to previous application."""
         def _do():
+            if not getattr(self, "_is_visible", False):
+                return
+            self._is_visible = False
             if self._panel:
                 self._panel.orderOut_(None)
-                self._is_visible = False
+            prev = getattr(self, "_prev_app", None)
+            if prev:
+                try:
+                    import Cocoa
+                    prev.activateWithOptions_(Cocoa.NSApplicationActivateIgnoringOtherApps)
+                except Exception:
+                    pass
+                self._prev_app = None
         self.dispatch_main(_do)
 
     def toggle(self):

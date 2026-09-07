@@ -211,9 +211,9 @@ class AssistantBrain:
 
         # 8. Spotify / Music Playback
         if not prompt.startswith("open ") and (any(w in prompt for w in ["spotify", "music", "song", "track"]) or prompt.startswith("play ") or prompt.startswith("pause") or prompt.startswith("resume") or prompt.startswith("skip")):
-            play_match = re.search(r"play\s+([a-zA-Z0-9\s]+?)(?:\s+on\s+spotify)?$", raw_prompt, re.IGNORECASE)
+            play_match = re.search(r"^play\s+(.+?)(?:\s+on\s+spotify)?$", raw_prompt, re.IGNORECASE)
             if play_match:
-                song = play_match.group(1).strip()
+                song = play_match.group(1).strip().strip('"\'')
                 self._notify_action("executing", f"Playing '{song}' on Spotify")
                 return self._control_spotify_play(song)
 
@@ -253,19 +253,38 @@ class AssistantBrain:
         if open_match:
             app_target = open_match.group(1).strip()
             self._notify_action("executing", f"Activating {app_target}")
-            try:
-                app_inst = DesktopApp.attach(app_target)
-                tree = app_inst.get_tree(max_depth=2, as_dict=False)
-                return {
-                    "status": "success",
-                    "action": "open_app",
-                    "target": app_target,
-                    "response": f"Opened {app_target}.",
-                }
-            except Exception:
-                if sys.platform == "darwin":
-                    subprocess.run(["open", "-a", app_target])
-                    return {"status": "success", "action": "open_app", "target": app_target, "response": f"Launched {app_target}."}
+            app_map = {
+                "chrome": "Google Chrome",
+                "google chrome": "Google Chrome",
+                "vs code": "Visual Studio Code",
+                "vscode": "Visual Studio Code",
+                "code": "Visual Studio Code",
+                "spotify": "Spotify",
+                "notes": "Notes",
+                "calculator": "Calculator",
+                "finder": "Finder",
+                "terminal": "Terminal",
+                "safari": "Safari",
+            }
+            resolved_target = app_map.get(app_target.lower(), app_target)
+            if sys.platform == "darwin":
+                res = subprocess.run(["open", "-a", resolved_target], capture_output=True, text=True)
+                is_success = (res.returncode == 0) if isinstance(getattr(res, "returncode", None), int) else True
+                if is_success:
+                    return {
+                        "status": "success",
+                        "action": "open_app",
+                        "target": resolved_target,
+                        "response": f"Opened {resolved_target}.",
+                    }
+                else:
+                    return {
+                        "status": "error",
+                        "action": "open_app",
+                        "target": resolved_target,
+                        "response": f"Could not find application '{resolved_target}'.",
+                    }
+            return {"status": "success", "action": "open_app", "target": resolved_target, "response": f"Opened {resolved_target}."}
 
         # 11. Web Search / Browser
         search_match = re.search(r"(?:search|google|look up)\s+(?:for\s+)?(.+)", raw_prompt, re.IGNORECASE)
@@ -415,11 +434,15 @@ class AssistantBrain:
                 }
             except Exception as e:
                 logger.warning(f"Dark mode toggle error: {e}")
+                return {
+                    "status": "error",
+                    "action": "toggle_dark_mode",
+                    "response": f"Failed to toggle dark mode: {e}",
+                }
         return {
-            "status": "success",
+            "status": "error",
             "action": "toggle_dark_mode",
-            "dark_mode": True,
-            "response": "Dark mode appearance updated.",
+            "response": "Dark mode toggle is only supported on macOS.",
         }
 
     def _control_notes_create(self, content: str) -> Dict[str, Any]:
@@ -451,22 +474,32 @@ class AssistantBrain:
             end tell
             '''
             try:
-                subprocess.run(["osascript", "-e", osa], capture_output=True, check=True)
-                return {
-                    "status": "success",
-                    "action": "create_note",
-                    "title": title,
-                    "body": body,
-                    "response": f"Created note '{title}' in Apple Notes.",
-                }
+                res = subprocess.run(["osascript", "-e", osa], capture_output=True, text=True, timeout=3.0)
+                is_success = (res.returncode == 0) if isinstance(getattr(res, "returncode", None), int) else True
+                if is_success:
+                    return {
+                        "status": "success",
+                        "action": "create_note",
+                        "title": title,
+                        "body": body,
+                        "response": f"Created note '{title}' in Apple Notes.",
+                    }
+                else:
+                    return {
+                        "status": "error",
+                        "action": "create_note",
+                        "response": f"Could not create note in Apple Notes: {getattr(res, 'stderr', '').strip()}",
+                    }
             except Exception as e:
-                logger.warning(f"Notes creation failed: {e}")
+                return {
+                    "status": "error",
+                    "action": "create_note",
+                    "response": f"Notes error: {e}",
+                }
         return {
-            "status": "success",
+            "status": "error",
             "action": "create_note",
-            "title": title,
-            "body": body,
-            "response": f"Created note '{title}'.",
+            "response": "Apple Notes is only supported on macOS.",
         }
 
     def _control_clipboard(self, prompt: str, raw_prompt: str) -> Dict[str, Any]:
@@ -538,14 +571,23 @@ class AssistantBrain:
         
         if sys.platform == "darwin":
             try:
-                subprocess.run(["osascript", "-e", script], capture_output=True)
-            except Exception:
-                pass
-        return {
-            "status": "success",
-            "action": f"window_{action_type}",
-            "response": f"Front window {action_type} executed.",
-        }
+                res = subprocess.run(["osascript", "-e", script], capture_output=True, text=True, timeout=3.0)
+                is_success = (res.returncode == 0) if isinstance(getattr(res, "returncode", None), int) else True
+                if is_success:
+                    return {
+                        "status": "success",
+                        "action": f"window_{action_type}",
+                        "response": f"Front window {action_type} executed.",
+                    }
+                else:
+                    return {
+                        "status": "error",
+                        "action": f"window_{action_type}",
+                        "response": f"Window {action_type} failed: {getattr(res, 'stderr', '').strip()}",
+                    }
+            except Exception as e:
+                return {"status": "error", "action": f"window_{action_type}", "response": f"Window action error: {e}"}
+        return {"status": "error", "action": f"window_{action_type}", "response": "Window management only supported on macOS."}
 
     def _control_semantic_click(self, label: str, app_name: Optional[str]) -> Dict[str, Any]:
         """Finds and clicks an element by semantic name or role in target application."""
@@ -652,38 +694,50 @@ class AssistantBrain:
     def _control_spotify_play(self, query: str) -> Dict[str, Any]:
         """Plays a song or artist in Spotify using desktop-dom or native OSA dispatch."""
         if sys.platform == "darwin":
-            safe_query = query.replace('\\', '\\\\').replace('"', '\\"')
+            import urllib.parse
+            encoded_query = urllib.parse.quote(query)
             osa = f'''
             tell application "Spotify"
                 activate
-                delay 0.2
+                open location "spotify:search:{encoded_query}"
+                delay 0.3
             end tell
             tell application "System Events"
                 tell process "Spotify"
-                    keystroke "l" using command down
-                    delay 0.1
-                    keystroke "{safe_query}"
-                    delay 0.2
                     key code 36
                 end tell
             end tell
             '''
             try:
-                subprocess.run(["osascript", "-e", osa], check=True, capture_output=True)
+                res = subprocess.run(["osascript", "-e", osa], capture_output=True, text=True, timeout=4.0)
+                is_success = (res.returncode == 0) if isinstance(getattr(res, "returncode", None), int) else True
+                if is_success:
+                    return {
+                        "status": "success",
+                        "action": "spotify_play",
+                        "query": query,
+                        "response": f"Now playing {query} on Spotify.",
+                    }
+                else:
+                    return {
+                        "status": "error",
+                        "action": "spotify_play",
+                        "query": query,
+                        "response": f"Spotify playback failed: {getattr(res, 'stderr', '').strip()}",
+                    }
+            except Exception as e:
                 return {
-                    "status": "success",
+                    "status": "error",
                     "action": "spotify_play",
                     "query": query,
-                    "response": f"Now playing {query} on Spotify.",
+                    "response": f"Spotify playback error: {e}",
                 }
-            except Exception as e:
-                logger.warning(f"Spotify AppleScript error: {e}")
 
         return {
-            "status": "success",
+            "status": "error",
             "action": "spotify_play",
             "query": query,
-            "response": f"Dispatched playback for {query}.",
+            "response": "Spotify playback control is only supported on macOS.",
         }
 
     def _control_spotify_media_key(self, command: str) -> Dict[str, Any]:
@@ -691,11 +745,19 @@ class AssistantBrain:
         if sys.platform == "darwin":
             osa = f'tell application "Spotify" to {command}'
             try:
-                subprocess.run(["osascript", "-e", osa], check=True)
-                return {"status": "success", "action": f"spotify_{command}", "response": f"Spotify: {command}."}
+                res = subprocess.run(["osascript", "-e", osa], capture_output=True, text=True, timeout=3.0)
+                is_success = (res.returncode == 0) if isinstance(getattr(res, "returncode", None), int) else True
+                if is_success:
+                    return {"status": "success", "action": f"spotify_{command}", "response": f"Spotify: {command}."}
+                else:
+                    return {
+                        "status": "error",
+                        "action": f"spotify_{command}",
+                        "response": f"Spotify command '{command}' failed: {getattr(res, 'stderr', '').strip()}",
+                    }
             except Exception as e:
-                pass
-        return {"status": "success", "action": f"spotify_{command}", "response": f"Executed {command}."}
+                return {"status": "error", "action": f"spotify_{command}", "response": f"Spotify error: {e}"}
+        return {"status": "error", "action": f"spotify_{command}", "response": "Spotify control is only supported on macOS."}
 
     def _sync_calculator(self, expr: str):
         """Attempts to sync calculation on macOS Calculator if attached."""
@@ -737,10 +799,13 @@ class AssistantBrain:
             pass
 
         system_prompt = (
-            "You are Aura, an autonomous, sub-second personal desktop assistant powered by desktop-dom. "
-            "You have direct access to native OS controls. Answer the user helpfully and concisely. "
+            "You are Aura, an autonomous personal desktop assistant powered by desktop-dom. "
+            "You have direct access to native OS controls. Answer helpfully and concisely. "
             f"{screen_context} Running applications: {', '.join(apps_summary)}. "
-            "Provide a brief, direct 1-2 sentence answer explaining what action you took or what information was found."
+            "If the user wants you to perform an action, output an ACTION line: "
+            "ACTION: open <app_name> | ACTION: play <song> on spotify | ACTION: volume <0-100|up|down|mute|unmute> | "
+            "ACTION: note <title>: <body> | ACTION: search <query> | ACTION: calculate <expr> | ACTION: screenshot. "
+            "Otherwise, provide a direct, concise 1-2 sentence answer."
         )
 
         payload = {
@@ -759,12 +824,21 @@ class AssistantBrain:
                 data = json.loads(resp.read().decode("utf-8"))
                 reply = data.get("response", "").strip()
                 if not reply:
-                    reply = "Task completed."
+                    return {"status": "empty", "action": "llm_reasoning", "response": "No response from model."}
+                
+                # Check for executable action emitted by LLM
+                action_match = re.search(r"ACTION:\s*([^\n\r]+)", reply, re.IGNORECASE)
+                if action_match:
+                    action_cmd = action_match.group(1).strip()
+                    fast_res = self._try_deterministic_fast_path(action_cmd.lower(), raw_prompt=action_cmd)
+                    if fast_res:
+                        return fast_res
+
                 return {"status": "success", "action": "llm_reasoning", "response": reply}
         except Exception as e:
             logger.warning(f"Local LLM call failed: {e}")
             return {
-                "status": "fallback",
-                "action": "offline_fallback",
-                "response": f"Completed request: {prompt}",
+                "status": "error",
+                "action": "llm_error",
+                "response": f"Local model error: {e}. Ollama may be offline or busy.",
             }
