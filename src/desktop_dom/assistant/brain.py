@@ -101,6 +101,29 @@ class AssistantBrain:
         start_t = time.time()
         self._notify_action("thinking", f"Processing: '{prompt}'")
 
+        # 0. Multi-Action Compound Query Support (e.g. "open chrome and open gmail")
+        if (" and " in clean_prompt or " then " in clean_prompt) and not any(clean_prompt.startswith(p) for p in ["search", "google", "calculate", "type", "note"]):
+            parts = [s.strip() for s in re.split(r"\s+(?:and|then)\s+", prompt, flags=re.IGNORECASE) if s.strip()]
+            if len(parts) > 1 and all(len(p) > 2 for p in parts):
+                normalized = []
+                for idx, sub in enumerate(parts):
+                    if idx > 0 and not any(sub.lower().startswith(v) for v in ["open", "launch", "play", "search", "close", "set", "calculate"]):
+                        sub = f"open {sub}"
+                    normalized.append(sub)
+
+                results = [self.execute_intent(p) for p in normalized]
+                successes = [r for r in results if r.get("status") == "success"]
+                if successes:
+                    combined_resp = " ".join(r.get("response", "") for r in results if r.get("response"))
+                    return {
+                        "status": "success" if len(successes) == len(results) else "partial",
+                        "action": "compound_action",
+                        "parts": results,
+                        "response": combined_resp,
+                        "latency_ms": round((time.time() - start_t) * 1000, 1),
+                        "engine": "fast_path",
+                    }
+
         # 1. Fast-Path: Deterministic Intent Handling
         fast_result = self._try_deterministic_fast_path(clean_prompt, raw_prompt=prompt)
         if fast_result is not None:
@@ -248,11 +271,46 @@ class AssistantBrain:
                 except Exception:
                     pass
 
-        # 10. App Launching / Switching
-        open_match = re.match(r"^(?:open|launch|switch to)\s+([a-zA-Z0-9\s]+)$", raw_prompt, re.IGNORECASE)
+        # 10. App Launching & Web Navigation
+        open_match = re.match(r"^(?:open|launch|switch to|go to)\s+([a-zA-Z0-9\s\.\:\/\-]+)$", raw_prompt, re.IGNORECASE)
         if open_match:
             app_target = open_match.group(1).strip()
-            self._notify_action("executing", f"Activating {app_target}")
+            self._notify_action("executing", f"Opening {app_target}")
+
+            web_map = {
+                "gmail": "https://mail.google.com",
+                "google mail": "https://mail.google.com",
+                "youtube": "https://www.youtube.com",
+                "github": "https://github.com",
+                "google": "https://www.google.com",
+                "twitter": "https://x.com",
+                "x": "https://x.com",
+                "reddit": "https://www.reddit.com",
+                "linkedin": "https://www.linkedin.com",
+                "chatgpt": "https://chatgpt.com",
+                "notion": "https://www.notion.so",
+                "figma": "https://www.figma.com",
+                "crcle": "https://crcle.ai",
+                "crcle.ai": "https://crcle.ai",
+            }
+            target_lower = app_target.lower()
+            web_url = web_map.get(target_lower)
+            if not web_url:
+                if target_lower.startswith(("http://", "https://")):
+                    web_url = app_target
+                elif any(target_lower.endswith(tld) for tld in [".com", ".ai", ".io", ".org", ".net", ".app", ".dev", ".co", ".edu"]):
+                    web_url = f"https://{app_target}"
+
+            if web_url:
+                webbrowser.open(web_url)
+                return {
+                    "status": "success",
+                    "action": "open_url",
+                    "url": web_url,
+                    "target": app_target,
+                    "response": f"Opened {app_target} in browser.",
+                }
+
             app_map = {
                 "chrome": "Google Chrome",
                 "google chrome": "Google Chrome",
@@ -265,8 +323,14 @@ class AssistantBrain:
                 "finder": "Finder",
                 "terminal": "Terminal",
                 "safari": "Safari",
+                "slack": "Slack",
+                "messages": "Messages",
+                "calendar": "Calendar",
+                "mail": "Mail",
+                "system settings": "System Settings",
+                "settings": "System Settings",
             }
-            resolved_target = app_map.get(app_target.lower(), app_target)
+            resolved_target = app_map.get(target_lower, app_target)
             if sys.platform == "darwin":
                 res = subprocess.run(["open", "-a", resolved_target], capture_output=True, text=True)
                 is_success = (res.returncode == 0) if isinstance(getattr(res, "returncode", None), int) else True
@@ -278,6 +342,17 @@ class AssistantBrain:
                         "response": f"Opened {resolved_target}.",
                     }
                 else:
+                    # Fallback to browser if it looks like a web service
+                    if "." not in target_lower and " " not in target_lower:
+                        fallback_url = f"https://www.{target_lower}.com"
+                        webbrowser.open(fallback_url)
+                        return {
+                            "status": "success",
+                            "action": "open_url",
+                            "url": fallback_url,
+                            "target": app_target,
+                            "response": f"Could not find local app '{resolved_target}'; opened {fallback_url} in browser.",
+                        }
                     return {
                         "status": "error",
                         "action": "open_app",
