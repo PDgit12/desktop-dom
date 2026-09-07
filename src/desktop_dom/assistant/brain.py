@@ -700,18 +700,23 @@ class AssistantBrain:
             tell application "Spotify"
                 activate
                 open location "spotify:search:{encoded_query}"
-                delay 0.3
-            end tell
-            tell application "System Events"
-                tell process "Spotify"
-                    key code 36
-                end tell
+                delay 0.4
+                play
             end tell
             '''
             try:
                 res = subprocess.run(["osascript", "-e", osa], capture_output=True, text=True, timeout=4.0)
                 is_success = (res.returncode == 0) if isinstance(getattr(res, "returncode", None), int) else True
                 if is_success:
+                    try:
+                        import Quartz
+                        down = Quartz.CGEventCreateKeyboardEvent(None, 36, True)
+                        up = Quartz.CGEventCreateKeyboardEvent(None, 36, False)
+                        Quartz.CGEventPost(Quartz.kCGHIDEventTap, down)
+                        time.sleep(0.02)
+                        Quartz.CGEventPost(Quartz.kCGHIDEventTap, up)
+                    except Exception:
+                        pass
                     return {
                         "status": "success",
                         "action": "spotify_play",
