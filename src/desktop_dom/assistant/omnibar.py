@@ -1250,9 +1250,13 @@ class FloatingOmnibar:
             except Exception as e:
                 logger.debug(f"Could not recenter to mouse screen: {e}")
 
+            if self._app:
+                self._app.activateIgnoringOtherApps_(True)
             self._panel.makeKeyAndOrderFront_(None)
+            self._panel.orderFrontRegardless()
             self._panel.setAlphaValue_(1.0)
             self._is_visible = True
+            self.evaluate_js("document.getElementById('query-input').focus();")
 
     def hide(self):
         """Hides the Omnibar."""
