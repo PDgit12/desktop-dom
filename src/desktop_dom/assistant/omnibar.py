@@ -799,7 +799,11 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
           if (val) submitQuery(val);
         }
       } else if (e.key === "Escape") {
-        window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({ action: "close" }));
+        if (isDrawerOpen) {
+          closeDrawers();
+        } else {
+          window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({ action: "close" }));
+        }
       }
     });
 
@@ -909,20 +913,6 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       statusDot.style.background = "#10b981";
 
       notifyResize();
-
-      const bgActions = [
-        "open_app", "spotify_play", "spotify_playpause", "spotify_next track",
-        "set_volume", "volume_up", "volume_down", "mute", "unmute",
-        "create_note", "copy_clipboard", "web_search", "screenshot",
-        "toggle_dark_mode", "window_minimize", "window_maximize", "window_close",
-        "click", "type", "press"
-      ];
-      if (bgActions.includes(action)) {
-        const delay = action === "open_app" ? 350 : 700;
-        autoCloseTimer = setTimeout(() => {
-          window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({ action: "close" }));
-        }, delay);
-      }
     };
 
     window.displayModelDrawer = function(status) {
@@ -1162,7 +1152,7 @@ class FloatingOmnibar:
             Cocoa.NSWindowCollectionBehaviorFullScreenAuxiliary
         )
 
-        # Panel Delegate for auto-hiding when clicking outside with grace period
+        # Panel Delegate
         try:
             panel_del_cls = objc.lookUpClass("AuraPanelDelegateObjC")
         except Exception:
@@ -1176,17 +1166,10 @@ class FloatingOmnibar:
                         self.ctrl = ctrl
                     return self
 
-                def windowDidResignKey_(self, notification):
-                    if self.ctrl and getattr(self.ctrl, "_is_visible", False):
-                        if time.time() - getattr(self.ctrl, "_show_time", 0) < 0.6:
-                            return
-                        self.ctrl.hide()
-
             panel_del_cls = AuraPanelDelegateObjC
 
         self._panel_delegate = panel_del_cls.alloc().initWithController_(self)
         self._panel.setDelegate_(self._panel_delegate)
-        self._setup_click_outside_monitor()
 
         # Configure WebKit View
         config = WebKit.WKWebViewConfiguration.alloc().init()
@@ -1310,29 +1293,6 @@ class FloatingOmnibar:
             self._status_item.setMenu_(menu)
         except Exception as e:
             logger.warning(f"Could not initialize NSStatusItem: {e}")
-
-    def _setup_click_outside_monitor(self):
-        """Monitors global mouse clicks to dismiss Omnibar when user clicks outside."""
-        try:
-            import Cocoa
-            def _handler(event):
-                if not getattr(self, "_is_visible", False):
-                    return
-                # 0.6s grace period after showing to prevent instant dismiss
-                if time.time() - getattr(self, "_show_time", 0) < 0.6:
-                    return
-                loc = Cocoa.NSEvent.mouseLocation()
-                if self._panel:
-                    frame = self._panel.frame()
-                    if not Cocoa.NSPointInRect(loc, frame):
-                        self.hide()
-
-            self._click_monitor = Cocoa.NSEvent.addGlobalMonitorForEventsMatchingMask_handler_(
-                Cocoa.NSEventMaskLeftMouseDown | Cocoa.NSEventMaskRightMouseDown,
-                _handler
-            )
-        except Exception as e:
-            logger.debug(f"Could not register click outside monitor: {e}")
 
     def resize_window(self, new_height: float):
         """Instantly updates the Cocoa NSPanel frame height without blocking animation stutter."""
