@@ -8,7 +8,6 @@ from typing import Optional, Dict, Any
 
 logger = logging.getLogger("desktop_dom.assistant.omnibar")
 
-# Sophisticated Liquid Glass Spotlight / Raycast Omnibar HTML Template
 OMNIBAR_HTML = r"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -32,56 +31,56 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     flex-direction: column;
     align-items: center;
     background: transparent;
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", sans-serif;
     overflow: hidden;
   }
   .omnibar-card {
     width: 700px;
-    border-radius: 20px;
-    background: rgba(12, 14, 22, 0.88);
-    backdrop-filter: blur(40px) saturate(210%);
-    -webkit-backdrop-filter: blur(40px) saturate(210%);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.22), 0 20px 60px rgba(0, 0, 0, 0.65), 0 0 30px rgba(0, 240, 255, 0.12);
+    border-radius: 16px;
+    background: rgba(13, 15, 20, 0.94);
+    backdrop-filter: blur(50px) saturate(190%);
+    -webkit-backdrop-filter: blur(50px) saturate(190%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 24px 64px rgba(0, 0, 0, 0.75);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    transition: border-color 0.25s ease, box-shadow 0.25s ease;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
   }
   .omnibar-card.listening {
-    border-color: rgba(255, 0, 127, 0.5);
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.22), 0 20px 60px rgba(0, 0, 0, 0.7), 0 0 35px rgba(255, 0, 127, 0.25);
+    border-color: rgba(236, 72, 153, 0.6);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 24px 64px rgba(0, 0, 0, 0.75), 0 0 28px rgba(236, 72, 153, 0.2);
   }
   .omnibar-card.executing {
-    border-color: rgba(57, 255, 20, 0.6);
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.22), 0 20px 60px rgba(0, 0, 0, 0.7), 0 0 35px rgba(57, 255, 20, 0.25);
+    border-color: rgba(14, 165, 233, 0.6);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 24px 64px rgba(0, 0, 0, 0.75), 0 0 28px rgba(14, 165, 233, 0.2);
   }
   .header-bar {
-    height: 70px;
+    height: 64px;
     display: flex;
     align-items: center;
     padding: 0 18px;
     gap: 14px;
     position: relative;
   }
-  .brand-orb {
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 30% 30%, #00f0ff, #7000ff 70%, #ff007f 100%);
-    box-shadow: 0 0 16px rgba(0, 240, 255, 0.5);
+  .brand-glyph {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
-    font-size: 15px;
-    font-weight: 800;
+    color: #0ea5e9;
     flex-shrink: 0;
     cursor: pointer;
-    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   }
-  .brand-orb:hover {
-    transform: scale(1.08);
+  .brand-glyph:hover {
+    background: rgba(14, 165, 233, 0.15);
+    border-color: rgba(14, 165, 233, 0.4);
+    transform: scale(1.05);
   }
   .input-wrap {
     flex: 1;
@@ -94,73 +93,81 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     background: transparent;
     border: none;
     outline: none;
-    color: #ffffff;
-    font-size: 17px;
-    font-weight: 500;
-    letter-spacing: -0.25px;
+    color: #f8fafc;
+    font-size: 16px;
+    font-weight: 450;
+    letter-spacing: -0.2px;
     user-select: text !important;
     -webkit-user-select: text !important;
     cursor: text;
   }
   input#query-input::placeholder {
-    color: rgba(255, 255, 255, 0.35);
+    color: rgba(255, 255, 255, 0.3);
     font-weight: 400;
   }
   #waveform-canvas {
-    width: 72px;
-    height: 28px;
+    width: 68px;
+    height: 24px;
     flex-shrink: 0;
   }
   .mic-btn {
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.09);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all 0.2s;
-    color: #00f0ff;
+    transition: all 0.18s ease;
+    color: #94a3b8;
     flex-shrink: 0;
   }
   .mic-btn:hover {
-    background: rgba(0, 240, 255, 0.18);
-    transform: scale(1.06);
+    background: rgba(255, 255, 255, 0.09);
+    color: #f8fafc;
   }
   .mic-btn.active {
-    background: #ff007f;
-    border-color: #ff007f;
-    color: white;
-    box-shadow: 0 0 16px rgba(255, 0, 127, 0.7);
-    animation: micPulse 1.2s infinite alternate ease-in-out;
+    background: rgba(236, 72, 153, 0.2);
+    border-color: rgba(236, 72, 153, 0.6);
+    color: #f43f5e;
+    animation: micPulse 1.4s infinite alternate ease-in-out;
   }
   @keyframes micPulse {
     0% { transform: scale(1); }
-    100% { transform: scale(1.12); }
+    100% { transform: scale(1.08); }
   }
   .status-badge {
-    padding: 4px 10px;
-    border-radius: 10px;
-    font-size: 10px;
-    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 9.5px;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.6px;
-    background: rgba(0, 240, 255, 0.1);
-    color: #00f0ff;
-    border: 1px solid rgba(0, 240, 255, 0.25);
+    letter-spacing: 0.5px;
+    background: rgba(255, 255, 255, 0.04);
+    color: #94a3b8;
+    border: 1px solid rgba(255, 255, 255, 0.08);
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .status-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #0ea5e9;
   }
   .progress-line {
-    height: 2px;
+    height: 1.5px;
     width: 100%;
     background: transparent;
     position: relative;
     overflow: hidden;
   }
   .progress-line.active {
-    background: rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.04);
   }
   .progress-line.active::after {
     content: "";
@@ -168,9 +175,9 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     top: 0;
     left: 0;
     height: 100%;
-    width: 40%;
-    background: linear-gradient(90deg, transparent, #00f0ff, #ff007f, transparent);
-    animation: progressSlide 1.1s infinite cubic-bezier(0.4, 0, 0.2, 1);
+    width: 35%;
+    background: linear-gradient(90deg, transparent, #0ea5e9, transparent);
+    animation: progressSlide 1.2s infinite cubic-bezier(0.4, 0, 0.2, 1);
   }
   @keyframes progressSlide {
     0% { transform: translateX(-100%); }
@@ -179,66 +186,83 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
   .tray {
     display: flex;
     flex-direction: column;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(8, 10, 15, 0.4);
-    padding: 8px 10px;
-    gap: 4px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(8, 9, 13, 0.35);
+    padding: 6px 8px;
+    gap: 2px;
     max-height: 240px;
     overflow-y: auto;
   }
   .suggestion-item {
     display: flex;
     align-items: center;
-    padding: 8px 12px;
-    border-radius: 10px;
+    padding: 7px 10px;
+    border-radius: 8px;
     gap: 12px;
     cursor: pointer;
-    transition: background 0.15s ease;
+    transition: background 0.12s ease;
   }
   .suggestion-item:hover, .suggestion-item.selected {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.06);
   }
   .suggestion-icon {
-    font-size: 16px;
-    width: 22px;
-    text-align: center;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    flex-shrink: 0;
+  }
+  .suggestion-item.selected .suggestion-icon {
+    color: #0ea5e9;
   }
   .suggestion-content {
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 1px;
+    min-width: 0;
   }
   .suggestion-title {
-    color: #ffffff;
-    font-size: 14px;
+    color: #f1f5f9;
+    font-size: 13.5px;
     font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .suggestion-subtitle {
-    color: rgba(255, 255, 255, 0.45);
+    color: #64748b;
     font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .suggestion-badge {
-    font-size: 10px;
+    font-size: 9.5px;
     font-weight: 600;
-    padding: 2px 8px;
-    border-radius: 6px;
-    background: rgba(255, 255, 255, 0.06);
-    color: rgba(255, 255, 255, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.04);
+    color: #94a3b8;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   }
   .suggestion-item.selected .suggestion-badge {
-    background: rgba(0, 240, 255, 0.15);
-    color: #00f0ff;
-    border-color: rgba(0, 240, 255, 0.3);
+    background: rgba(14, 165, 233, 0.12);
+    color: #38bdf8;
+    border-color: rgba(14, 165, 233, 0.25);
   }
 
-  /* Result Drawer Styles */
+  /* Minimalist Result Drawer */
   .result-drawer {
     display: none;
     flex-direction: column;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(8, 10, 16, 0.65);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(7, 8, 12, 0.6);
     padding: 14px 18px;
     gap: 12px;
     max-height: 280px;
@@ -255,30 +279,31 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
   .result-pills {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
   }
   .pill {
-    padding: 3px 8px;
-    border-radius: 6px;
+    padding: 2px 7px;
+    border-radius: 4px;
     font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.4px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
     text-transform: uppercase;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   }
   .pill-success {
-    background: rgba(57, 255, 20, 0.15);
-    color: #39ff14;
-    border: 1px solid rgba(57, 255, 20, 0.3);
+    background: rgba(16, 185, 129, 0.12);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.25);
   }
   .pill-fast {
-    background: rgba(0, 240, 255, 0.15);
-    color: #00f0ff;
-    border: 1px solid rgba(0, 240, 255, 0.3);
+    background: rgba(14, 165, 233, 0.12);
+    color: #38bdf8;
+    border: 1px solid rgba(14, 165, 233, 0.25);
   }
   .pill-llm {
-    background: rgba(112, 0, 255, 0.2);
+    background: rgba(168, 85, 247, 0.12);
     color: #c084fc;
-    border: 1px solid rgba(112, 0, 255, 0.35);
+    border: 1px solid rgba(168, 85, 247, 0.25);
   }
   .result-actions {
     display: flex;
@@ -287,41 +312,44 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
   }
   .action-btn {
     padding: 3px 9px;
-    border-radius: 6px;
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    color: #ffffff;
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #cbd5e1;
     font-size: 11px;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.15s ease;
   }
   .action-btn:hover {
-    background: rgba(255, 255, 255, 0.16);
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
   }
   .action-btn.active {
-    background: #00f0ff;
-    color: #000;
-    border-color: #00f0ff;
+    background: #0ea5e9;
+    color: #0f172a;
+    border-color: #0ea5e9;
+    font-weight: 600;
   }
   .result-body {
-    color: #f1f5f9;
-    font-size: 14px;
+    color: #e2e8f0;
+    font-size: 13.5px;
     line-height: 1.55;
     white-space: pre-wrap;
     user-select: text;
     -webkit-user-select: text;
     word-break: break-word;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
   }
 
-  /* Model Drawer Styles */
+  /* Minimalist Model Drawer */
   .model-drawer {
     display: none;
     flex-direction: column;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(7, 9, 15, 0.85);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(8, 9, 14, 0.85);
     padding: 12px 16px;
-    gap: 8px;
+    gap: 6px;
     max-height: 250px;
     overflow-y: auto;
   }
@@ -329,33 +357,34 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     display: flex;
   }
   .model-drawer-title {
-    font-size: 11px;
-    font-weight: 700;
-    color: rgba(255, 255, 255, 0.5);
+    font-size: 10px;
+    font-weight: 650;
+    color: #64748b;
     text-transform: uppercase;
     letter-spacing: 0.6px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    padding: 2px 2px 6px 2px;
   }
   .model-card {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 8px 12px;
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 7px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: all 0.12s ease;
   }
   .model-card:hover {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.12);
   }
   .model-card.active {
-    background: rgba(0, 240, 255, 0.08);
-    border-color: rgba(0, 240, 255, 0.35);
+    background: rgba(14, 165, 233, 0.08);
+    border-color: rgba(14, 165, 233, 0.3);
   }
   .model-info {
     display: flex;
@@ -363,37 +392,40 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     gap: 2px;
   }
   .model-name {
-    color: #ffffff;
+    color: #f1f5f9;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 550;
   }
   .model-desc {
-    color: rgba(255, 255, 255, 0.45);
-    font-size: 11px;
+    color: #64748b;
+    font-size: 10.5px;
   }
   .model-tag {
-    font-size: 10px;
-    padding: 2px 7px;
-    border-radius: 5px;
-    background: rgba(255, 255, 255, 0.06);
-    color: rgba(255, 255, 255, 0.7);
+    font-size: 9.5px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.04);
+    color: #94a3b8;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: 0.3px;
   }
   .model-card.active .model-tag {
-    background: #00f0ff;
-    color: #000;
+    background: #0ea5e9;
+    color: #0c0e14;
     font-weight: 700;
   }
 
   .footer-bar {
-    height: 34px;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    height: 32px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 0 16px;
-    background: rgba(6, 7, 12, 0.6);
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.4);
+    background: rgba(6, 7, 10, 0.5);
+    font-size: 10.5px;
+    color: #64748b;
   }
   .shortcuts {
     display: flex;
@@ -406,13 +438,14 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     gap: 3px;
   }
   .kbd {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 4px;
-    padding: 1px 4px;
-    font-size: 9px;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    padding: 0 3.5px;
+    font-size: 8.5px;
     font-weight: 600;
-    color: rgba(255, 255, 255, 0.8);
+    color: #94a3b8;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   }
   .local-tag {
     display: flex;
@@ -421,44 +454,49 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     cursor: pointer;
     padding: 2px 6px;
     border-radius: 4px;
-    transition: background 0.15s ease;
+    transition: background 0.12s ease;
+    color: #94a3b8;
   }
   .local-tag:hover {
-    background: rgba(255, 255, 255, 0.08);
-    color: #ffffff;
+    background: rgba(255, 255, 255, 0.06);
+    color: #f1f5f9;
   }
   .dot-green {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
     border-radius: 50%;
-    background: #39ff14;
-    box-shadow: 0 0 8px #39ff14;
+    background: #10b981;
   }
   .dot-amber {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
     border-radius: 50%;
-    background: #ffb703;
-    box-shadow: 0 0 8px #ffb703;
+    background: #f59e0b;
   }
 </style>
 </head>
 <body>
   <div class="omnibar-card" id="card">
     <div class="header-bar">
-      <div class="brand-orb" id="brand-orb" title="Aura AI - Click for Models">⚡</div>
-      <div class="input-wrap">
-        <input id="query-input" type="text" placeholder="Ask anything, or speak... (e.g. 'Play Starboy on Spotify')" autocomplete="off" autofocus />
-      </div>
-      <canvas id="waveform-canvas" width="144" height="56"></canvas>
-      <div class="mic-btn" id="mic-btn" title="Toggle Voice Microphone">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
-          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-          <line x1="12" x2="12" y1="19" y2="22"/>
+      <div class="brand-glyph" id="brand-orb" title="Aura AI — Click to switch models">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+          <polyline points="2 17 12 22 22 17"/>
+          <polyline points="2 12 12 17 22 12"/>
         </svg>
       </div>
-      <div class="status-badge" id="badge">Ready</div>
+      <div class="input-wrap">
+        <input id="query-input" type="text" placeholder="Search commands, math, or ask Aura... (e.g. 'calculate 25 * 40')" autocomplete="off" autofocus />
+      </div>
+      <canvas id="waveform-canvas" width="136" height="48"></canvas>
+      <div class="mic-btn" id="mic-btn" title="Toggle Voice Microphone">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+          <line x1="12" y1="19" x2="12" y2="22"/>
+        </svg>
+      </div>
+      <div class="status-badge" id="badge"><span class="status-dot" id="status-dot"></span><span id="badge-text">Ready</span></div>
     </div>
 
     <div class="progress-line" id="progress"></div>
@@ -474,7 +512,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
           <span class="pill pill-fast" id="result-engine-pill">Fast-Path</span>
         </div>
         <div class="result-actions">
-          <button class="action-btn" id="copy-btn">📋 Copy</button>
+          <button class="action-btn" id="copy-btn">Copy</button>
           <button class="action-btn" id="done-btn">Done (Esc)</button>
         </div>
       </div>
@@ -483,24 +521,24 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
 
     <div class="model-drawer" id="model-drawer">
       <div class="model-drawer-title">
-        <span>Active AI Engine & Models</span>
-        <span id="model-conn-status">● Checking...</span>
+        <span>Active Engine & Weights</span>
+        <span id="model-conn-status">Checking...</span>
       </div>
-      <div id="model-list" style="display: flex; flex-direction: column; gap: 6px;">
+      <div id="model-list" style="display: flex; flex-direction: column; gap: 4px;">
         <!-- Dynamically rendered models -->
       </div>
     </div>
 
     <div class="footer-bar">
       <div class="shortcuts">
-        <span class="kbd-pill"><span class="kbd">↵</span> Execute</span>
-        <span class="kbd-pill"><span class="kbd">↑↓</span> Navigate</span>
-        <span class="kbd-pill"><span class="kbd">Tab</span> Complete</span>
+        <span class="kbd-pill"><span class="kbd">↵</span> Run</span>
+        <span class="kbd-pill"><span class="kbd">↑↓</span> Select</span>
+        <span class="kbd-pill"><span class="kbd">Tab</span> Fill</span>
         <span class="kbd-pill"><span class="kbd">Esc</span> Dismiss</span>
       </div>
       <div class="local-tag" id="footer-model-tag" title="Click to view & switch local models">
         <div class="dot-green" id="model-dot"></div>
-        <span id="footer-model-name">Loading models...</span>
+        <span id="footer-model-name">Loading...</span>
       </div>
     </div>
   </div>
@@ -508,7 +546,8 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
   <script>
     const input = document.getElementById("query-input");
     const card = document.getElementById("card");
-    const badge = document.getElementById("badge");
+    const badgeText = document.getElementById("badge-text");
+    const statusDot = document.getElementById("status-dot");
     const micBtn = document.getElementById("mic-btn");
     const tray = document.getElementById("tray");
     const progress = document.getElementById("progress");
@@ -528,6 +567,17 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     const canvas = document.getElementById("waveform-canvas");
     const ctx = canvas.getContext("2d");
 
+    // Pure Vector SVG Icons (Zero Emojis)
+    const ICONS = {
+      search: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+      math: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>',
+      media: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>',
+      volume: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>',
+      app: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>',
+      screen: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>',
+      model: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="19" cy="6" r="2"/><circle cx="5" cy="6" r="2"/><circle cx="19" cy="18" r="2"/><circle cx="5" cy="18" r="2"/><line x1="12" y1="9" x2="12" y2="3"/><line x1="12" y1="15" x2="12" y2="21"/><line x1="9.5" y1="10.5" x2="6.5" y2="7.5"/><line x1="14.5" y1="10.5" x2="17.5" y2="7.5"/></svg>'
+    };
+
     let isListening = false;
     let waveOffset = 0;
     let selectedIndex = 0;
@@ -536,17 +586,15 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     let autoCloseTimer = null;
     let isDrawerOpen = false;
 
-    // Multi-harmonic fluid sine wave visualizer
     function drawWave() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       const centerY = canvas.height / 2;
-      const ampBase = isListening ? 16 : 5;
-      const freq = isListening ? 0.09 : 0.045;
+      const ampBase = isListening ? 10 : 3;
+      const freq = isListening ? 0.08 : 0.04;
 
-      // Harmonic 1: Electric Cyan
       ctx.beginPath();
-      ctx.lineWidth = 2.4;
-      ctx.strokeStyle = isListening ? "rgba(255, 0, 127, 0.9)" : "rgba(0, 240, 255, 0.85)";
+      ctx.lineWidth = 1.4;
+      ctx.strokeStyle = isListening ? "rgba(244, 63, 94, 0.85)" : "rgba(14, 165, 233, 0.75)";
       for (let x = 0; x < canvas.width; x++) {
         const envelope = Math.sin((x / canvas.width) * Math.PI);
         const y = centerY + Math.sin(x * freq + waveOffset) * ampBase * envelope;
@@ -554,30 +602,18 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       }
       ctx.stroke();
 
-      // Harmonic 2: Magenta / Violet
-      ctx.beginPath();
-      ctx.lineWidth = 1.8;
-      ctx.strokeStyle = isListening ? "rgba(255, 255, 255, 0.7)" : "rgba(112, 0, 255, 0.6)";
-      for (let x = 0; x < canvas.width; x++) {
-        const envelope = Math.sin((x / canvas.width) * Math.PI);
-        const y = centerY + Math.cos(x * (freq * 1.3) - waveOffset * 1.2) * (ampBase * 0.75) * envelope;
-        if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-
-      waveOffset += isListening ? 0.22 : 0.05;
+      waveOffset += isListening ? 0.18 : 0.04;
       requestAnimationFrame(drawWave);
     }
     drawWave();
 
-    // Default fast-path actions
     const defaultActions = [
-      { icon: "🎵", title: "Play on Spotify", subtitle: "Play Starboy on Spotify", query: "Play Starboy on Spotify", badge: "Fast-Path" },
-      { icon: "🧮", title: "Instant Math", subtitle: "Calculate 125 * 40 + 15", query: "Calculate 125 * 40 + 15", badge: "AST Eval" },
-      { icon: "🔊", title: "Adjust System Volume", subtitle: "Set volume to 80%", query: "Set volume to 80", badge: "Hardware" },
-      { icon: "⚡", title: "Launch Application", subtitle: "Open Calculator", query: "Open Calculator", badge: "DesktopApp" },
-      { icon: "🖥️", title: "Inspect Screen", subtitle: "What is on my screen?", query: "what is on my screen", badge: "Zero-Vision" },
-      { icon: "🧠", title: "AI Model Status", subtitle: "Switch or view local Ollama models", query: "/model", badge: "Models" }
+      { iconType: "media", title: "Spotify Playback", subtitle: "Play Starboy on Spotify", query: "Play Starboy on Spotify", badge: "FAST-PATH" },
+      { iconType: "math", title: "Calculator", subtitle: "Calculate 125 * 40 + 15", query: "Calculate 125 * 40 + 15", badge: "AST EVAL" },
+      { iconType: "volume", title: "System Volume", subtitle: "Set volume to 80%", query: "Set volume to 80", badge: "HARDWARE" },
+      { iconType: "app", title: "Launch Application", subtitle: "Open Calculator", query: "Open Calculator", badge: "APP" },
+      { iconType: "screen", title: "Inspect Screen", subtitle: "What is on my screen?", query: "what is on my screen", badge: "DOM" },
+      { iconType: "model", title: "Switch AI Models", subtitle: "View local Ollama weights", query: "/model", badge: "ENGINE" }
     ];
 
     function updateSuggestions() {
@@ -588,86 +624,79 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       if (!q) {
         currentSuggestions = defaultActions;
       } else {
-        // 0. Model command
         if (q.startsWith("/model") || q === "models" || q === "status") {
           currentSuggestions.push({
-            icon: "🧠",
+            iconType: "model",
             title: "View & Switch Local Models",
             subtitle: "Manage Ollama connections & zero-model fast path",
             query: "/model",
-            badge: "Engine"
+            badge: "ENGINE"
           });
         }
 
-        // 1. Math match
         const mathClean = q.replace(/[^0-9+*/.() -]/g, "").trim();
         if (mathClean && /[+*/-]/.test(mathClean) && !mathClean.includes("**")) {
           try {
             const evaluated = Function('"use strict";return (' + mathClean + ')')();
             if (typeof evaluated === "number" && isFinite(evaluated)) {
               currentSuggestions.push({
-                icon: "🧮",
+                iconType: "math",
                 title: `= ${evaluated}`,
                 subtitle: `Calculate ${mathClean}`,
                 query: q,
-                badge: "Instant Math"
+                badge: "MATH"
               });
             }
           } catch(e) {}
         }
 
-        // 2. Spotify match
         if (q.toLowerCase().startsWith("play ") || q.toLowerCase().includes("spotify")) {
           currentSuggestions.push({
-            icon: "🎵",
+            iconType: "media",
             title: `Play "${q.replace(/play/i, "").replace(/on spotify/i, "").trim()}"`,
-            subtitle: "Spotify Media Playback (<120ms)",
+            subtitle: "Spotify Media Controller (<120ms)",
             query: q,
-            badge: "Spotify"
+            badge: "SPOTIFY"
           });
         }
 
-        // 3. Volume match
         if (q.toLowerCase().includes("volume") || q.toLowerCase().includes("mute")) {
           currentSuggestions.push({
-            icon: "🔊",
+            iconType: "volume",
             title: q,
-            subtitle: "System Hardware Audio Bus (<30ms)",
+            subtitle: "System Audio Hardware Bus (<30ms)",
             query: q,
-            badge: "System"
+            badge: "SYSTEM"
           });
         }
 
-        // 4. App open
         if (q.toLowerCase().startsWith("open ") || q.toLowerCase().startsWith("launch ")) {
           const appName = q.replace(/^(open|launch)\s+/i, "").trim();
           currentSuggestions.push({
-            icon: "⚡",
+            iconType: "app",
             title: `Activate ${appName}`,
             subtitle: "DesktopApp Window Attachment (<80ms)",
             query: q,
-            badge: "DesktopApp"
+            badge: "APP"
           });
         }
 
-        // 5. Screen introspection
         if (q.toLowerCase().includes("screen") || q.toLowerCase().includes("window")) {
           currentSuggestions.push({
-            icon: "🖥️",
-            title: "Inspect Active Screen & UI Elements",
-            subtitle: "Sub-50ms deterministic accessibility tree inspection",
+            iconType: "screen",
+            title: "Inspect Active Screen & Elements",
+            subtitle: "Sub-50ms deterministic accessibility tree extraction",
             query: q,
-            badge: "Zero-Vision"
+            badge: "DOM"
           });
         }
 
-        // 6. Generic Local LLM reasoning
         currentSuggestions.push({
-          icon: "🧠",
+          iconType: "search",
           title: `Ask Aura: "${q}"`,
           subtitle: "Local Ollama ReAct Planning Loop",
           query: q,
-          badge: "Ollama"
+          badge: "OLLAMA"
         });
       }
 
@@ -688,8 +717,9 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       currentSuggestions.forEach((item, idx) => {
         const el = document.createElement("div");
         el.className = "suggestion-item" + (idx === selectedIndex ? " selected" : "");
+        const iconSvg = ICONS[item.iconType] || ICONS.search;
         el.innerHTML = `
-          <div class="suggestion-icon">${item.icon}</div>
+          <div class="suggestion-icon">${iconSvg}</div>
           <div class="suggestion-content">
             <div class="suggestion-title">${escapeHtml(item.title)}</div>
             <div class="suggestion-subtitle">${escapeHtml(item.subtitle)}</div>
@@ -706,13 +736,13 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     }
 
     function notifyResize() {
-      let contentHeight = 70 + 34 + 16;
+      let contentHeight = 64 + 32 + 16;
       if (resultDrawer.classList.contains("visible")) {
-        contentHeight = 70 + resultDrawer.scrollHeight + 34 + 18;
+        contentHeight = 64 + resultDrawer.scrollHeight + 32 + 18;
       } else if (modelDrawer.classList.contains("visible")) {
-        contentHeight = 70 + modelDrawer.scrollHeight + 34 + 18;
+        contentHeight = 64 + modelDrawer.scrollHeight + 32 + 18;
       } else {
-        contentHeight = 70 + (currentSuggestions.length * 48) + 34 + 16;
+        contentHeight = 64 + (currentSuggestions.length * 44) + 32 + 14;
       }
       const targetHeight = Math.min(440, Math.max(80, contentHeight));
       window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({
@@ -776,10 +806,10 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
           action: "copy_to_clipboard",
           text: currentResultRaw
         }));
-        copyBtn.innerText = "✓ Copied!";
+        copyBtn.innerText = "Copied";
         copyBtn.classList.add("active");
         setTimeout(() => {
-          copyBtn.innerText = "📋 Copy";
+          copyBtn.innerText = "Copy";
           copyBtn.classList.remove("active");
         }, 1500);
       }
@@ -793,9 +823,8 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       modelDrawer.classList.remove("visible");
       tray.style.display = "flex";
       isDrawerOpen = false;
-      badge.innerText = "Ready";
-      badge.style.color = "#00f0ff";
-      badge.style.borderColor = "rgba(0, 240, 255, 0.25)";
+      badgeText.innerText = "Ready";
+      statusDot.style.background = "#0ea5e9";
       card.classList.remove("executing");
       updateSuggestions();
     }
@@ -805,16 +834,14 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       if (isListening) {
         micBtn.classList.add("active");
         card.classList.add("listening");
-        badge.innerText = "Listening";
-        badge.style.color = "#ff007f";
-        badge.style.borderColor = "rgba(255, 0, 127, 0.4)";
+        badgeText.innerText = "Listening";
+        statusDot.style.background = "#f43f5e";
         window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({ action: "start_listening" }));
       } else {
         micBtn.classList.remove("active");
         card.classList.remove("listening");
-        badge.innerText = "Ready";
-        badge.style.color = "#00f0ff";
-        badge.style.borderColor = "rgba(0, 240, 255, 0.25)";
+        badgeText.innerText = "Ready";
+        statusDot.style.background = "#0ea5e9";
         window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({ action: "stop_listening" }));
       }
     }
@@ -823,9 +850,8 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       if (autoCloseTimer) clearTimeout(autoCloseTimer);
       card.classList.remove("listening");
       card.classList.add("executing");
-      badge.innerText = "Executing";
-      badge.style.color = "#39ff14";
-      badge.style.borderColor = "rgba(57, 255, 20, 0.4)";
+      badgeText.innerText = "Running";
+      statusDot.style.background = "#10b981";
       progress.classList.add("active");
 
       window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({
@@ -842,7 +868,6 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       }
     }
 
-    // Called from Python bridge: window.displayResult(payload)
     window.displayResult = function(payload) {
       progress.classList.remove("active");
       card.classList.remove("executing");
@@ -851,7 +876,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       resultDrawer.classList.add("visible");
       isDrawerOpen = true;
 
-      const respText = payload.response || "Task completed successfully.";
+      const respText = payload.response || "Completed successfully.";
       currentResultRaw = respText;
       resultBody.innerText = respText;
 
@@ -859,23 +884,21 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       const latency = payload.latency_ms ? `${payload.latency_ms}ms` : "";
 
       if (engine === "fast_path") {
-        resultEnginePill.innerText = `⚡ Fast-Path • ${latency}`;
+        resultEnginePill.innerText = latency ? `Fast-Path · ${latency}` : "Fast-Path";
         resultEnginePill.className = "pill pill-fast";
       } else if (engine === "ollama") {
-        resultEnginePill.innerText = `🧠 Ollama • ${latency}`;
+        resultEnginePill.innerText = latency ? `Ollama · ${latency}` : "Ollama";
         resultEnginePill.className = "pill pill-llm";
       } else {
-        resultEnginePill.innerText = latency ? `⚡ ${latency}` : "Done";
+        resultEnginePill.innerText = latency ? `Done · ${latency}` : "Done";
         resultEnginePill.className = "pill pill-fast";
       }
 
-      badge.innerText = "Completed";
-      badge.style.color = "#39ff14";
-      badge.style.borderColor = "rgba(57, 255, 20, 0.4)";
+      badgeText.innerText = "Done";
+      statusDot.style.background = "#10b981";
 
       notifyResize();
 
-      // Transient actions auto-close after 2.8s
       const action = payload.action || "";
       if (["volume", "dark_mode", "clipboard_copy", "notes"].includes(action)) {
         autoCloseTimer = setTimeout(() => {
@@ -884,7 +907,6 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       }
     };
 
-    // Called from Python bridge: window.displayModelDrawer(status)
     window.displayModelDrawer = function(status) {
       progress.classList.remove("active");
       tray.style.display = "none";
@@ -897,18 +919,17 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       const models = status.available_models || [];
 
       modelConnStatus.innerHTML = isConn 
-        ? `<span style="color:#39ff14">● Connected (${status.latency_ms}ms)</span>`
-        : `<span style="color:#ffb703">● Offline (0MB RAM Mode)</span>`;
+        ? `<span style="color:#10b981">Connected (${status.latency_ms}ms)</span>`
+        : `<span style="color:#f59e0b">Offline (Fast-Path Mode)</span>`;
 
       modelList.innerHTML = "";
 
-      // Option 1: Fast-Path
       const fpCard = document.createElement("div");
       fpCard.className = "model-card" + (current === "Zero-Model Fast-Path" ? " active" : "");
       fpCard.innerHTML = `
         <div class="model-info">
-          <div class="model-name">⚡ Zero-Model Fast-Path</div>
-          <div class="model-desc">Sub-25ms deterministic AST dispatch, 0MB RAM overhead</div>
+          <div class="model-name">Zero-Model Fast-Path</div>
+          <div class="model-desc">Sub-25ms deterministic AST dispatch (0MB RAM overhead)</div>
         </div>
         <div class="model-tag">${current === "Zero-Model Fast-Path" ? "ACTIVE" : "SELECT"}</div>
       `;
@@ -920,15 +941,14 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       });
       modelList.appendChild(fpCard);
 
-      // Options 2..N: Ollama local models
       models.forEach(m => {
         const isAct = (current === m);
         const cardEl = document.createElement("div");
         cardEl.className = "model-card" + (isAct ? " active" : "");
         cardEl.innerHTML = `
           <div class="model-info">
-            <div class="model-name">🧠 ${escapeHtml(m)}</div>
-            <div class="model-desc">Local neural reasoning model via Ollama (localhost:11434)</div>
+            <div class="model-name">${escapeHtml(m)}</div>
+            <div class="model-desc">Local neural reasoning model (localhost:11434)</div>
           </div>
           <div class="model-tag">${isAct ? "ACTIVE" : "SELECT"}</div>
         `;
@@ -944,7 +964,6 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       notifyResize();
     };
 
-    // Called from Python bridge: window.updateModelStatus(status)
     window.updateModelStatus = function(status) {
       if (!status) return;
       const cur = status.current_model || "Zero-Model Fast-Path";
@@ -956,7 +975,6 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       }
     };
 
-    // Initial render & auto-focus
     updateSuggestions();
     input.focus();
     card.addEventListener("click", (e) => {
@@ -1186,8 +1204,8 @@ class FloatingOmnibar:
             self._status_item = status_bar.statusItemWithLength_(Cocoa.NSVariableStatusItemLength)
             btn = self._status_item.button()
             if btn:
-                btn.setTitle_("⚡")
-                btn.setToolTip_("Aura Desktop Assistant (Cmd+Shift+Space)")
+                btn.setTitle_("◇")
+                btn.setToolTip_("Aura (Cmd+Shift+Space)")
 
             try:
                 del_cls = objc.lookUpClass("AuraMenuDelegateObjC")
