@@ -1155,14 +1155,14 @@ class FloatingOmnibar:
         self._panel.setMovableByWindowBackground_(True)
         self._panel.setBecomesKeyOnlyIfNeeded_(False)
         self._panel.setWorksWhenModal_(True)
-        self._panel.setHidesOnDeactivate_(True)
+        self._panel.setHidesOnDeactivate_(False)
         self._panel.setAcceptsMouseMovedEvents_(True)
         self._panel.setCollectionBehavior_(
             Cocoa.NSWindowCollectionBehaviorCanJoinAllSpaces |
             Cocoa.NSWindowCollectionBehaviorFullScreenAuxiliary
         )
 
-        # Panel Delegate for auto-hiding when clicking outside
+        # Panel Delegate for auto-hiding when clicking outside with grace period
         try:
             panel_del_cls = objc.lookUpClass("AuraPanelDelegateObjC")
         except Exception:
@@ -1178,12 +1178,15 @@ class FloatingOmnibar:
 
                 def windowDidResignKey_(self, notification):
                     if self.ctrl and getattr(self.ctrl, "_is_visible", False):
+                        if time.time() - getattr(self.ctrl, "_show_time", 0) < 0.6:
+                            return
                         self.ctrl.hide()
 
             panel_del_cls = AuraPanelDelegateObjC
 
         self._panel_delegate = panel_del_cls.alloc().initWithController_(self)
         self._panel.setDelegate_(self._panel_delegate)
+        self._setup_click_outside_monitor()
 
         # Configure WebKit View
         config = WebKit.WKWebViewConfiguration.alloc().init()
@@ -1308,6 +1311,29 @@ class FloatingOmnibar:
         except Exception as e:
             logger.warning(f"Could not initialize NSStatusItem: {e}")
 
+    def _setup_click_outside_monitor(self):
+        """Monitors global mouse clicks to dismiss Omnibar when user clicks outside."""
+        try:
+            import Cocoa
+            def _handler(event):
+                if not getattr(self, "_is_visible", False):
+                    return
+                # 0.6s grace period after showing to prevent instant dismiss
+                if time.time() - getattr(self, "_show_time", 0) < 0.6:
+                    return
+                loc = Cocoa.NSEvent.mouseLocation()
+                if self._panel:
+                    frame = self._panel.frame()
+                    if not Cocoa.NSPointInRect(loc, frame):
+                        self.hide()
+
+            self._click_monitor = Cocoa.NSEvent.addGlobalMonitorForEventsMatchingMask_handler_(
+                Cocoa.NSEventMaskLeftMouseDown | Cocoa.NSEventMaskRightMouseDown,
+                _handler
+            )
+        except Exception as e:
+            logger.debug(f"Could not register click outside monitor: {e}")
+
     def resize_window(self, new_height: float):
         """Instantly updates the Cocoa NSPanel frame height without blocking animation stutter."""
         if not self._panel:
@@ -1337,6 +1363,7 @@ class FloatingOmnibar:
         def _do():
             if not self._panel:
                 return
+            self._show_time = time.time()
             try:
                 import Cocoa
                 # Save previous frontmost application so we can restore focus upon dismissal
