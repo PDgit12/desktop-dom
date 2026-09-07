@@ -35,52 +35,37 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     overflow: hidden;
   }
   .omnibar-card {
-    width: 700px;
-    border-radius: 16px;
-    background: rgba(13, 15, 20, 0.94);
-    backdrop-filter: blur(50px) saturate(190%);
-    -webkit-backdrop-filter: blur(50px) saturate(190%);
+    width: 680px;
+    border-radius: 12px;
+    background: rgba(22, 22, 24, 0.96);
+    backdrop-filter: blur(40px) saturate(190%);
+    -webkit-backdrop-filter: blur(40px) saturate(190%);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 24px 64px rgba(0, 0, 0, 0.75);
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.06);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-  }
-  .omnibar-card.listening {
-    border-color: rgba(236, 72, 153, 0.6);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 24px 64px rgba(0, 0, 0, 0.75), 0 0 28px rgba(236, 72, 153, 0.2);
+    transition: border-color 0.15s ease;
   }
   .omnibar-card.executing {
-    border-color: rgba(14, 165, 233, 0.6);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 24px 64px rgba(0, 0, 0, 0.75), 0 0 28px rgba(14, 165, 233, 0.2);
+    border-color: rgba(255, 255, 255, 0.16);
   }
   .header-bar {
-    height: 64px;
+    height: 52px;
     display: flex;
     align-items: center;
-    padding: 0 18px;
-    gap: 14px;
+    padding: 0 16px;
+    gap: 12px;
     position: relative;
   }
-  .brand-glyph {
-    width: 30px;
-    height: 30px;
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+  .search-icon {
+    width: 16px;
+    height: 16px;
+    color: #71717a;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #0ea5e9;
     flex-shrink: 0;
-    cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  .brand-glyph:hover {
-    background: rgba(14, 165, 233, 0.15);
-    border-color: rgba(14, 165, 233, 0.4);
-    transform: scale(1.05);
   }
   .input-wrap {
     flex: 1;
@@ -93,81 +78,92 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     background: transparent;
     border: none;
     outline: none;
-    color: #f8fafc;
-    font-size: 16px;
+    color: #f4f4f5;
+    font-size: 15px;
     font-weight: 450;
-    letter-spacing: -0.2px;
+    letter-spacing: -0.15px;
     user-select: text !important;
     -webkit-user-select: text !important;
     cursor: text;
   }
   input#query-input::placeholder {
-    color: rgba(255, 255, 255, 0.3);
+    color: #52525b;
     font-weight: 400;
   }
-  #waveform-canvas {
-    width: 68px;
-    height: 24px;
+  .header-tools {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     flex-shrink: 0;
   }
-  .mic-btn {
-    width: 30px;
-    height: 30px;
-    border-radius: 8px;
+  .model-pill-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    border-radius: 6px;
     background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.09);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 11px;
+    font-weight: 500;
+    color: #a1a1aa;
+    cursor: pointer;
+    transition: all 0.12s ease;
+  }
+  .model-pill-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #f4f4f5;
+    border-color: rgba(255, 255, 255, 0.14);
+  }
+  .chevron {
+    color: #71717a;
+    font-size: 9px;
+  }
+  .mic-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all 0.18s ease;
-    color: #94a3b8;
-    flex-shrink: 0;
+    transition: all 0.12s ease;
+    color: #71717a;
   }
   .mic-btn:hover {
-    background: rgba(255, 255, 255, 0.09);
-    color: #f8fafc;
+    background: rgba(255, 255, 255, 0.08);
+    color: #f4f4f5;
   }
   .mic-btn.active {
-    background: rgba(236, 72, 153, 0.2);
-    border-color: rgba(236, 72, 153, 0.6);
-    color: #f43f5e;
-    animation: micPulse 1.4s infinite alternate ease-in-out;
-  }
-  @keyframes micPulse {
-    0% { transform: scale(1); }
-    100% { transform: scale(1.08); }
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #ef4444;
   }
   .status-badge {
-    padding: 3px 8px;
-    border-radius: 6px;
-    font-size: 9.5px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    background: rgba(255, 255, 255, 0.04);
-    color: #94a3b8;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    flex-shrink: 0;
     display: flex;
     align-items: center;
     gap: 5px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 500;
+    color: #71717a;
+    letter-spacing: 0.2px;
   }
   .status-dot {
     width: 5px;
     height: 5px;
     border-radius: 50%;
-    background: #0ea5e9;
+    background: #38bdf8;
   }
   .progress-line {
-    height: 1.5px;
+    height: 1px;
     width: 100%;
-    background: transparent;
+    background: rgba(255, 255, 255, 0.06);
     position: relative;
     overflow: hidden;
-  }
-  .progress-line.active {
-    background: rgba(255, 255, 255, 0.04);
   }
   .progress-line.active::after {
     content: "";
@@ -175,98 +171,105 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     top: 0;
     left: 0;
     height: 100%;
-    width: 35%;
-    background: linear-gradient(90deg, transparent, #0ea5e9, transparent);
-    animation: progressSlide 1.2s infinite cubic-bezier(0.4, 0, 0.2, 1);
+    width: 30%;
+    background: linear-gradient(90deg, transparent, #38bdf8, transparent);
+    animation: progressSlide 1.1s infinite cubic-bezier(0.4, 0, 0.2, 1);
   }
   @keyframes progressSlide {
     0% { transform: translateX(-100%); }
     100% { transform: translateX(350%); }
   }
+  .section-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #71717a;
+    padding: 8px 14px 4px 14px;
+  }
   .tray {
     display: flex;
     flex-direction: column;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
-    background: rgba(8, 9, 13, 0.35);
-    padding: 6px 8px;
-    gap: 2px;
-    max-height: 240px;
+    padding: 2px 6px 6px 6px;
+    max-height: 250px;
     overflow-y: auto;
   }
   .suggestion-item {
     display: flex;
     align-items: center;
-    padding: 7px 10px;
-    border-radius: 8px;
-    gap: 12px;
+    padding: 0 10px;
+    height: 38px;
+    border-radius: 6px;
+    gap: 10px;
     cursor: pointer;
-    transition: background 0.12s ease;
+    transition: background 0.08s ease;
   }
   .suggestion-item:hover, .suggestion-item.selected {
     background: rgba(255, 255, 255, 0.06);
   }
   .suggestion-icon {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #94a3b8;
+    color: #71717a;
     flex-shrink: 0;
   }
   .suggestion-item.selected .suggestion-icon {
-    color: #0ea5e9;
+    color: #f4f4f5;
   }
   .suggestion-content {
     flex: 1;
     display: flex;
-    flex-direction: column;
-    gap: 1px;
+    align-items: baseline;
+    gap: 8px;
     min-width: 0;
   }
   .suggestion-title {
-    color: #f1f5f9;
-    font-size: 13.5px;
-    font-weight: 500;
+    color: #e4e4e7;
+    font-size: 13px;
+    font-weight: 450;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  .suggestion-item.selected .suggestion-title {
+    color: #ffffff;
+  }
   .suggestion-subtitle {
-    color: #64748b;
-    font-size: 11px;
+    color: #71717a;
+    font-size: 11.5px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
   .suggestion-badge {
     font-size: 9.5px;
-    font-weight: 600;
+    font-weight: 500;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     padding: 2px 6px;
     border-radius: 4px;
-    background: rgba(255, 255, 255, 0.04);
-    color: #94a3b8;
+    background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.06);
+    color: #71717a;
+    letter-spacing: 0.2px;
     text-transform: uppercase;
-    letter-spacing: 0.3px;
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   }
   .suggestion-item.selected .suggestion-badge {
-    background: rgba(14, 165, 233, 0.12);
-    color: #38bdf8;
-    border-color: rgba(14, 165, 233, 0.25);
+    color: #a1a1aa;
+    border-color: rgba(255, 255, 255, 0.12);
   }
 
-  /* Minimalist Result Drawer */
+  /* Raycast-Style Result Detail View */
   .result-drawer {
     display: none;
     flex-direction: column;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
-    background: rgba(7, 8, 12, 0.6);
     padding: 14px 18px;
     gap: 12px;
-    max-height: 280px;
+    max-height: 260px;
     overflow-y: auto;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
   }
   .result-drawer.visible {
     display: flex;
@@ -285,25 +288,19 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     padding: 2px 7px;
     border-radius: 4px;
     font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.3px;
-    text-transform: uppercase;
+    font-weight: 500;
+    letter-spacing: 0.2px;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   }
   .pill-success {
-    background: rgba(16, 185, 129, 0.12);
+    background: rgba(52, 211, 153, 0.1);
     color: #34d399;
-    border: 1px solid rgba(16, 185, 129, 0.25);
+    border: 1px solid rgba(52, 211, 153, 0.2);
   }
-  .pill-fast {
-    background: rgba(14, 165, 233, 0.12);
-    color: #38bdf8;
-    border: 1px solid rgba(14, 165, 233, 0.25);
-  }
-  .pill-llm {
-    background: rgba(168, 85, 247, 0.12);
-    color: #c084fc;
-    border: 1px solid rgba(168, 85, 247, 0.25);
+  .pill-engine {
+    background: rgba(255, 255, 255, 0.04);
+    color: #a1a1aa;
+    border: 1px solid rgba(255, 255, 255, 0.08);
   }
   .result-actions {
     display: flex;
@@ -313,78 +310,86 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
   .action-btn {
     padding: 3px 9px;
     border-radius: 5px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #cbd5e1;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #a1a1aa;
     font-size: 11px;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: all 0.12s ease;
   }
   .action-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: #ffffff;
+    background: rgba(255, 255, 255, 0.08);
+    color: #f4f4f5;
   }
   .action-btn.active {
-    background: #0ea5e9;
-    color: #0f172a;
-    border-color: #0ea5e9;
-    font-weight: 600;
+    background: rgba(255, 255, 255, 0.14);
+    color: #ffffff;
   }
   .result-body {
-    color: #e2e8f0;
+    color: #e4e4e7;
     font-size: 13.5px;
-    line-height: 1.55;
+    line-height: 1.6;
     white-space: pre-wrap;
     user-select: text;
     -webkit-user-select: text;
     word-break: break-word;
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+  }
+  .result-math-highlight {
+    font-size: 28px;
+    font-weight: 600;
+    color: #ffffff;
+    letter-spacing: -0.5px;
+    margin-bottom: 2px;
+  }
+  .result-math-sub {
+    font-size: 12px;
+    color: #71717a;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   }
 
-  /* Minimalist Model Drawer */
+  /* Minimalist Model Switcher */
   .model-drawer {
     display: none;
     flex-direction: column;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
-    background: rgba(8, 9, 14, 0.85);
-    padding: 12px 16px;
-    gap: 6px;
-    max-height: 250px;
+    padding: 10px 14px;
+    gap: 4px;
+    max-height: 240px;
     overflow-y: auto;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
   }
   .model-drawer.visible {
     display: flex;
   }
   .model-drawer-title {
     font-size: 10px;
-    font-weight: 650;
-    color: #64748b;
+    font-weight: 600;
+    color: #71717a;
     text-transform: uppercase;
-    letter-spacing: 0.6px;
+    letter-spacing: 0.06em;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 2px 2px 6px 2px;
+    padding: 4px 6px 8px 6px;
   }
   .model-card {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 12px;
-    border-radius: 7px;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: transparent;
+    border: 1px solid transparent;
     cursor: pointer;
-    transition: all 0.12s ease;
+    transition: all 0.1s ease;
   }
   .model-card:hover {
-    background: rgba(255, 255, 255, 0.07);
-    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.08);
   }
   .model-card.active {
-    background: rgba(14, 165, 233, 0.08);
-    border-color: rgba(14, 165, 233, 0.3);
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.12);
   }
   .model-info {
     display: flex;
@@ -392,40 +397,36 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     gap: 2px;
   }
   .model-name {
-    color: #f1f5f9;
+    color: #e4e4e7;
     font-size: 13px;
-    font-weight: 550;
+    font-weight: 500;
+  }
+  .model-card.active .model-name {
+    color: #ffffff;
   }
   .model-desc {
-    color: #64748b;
-    font-size: 10.5px;
+    color: #71717a;
+    font-size: 11px;
   }
-  .model-tag {
-    font-size: 9.5px;
-    font-weight: 600;
-    padding: 2px 6px;
-    border-radius: 4px;
-    background: rgba(255, 255, 255, 0.04);
-    color: #94a3b8;
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    letter-spacing: 0.3px;
+  .check-icon {
+    width: 14px;
+    height: 14px;
+    color: #34d399;
+    display: none;
   }
-  .model-card.active .model-tag {
-    background: #0ea5e9;
-    color: #0c0e14;
-    font-weight: 700;
+  .model-card.active .check-icon {
+    display: block;
   }
 
   .footer-bar {
     height: 32px;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 16px;
-    background: rgba(6, 7, 10, 0.5);
+    padding: 0 14px;
     font-size: 10.5px;
-    color: #64748b;
+    color: #71717a;
   }
   .shortcuts {
     display: flex;
@@ -438,28 +439,28 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     gap: 3px;
   }
   .kbd {
-    background: rgba(255, 255, 255, 0.07);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 3px;
-    padding: 0 3.5px;
-    font-size: 8.5px;
-    font-weight: 600;
-    color: #94a3b8;
+    padding: 0 4px;
+    font-size: 9px;
+    font-weight: 500;
+    color: #a1a1aa;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   }
   .local-tag {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     cursor: pointer;
     padding: 2px 6px;
     border-radius: 4px;
-    transition: background 0.12s ease;
-    color: #94a3b8;
+    transition: background 0.1s ease;
+    color: #71717a;
   }
   .local-tag:hover {
-    background: rgba(255, 255, 255, 0.06);
-    color: #f1f5f9;
+    background: rgba(255, 255, 255, 0.05);
+    color: #a1a1aa;
   }
   .dot-green {
     width: 5px;
@@ -477,39 +478,49 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
 </head>
 <body>
   <div class="omnibar-card" id="card">
-    <div class="header-bar">
-      <div class="brand-glyph" id="brand-orb" title="Aura AI — Click to switch models">
+    <div class="header-bar" id="header-bar">
+      <div class="search-icon">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polygon points="12 2 2 7 12 12 22 7 12 2"/>
-          <polyline points="2 17 12 22 22 17"/>
-          <polyline points="2 12 12 17 22 12"/>
+          <circle cx="11" cy="11" r="8"/>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
       </div>
       <div class="input-wrap">
-        <input id="query-input" type="text" placeholder="Search commands, math, or ask Aura... (e.g. 'calculate 25 * 40')" autocomplete="off" autofocus />
+        <input id="query-input" type="text" placeholder="Search commands or ask Aura..." autocomplete="off" spellcheck="false" autofocus />
       </div>
-      <canvas id="waveform-canvas" width="136" height="48"></canvas>
-      <div class="mic-btn" id="mic-btn" title="Toggle Voice Microphone">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
-          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-          <line x1="12" y1="19" x2="12" y2="22"/>
-        </svg>
+      <div class="header-tools">
+        <div class="model-pill-btn" id="model-pill" title="Active Engine / Switch Models">
+          <span id="header-model-name">Fast-Path</span>
+          <span class="chevron">▾</span>
+        </div>
+        <div class="mic-btn" id="mic-btn" title="Toggle Voice Microphone">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" y1="19" x2="12" y2="22"/>
+          </svg>
+        </div>
+        <div class="status-badge" id="badge">
+          <span class="status-dot" id="status-dot"></span>
+          <span id="badge-text">Ready</span>
+        </div>
       </div>
-      <div class="status-badge" id="badge"><span class="status-dot" id="status-dot"></span><span id="badge-text">Ready</span></div>
     </div>
 
     <div class="progress-line" id="progress"></div>
 
-    <div class="tray" id="tray">
-      <!-- Dynamically generated suggestions -->
+    <div id="command-section">
+      <div class="section-label" id="section-label">Commands</div>
+      <div class="tray" id="tray">
+        <!-- Dynamically generated suggestions -->
+      </div>
     </div>
 
     <div class="result-drawer" id="result-drawer">
       <div class="result-header">
-        <div class="result-pills" id="result-pills">
-          <span class="pill pill-success" id="result-status-pill">Success</span>
-          <span class="pill pill-fast" id="result-engine-pill">Fast-Path</span>
+        <div class="result-pills">
+          <span class="pill pill-success" id="result-status-pill">Completed</span>
+          <span class="pill pill-engine" id="result-engine-pill">Fast-Path · 12ms</span>
         </div>
         <div class="result-actions">
           <button class="action-btn" id="copy-btn">Copy</button>
@@ -521,10 +532,10 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
 
     <div class="model-drawer" id="model-drawer">
       <div class="model-drawer-title">
-        <span>Active Engine & Weights</span>
+        <span>Active Engine & Local Models</span>
         <span id="model-conn-status">Checking...</span>
       </div>
-      <div id="model-list" style="display: flex; flex-direction: column; gap: 4px;">
+      <div id="model-list" style="display: flex; flex-direction: column; gap: 2px;">
         <!-- Dynamically rendered models -->
       </div>
     </div>
@@ -532,11 +543,11 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     <div class="footer-bar">
       <div class="shortcuts">
         <span class="kbd-pill"><span class="kbd">↵</span> Run</span>
-        <span class="kbd-pill"><span class="kbd">↑↓</span> Select</span>
+        <span class="kbd-pill"><span class="kbd">↑↓</span> Navigate</span>
         <span class="kbd-pill"><span class="kbd">Tab</span> Fill</span>
         <span class="kbd-pill"><span class="kbd">Esc</span> Dismiss</span>
       </div>
-      <div class="local-tag" id="footer-model-tag" title="Click to view & switch local models">
+      <div class="local-tag" id="footer-model-tag" title="Switch local AI engines">
         <div class="dot-green" id="model-dot"></div>
         <span id="footer-model-name">Loading...</span>
       </div>
@@ -551,6 +562,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     const micBtn = document.getElementById("mic-btn");
     const tray = document.getElementById("tray");
     const progress = document.getElementById("progress");
+    const commandSection = document.getElementById("command-section");
     const resultDrawer = document.getElementById("result-drawer");
     const resultBody = document.getElementById("result-body");
     const resultStatusPill = document.getElementById("result-status-pill");
@@ -560,14 +572,13 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     const modelDrawer = document.getElementById("model-drawer");
     const modelList = document.getElementById("model-list");
     const modelConnStatus = document.getElementById("model-conn-status");
+    const modelPill = document.getElementById("model-pill");
+    const headerModelName = document.getElementById("header-model-name");
     const footerModelTag = document.getElementById("footer-model-tag");
     const footerModelName = document.getElementById("footer-model-name");
     const modelDot = document.getElementById("model-dot");
-    const brandOrb = document.getElementById("brand-orb");
-    const canvas = document.getElementById("waveform-canvas");
-    const ctx = canvas.getContext("2d");
 
-    // Pure Vector SVG Icons (Zero Emojis)
+    // Pure Monochrome Vector SVGs (Zero Emojis)
     const ICONS = {
       search: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
       math: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>',
@@ -575,45 +586,24 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       volume: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>',
       app: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>',
       screen: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>',
-      model: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="19" cy="6" r="2"/><circle cx="5" cy="6" r="2"/><circle cx="19" cy="18" r="2"/><circle cx="5" cy="18" r="2"/><line x1="12" y1="9" x2="12" y2="3"/><line x1="12" y1="15" x2="12" y2="21"/><line x1="9.5" y1="10.5" x2="6.5" y2="7.5"/><line x1="14.5" y1="10.5" x2="17.5" y2="7.5"/></svg>'
+      model: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="19" cy="6" r="2"/><circle cx="5" cy="6" r="2"/><circle cx="19" cy="18" r="2"/><circle cx="5" cy="18" r="2"/><line x1="12" y1="9" x2="12" y2="3"/><line x1="12" y1="15" x2="12" y2="21"/><line x1="9.5" y1="10.5" x2="6.5" y2="7.5"/><line x1="14.5" y1="10.5" x2="17.5" y2="7.5"/></svg>',
+      check: '<svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
     };
 
     let isListening = false;
-    let waveOffset = 0;
     let selectedIndex = 0;
     let currentSuggestions = [];
     let currentResultRaw = "";
     let autoCloseTimer = null;
     let isDrawerOpen = false;
 
-    function drawWave() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const centerY = canvas.height / 2;
-      const ampBase = isListening ? 10 : 3;
-      const freq = isListening ? 0.08 : 0.04;
-
-      ctx.beginPath();
-      ctx.lineWidth = 1.4;
-      ctx.strokeStyle = isListening ? "rgba(244, 63, 94, 0.85)" : "rgba(14, 165, 233, 0.75)";
-      for (let x = 0; x < canvas.width; x++) {
-        const envelope = Math.sin((x / canvas.width) * Math.PI);
-        const y = centerY + Math.sin(x * freq + waveOffset) * ampBase * envelope;
-        if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-
-      waveOffset += isListening ? 0.18 : 0.04;
-      requestAnimationFrame(drawWave);
-    }
-    drawWave();
-
     const defaultActions = [
-      { iconType: "media", title: "Spotify Playback", subtitle: "Play Starboy on Spotify", query: "Play Starboy on Spotify", badge: "FAST-PATH" },
-      { iconType: "math", title: "Calculator", subtitle: "Calculate 125 * 40 + 15", query: "Calculate 125 * 40 + 15", badge: "AST EVAL" },
-      { iconType: "volume", title: "System Volume", subtitle: "Set volume to 80%", query: "Set volume to 80", badge: "HARDWARE" },
-      { iconType: "app", title: "Launch Application", subtitle: "Open Calculator", query: "Open Calculator", badge: "APP" },
+      { iconType: "media", title: "Play Spotify", subtitle: "Play Starboy on Spotify", query: "Play Starboy on Spotify", badge: "Fast-Path" },
+      { iconType: "math", title: "Calculate Expression", subtitle: "Calculate 125 * 40 + 15", query: "Calculate 125 * 40 + 15", badge: "AST" },
+      { iconType: "volume", title: "Adjust Volume", subtitle: "Set volume to 80%", query: "Set volume to 80", badge: "System" },
+      { iconType: "app", title: "Activate Application", subtitle: "Open Calculator", query: "Open Calculator", badge: "App" },
       { iconType: "screen", title: "Inspect Screen", subtitle: "What is on my screen?", query: "what is on my screen", badge: "DOM" },
-      { iconType: "model", title: "Switch AI Models", subtitle: "View local Ollama weights", query: "/model", badge: "ENGINE" }
+      { iconType: "model", title: "Switch AI Engine", subtitle: "View local neural weights", query: "/model", badge: "Engine" }
     ];
 
     function updateSuggestions() {
@@ -627,10 +617,10 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         if (q.startsWith("/model") || q === "models" || q === "status") {
           currentSuggestions.push({
             iconType: "model",
-            title: "View & Switch Local Models",
-            subtitle: "Manage Ollama connections & zero-model fast path",
+            title: "Manage AI Models",
+            subtitle: "View local Ollama neural weights & zero-model fast path",
             query: "/model",
-            badge: "ENGINE"
+            badge: "Engine"
           });
         }
 
@@ -641,10 +631,10 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
             if (typeof evaluated === "number" && isFinite(evaluated)) {
               currentSuggestions.push({
                 iconType: "math",
-                title: `= ${evaluated}`,
+                title: `= ${evaluated.toLocaleString()}`,
                 subtitle: `Calculate ${mathClean}`,
                 query: q,
-                badge: "MATH"
+                badge: "Math"
               });
             }
           } catch(e) {}
@@ -656,7 +646,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
             title: `Play "${q.replace(/play/i, "").replace(/on spotify/i, "").trim()}"`,
             subtitle: "Spotify Media Controller (<120ms)",
             query: q,
-            badge: "SPOTIFY"
+            badge: "Spotify"
           });
         }
 
@@ -666,7 +656,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
             title: q,
             subtitle: "System Audio Hardware Bus (<30ms)",
             query: q,
-            badge: "SYSTEM"
+            badge: "System"
           });
         }
 
@@ -677,14 +667,14 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
             title: `Activate ${appName}`,
             subtitle: "DesktopApp Window Attachment (<80ms)",
             query: q,
-            badge: "APP"
+            badge: "App"
           });
         }
 
         if (q.toLowerCase().includes("screen") || q.toLowerCase().includes("window")) {
           currentSuggestions.push({
             iconType: "screen",
-            title: "Inspect Active Screen & Elements",
+            title: "Inspect Active Screen & Hierarchy",
             subtitle: "Sub-50ms deterministic accessibility tree extraction",
             query: q,
             badge: "DOM"
@@ -696,7 +686,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
           title: `Ask Aura: "${q}"`,
           subtitle: "Local Ollama ReAct Planning Loop",
           query: q,
-          badge: "OLLAMA"
+          badge: "Ollama"
         });
       }
 
@@ -705,7 +695,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
 
     function renderSuggestions() {
       tray.innerHTML = "";
-      tray.style.display = "flex";
+      commandSection.style.display = "block";
       resultDrawer.classList.remove("visible");
       modelDrawer.classList.remove("visible");
       isDrawerOpen = false;
@@ -721,8 +711,8 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         el.innerHTML = `
           <div class="suggestion-icon">${iconSvg}</div>
           <div class="suggestion-content">
-            <div class="suggestion-title">${escapeHtml(item.title)}</div>
-            <div class="suggestion-subtitle">${escapeHtml(item.subtitle)}</div>
+            <span class="suggestion-title">${escapeHtml(item.title)}</span>
+            <span class="suggestion-subtitle">${escapeHtml(item.subtitle)}</span>
           </div>
           <div class="suggestion-badge">${escapeHtml(item.badge)}</div>
         `;
@@ -736,15 +726,15 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     }
 
     function notifyResize() {
-      let contentHeight = 64 + 32 + 16;
+      let contentHeight = 52 + 32 + 16;
       if (resultDrawer.classList.contains("visible")) {
-        contentHeight = 64 + resultDrawer.scrollHeight + 32 + 18;
+        contentHeight = 52 + resultDrawer.scrollHeight + 32 + 16;
       } else if (modelDrawer.classList.contains("visible")) {
-        contentHeight = 64 + modelDrawer.scrollHeight + 32 + 18;
+        contentHeight = 52 + modelDrawer.scrollHeight + 32 + 16;
       } else {
-        contentHeight = 64 + (currentSuggestions.length * 44) + 32 + 14;
+        contentHeight = 52 + 24 + (currentSuggestions.length * 38) + 32 + 12;
       }
-      const targetHeight = Math.min(440, Math.max(80, contentHeight));
+      const targetHeight = Math.min(420, Math.max(80, contentHeight));
       window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({
         action: "resize",
         height: targetHeight
@@ -797,7 +787,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     });
 
     micBtn.addEventListener("click", toggleMic);
-    brandOrb.addEventListener("click", toggleModelDrawer);
+    modelPill.addEventListener("click", toggleModelDrawer);
     footerModelTag.addEventListener("click", toggleModelDrawer);
 
     copyBtn.addEventListener("click", () => {
@@ -811,7 +801,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         setTimeout(() => {
           copyBtn.innerText = "Copy";
           copyBtn.classList.remove("active");
-        }, 1500);
+        }, 1400);
       }
     });
 
@@ -821,34 +811,32 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       if (autoCloseTimer) clearTimeout(autoCloseTimer);
       resultDrawer.classList.remove("visible");
       modelDrawer.classList.remove("visible");
-      tray.style.display = "flex";
+      commandSection.style.display = "block";
       isDrawerOpen = false;
       badgeText.innerText = "Ready";
-      statusDot.style.background = "#0ea5e9";
+      statusDot.style.background = "#38bdf8";
       card.classList.remove("executing");
       updateSuggestions();
+      input.focus();
     }
 
     function toggleMic() {
       isListening = !isListening;
       if (isListening) {
         micBtn.classList.add("active");
-        card.classList.add("listening");
         badgeText.innerText = "Listening";
-        statusDot.style.background = "#f43f5e";
+        statusDot.style.background = "#ef4444";
         window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({ action: "start_listening" }));
       } else {
         micBtn.classList.remove("active");
-        card.classList.remove("listening");
         badgeText.innerText = "Ready";
-        statusDot.style.background = "#0ea5e9";
+        statusDot.style.background = "#38bdf8";
         window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({ action: "stop_listening" }));
       }
     }
 
     function submitQuery(query) {
       if (autoCloseTimer) clearTimeout(autoCloseTimer);
-      card.classList.remove("listening");
       card.classList.add("executing");
       badgeText.innerText = "Running";
       statusDot.style.background = "#10b981";
@@ -871,27 +859,33 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     window.displayResult = function(payload) {
       progress.classList.remove("active");
       card.classList.remove("executing");
-      tray.style.display = "none";
+      commandSection.style.display = "none";
       modelDrawer.classList.remove("visible");
       resultDrawer.classList.add("visible");
       isDrawerOpen = true;
 
       const respText = payload.response || "Completed successfully.";
       currentResultRaw = respText;
-      resultBody.innerText = respText;
+
+      const action = payload.action || "";
+      if (action === "calculate" && payload.result) {
+        resultBody.innerHTML = `
+          <div class="result-math-highlight">${escapeHtml(payload.result)}</div>
+          <div class="result-math-sub">${escapeHtml(payload.expression || "")}</div>
+        `;
+      } else {
+        resultBody.innerText = respText;
+      }
 
       const engine = payload.engine || "fast_path";
-      const latency = payload.latency_ms ? `${payload.latency_ms}ms` : "";
+      const latency = payload.latency_ms ? `${Math.round(payload.latency_ms)}ms` : "";
 
       if (engine === "fast_path") {
         resultEnginePill.innerText = latency ? `Fast-Path · ${latency}` : "Fast-Path";
-        resultEnginePill.className = "pill pill-fast";
       } else if (engine === "ollama") {
         resultEnginePill.innerText = latency ? `Ollama · ${latency}` : "Ollama";
-        resultEnginePill.className = "pill pill-llm";
       } else {
         resultEnginePill.innerText = latency ? `Done · ${latency}` : "Done";
-        resultEnginePill.className = "pill pill-fast";
       }
 
       badgeText.innerText = "Done";
@@ -899,17 +893,16 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
 
       notifyResize();
 
-      const action = payload.action || "";
       if (["volume", "dark_mode", "clipboard_copy", "notes"].includes(action)) {
         autoCloseTimer = setTimeout(() => {
           window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({ action: "close" }));
-        }, 2800);
+        }, 2600);
       }
     };
 
     window.displayModelDrawer = function(status) {
       progress.classList.remove("active");
-      tray.style.display = "none";
+      commandSection.style.display = "none";
       resultDrawer.classList.remove("visible");
       modelDrawer.classList.add("visible");
       isDrawerOpen = true;
@@ -920,7 +913,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
 
       modelConnStatus.innerHTML = isConn 
         ? `<span style="color:#10b981">Connected (${status.latency_ms}ms)</span>`
-        : `<span style="color:#f59e0b">Offline (Fast-Path Mode)</span>`;
+        : `<span style="color:#f59e0b">Offline (Fast-Path Only)</span>`;
 
       modelList.innerHTML = "";
 
@@ -929,9 +922,9 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       fpCard.innerHTML = `
         <div class="model-info">
           <div class="model-name">Zero-Model Fast-Path</div>
-          <div class="model-desc">Sub-25ms deterministic AST dispatch (0MB RAM overhead)</div>
+          <div class="model-desc">Sub-25ms deterministic AST & AppleScript dispatch (0MB RAM)</div>
         </div>
-        <div class="model-tag">${current === "Zero-Model Fast-Path" ? "ACTIVE" : "SELECT"}</div>
+        ${ICONS.check}
       `;
       fpCard.addEventListener("click", () => {
         window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({
@@ -950,7 +943,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
             <div class="model-name">${escapeHtml(m)}</div>
             <div class="model-desc">Local neural reasoning model (localhost:11434)</div>
           </div>
-          <div class="model-tag">${isAct ? "ACTIVE" : "SELECT"}</div>
+          ${ICONS.check}
         `;
         cardEl.addEventListener("click", () => {
           window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({
@@ -967,7 +960,9 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     window.updateModelStatus = function(status) {
       if (!status) return;
       const cur = status.current_model || "Zero-Model Fast-Path";
-      footerModelName.innerText = cur.length > 22 ? cur.slice(0, 20) + "…" : cur;
+      const shortName = cur.includes(":") ? cur.split(":")[0] : cur;
+      headerModelName.innerText = shortName.length > 18 ? shortName.slice(0, 16) + "…" : shortName;
+      footerModelName.innerText = cur.length > 24 ? cur.slice(0, 22) + "…" : cur;
       if (status.connected) {
         modelDot.className = "dot-green";
       } else {
@@ -977,18 +972,25 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
 
     updateSuggestions();
     input.focus();
+
     card.addEventListener("click", (e) => {
-      if (!e.target.closest("#mic-btn") && !e.target.closest(".action-btn") && !e.target.closest("#footer-model-tag") && !e.target.closest(".model-card")) {
+      if (!e.target.closest("#mic-btn") && !e.target.closest(".action-btn") && !e.target.closest("#footer-model-tag") && !e.target.closest("#model-pill") && !e.target.closest(".model-card")) {
         input.focus();
       }
     });
+
     window.addEventListener("focus", () => {
-      setTimeout(() => input.focus(), 50);
+      setTimeout(() => input.focus(), 30);
     });
+
+    window.addEventListener("DOMContentLoaded", () => {
+      input.focus();
+    });
+
     setTimeout(() => {
       input.focus();
       window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({ action: "get_model_status" }));
-    }, 150);
+    }, 120);
   </script>
 </body>
 </html>
@@ -1028,7 +1030,7 @@ class OmnibarScriptHandler:
 
 class FloatingOmnibar:
     """
-    Native macOS floating glassmorphic spotlight bar powered by Cocoa & WebKit.
+    Native macOS floating minimalist spotlight bar powered by Cocoa & WebKit.
     Floats on top of all windows and spaces on hotkey (Cmd+Shift+Space),
     with dynamic height expansion, multi-display mouse tracking, and menubar status item.
     """
@@ -1106,6 +1108,12 @@ class FloatingOmnibar:
                 def canBecomeMainWindow(self):
                     return True
 
+                def needsPanelToBecomeKey(self):
+                    return True
+
+                def acceptsFirstResponder(self):
+                    return True
+
             panel_cls = AuraKeyablePanelObjC
 
         self._panel = panel_cls.alloc().initWithContentRect_styleMask_backing_defer_(
@@ -1118,25 +1126,15 @@ class FloatingOmnibar:
         self._panel.setLevel_(Cocoa.NSFloatingWindowLevel)
         self._panel.setOpaque_(False)
         self._panel.setBackgroundColor_(Cocoa.NSColor.clearColor())
-        self._panel.setHasShadow_(True)
+        self._panel.setHasShadow_(False)
         self._panel.setMovableByWindowBackground_(True)
+        self._panel.setBecomesKeyOnlyIfNeeded_(False)
+        self._panel.setWorksWhenModal_(True)
+        self._panel.setAcceptsMouseMovedEvents_(True)
         self._panel.setCollectionBehavior_(
             Cocoa.NSWindowCollectionBehaviorCanJoinAllSpaces |
             Cocoa.NSWindowCollectionBehaviorFullScreenAuxiliary
         )
-
-        # Native Frosted Vibrancy View
-        try:
-            vibrancy = Cocoa.NSVisualEffectView.alloc().initWithFrame_(
-                Cocoa.NSMakeRect(0, 0, bar_width, bar_height)
-            )
-            vibrancy.setMaterial_(Cocoa.NSVisualEffectMaterialHUDWindow)
-            vibrancy.setBlendingMode_(Cocoa.NSVisualEffectBlendingModeBehindWindow)
-            vibrancy.setState_(Cocoa.NSVisualEffectStateActive)
-            vibrancy.setAutoresizingMask_(Cocoa.NSViewWidthSizable | Cocoa.NSViewHeightSizable)
-            self._panel.contentView().addSubview_(vibrancy)
-        except Exception as e:
-            logger.debug(f"VisualEffectView not loaded: {e}")
 
         # Configure WebKit View
         config = WebKit.WKWebViewConfiguration.alloc().init()
@@ -1269,7 +1267,7 @@ class FloatingOmnibar:
             try:
                 import Cocoa
                 frame = self._panel.frame()
-                if abs(frame.size.height - new_height) < 4:
+                if abs(frame.size.height - new_height) < 2:
                     return
                 delta = new_height - frame.size.height
                 new_y = frame.origin.y - delta
@@ -1283,7 +1281,9 @@ class FloatingOmnibar:
 
     def show(self):
         """Displays and focuses the floating Omnibar, centered on the monitor where the cursor is."""
-        if self._panel:
+        def _do():
+            if not self._panel:
+                return
             try:
                 import Cocoa
                 mouse_loc = Cocoa.NSEvent.mouseLocation()
@@ -1309,20 +1309,25 @@ class FloatingOmnibar:
                 self._panel.makeFirstResponder_(self._webview)
             self._panel.setAlphaValue_(1.0)
             self._is_visible = True
-            self.evaluate_js("document.getElementById('query-input').focus();")
+            self.evaluate_js("const inp = document.getElementById('query-input'); if (inp) { inp.focus(); inp.select(); }")
+        self.dispatch_main(_do)
 
     def hide(self):
         """Hides the Omnibar."""
-        if self._panel:
-            self._panel.orderOut_(None)
-            self._is_visible = False
+        def _do():
+            if self._panel:
+                self._panel.orderOut_(None)
+                self._is_visible = False
+        self.dispatch_main(_do)
 
     def toggle(self):
         """Toggles Omnibar visibility."""
-        if self._is_visible:
-            self.hide()
-        else:
-            self.show()
+        def _do():
+            if self._is_visible:
+                self.hide()
+            else:
+                self.show()
+        self.dispatch_main(_do)
 
     def copy_text(self, text: str) -> bool:
         """Copies text to the macOS system clipboard."""
