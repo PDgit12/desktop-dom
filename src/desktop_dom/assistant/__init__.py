@@ -6,6 +6,7 @@ from typing import Optional, Callable
 from desktop_dom.assistant.brain import AssistantBrain
 from desktop_dom.assistant.audio import AudioManager, WakeWordListener
 from desktop_dom.assistant.omnibar import FloatingOmnibar
+from desktop_dom.assistant.memory import AuraMemory
 
 logger = logging.getLogger("desktop_dom.assistant")
 
@@ -22,8 +23,9 @@ class DesktopAssistant:
         preferred_model: Optional[str] = None,
         brain: Optional[AssistantBrain] = None,
         audio: Optional[AudioManager] = None,
+        memory: Optional[AuraMemory] = None,
     ):
-        self.brain = brain or AssistantBrain(ollama_host=ollama_host, preferred_model=preferred_model)
+        self.brain = brain or AssistantBrain(ollama_host=ollama_host, preferred_model=preferred_model, memory=memory)
         self.audio = audio or AudioManager()
         self.omnibar = None
         self.wake_listener: Optional[WakeWordListener] = None
@@ -101,4 +103,4 @@ class DesktopAssistant:
                 console.print("\n[dim]Session terminated.[/dim]")
                 break
 
-__all__ = ["DesktopAssistant", "AssistantBrain", "AudioManager", "FloatingOmnibar", "WakeWordListener"]
+__all__ = ["DesktopAssistant", "AssistantBrain", "AudioManager", "FloatingOmnibar", "WakeWordListener", "AuraMemory"]

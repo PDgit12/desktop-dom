@@ -14,6 +14,7 @@ from typing import Optional, Dict, Any, List, Tuple, Callable
 from desktop_dom.app import DesktopApp
 from desktop_dom.schema import DesktopNode
 from desktop_dom.adapters import get_platform_adapter
+from desktop_dom.assistant.memory import AuraMemory
 
 logger = logging.getLogger("desktop_dom.assistant.brain")
 
@@ -23,11 +24,17 @@ class AssistantBrain:
     into deterministic desktop actions with sub-second execution speed.
     """
 
-    def __init__(self, ollama_host: str = "http://localhost:11434", preferred_model: Optional[str] = None):
+    def __init__(
+        self,
+        ollama_host: str = "http://localhost:11434",
+        preferred_model: Optional[str] = None,
+        memory: Optional[AuraMemory] = None,
+    ):
         self.ollama_host = ollama_host
         self.preferred_model = preferred_model or self._detect_ollama_model()
         self.active_app: Optional[DesktopApp] = None
         self._action_callback: Optional[Callable[[str, str], None]] = None
+        self.memory = memory or AuraMemory()
 
     def set_action_callback(self, cb: Callable[[str, str], None]):
         """Sets a callback invoked when the brain decides on an action: cb(action_type, message)."""
@@ -101,13 +108,13 @@ class AssistantBrain:
         start_t = time.time()
         self._notify_action("thinking", f"Processing: '{prompt}'")
 
-        # 0. Multi-Action Compound Query Support (e.g. "open chrome and open gmail")
-        if (" and " in clean_prompt or " then " in clean_prompt) and not any(clean_prompt.startswith(p) for p in ["search", "google", "calculate", "type", "note"]):
+        # 0. Multi-Action Compound Query Support (e.g. "open chrome and open gmail", "open outlook and message josh")
+        if (" and " in clean_prompt or " then " in clean_prompt) and not any(clean_prompt.startswith(p) for p in ["search", "google", "calculate", "type", "note", "remember"]):
             parts = [s.strip() for s in re.split(r"\s+(?:and|then)\s+", prompt, flags=re.IGNORECASE) if s.strip()]
             if len(parts) > 1 and all(len(p) > 2 for p in parts):
                 normalized = []
                 for idx, sub in enumerate(parts):
-                    if idx > 0 and not any(sub.lower().startswith(v) for v in ["open", "launch", "play", "search", "close", "set", "calculate"]):
+                    if idx > 0 and not any(sub.lower().startswith(v) for v in ["open", "launch", "play", "search", "close", "set", "calculate", "message", "email", "mail"]):
                         sub = f"open {sub}"
                     normalized.append(sub)
 
@@ -185,7 +192,102 @@ class AssistantBrain:
                 "response": f"Active reasoning model switched to '{new_model}'.",
             }
 
-        # 1. Screen Introspection & Active Window Reading
+        # 1. Personal Context & Memory Status / Sync
+        if prompt in {"/memory", "show memory", "memory", "view memory", "open memory", "check memory", "what is in memory"}:
+            summary = self.memory.get_summary()
+            contacts_list = ", ".join(f"{c['name']} ({c['email']})" for c in summary["top_contacts"]) or "None"
+            user_info = f"{summary['user']['name']} ({summary['user']['role']})"
+            fav_playlist = summary["preferences"].get("spotify.favorite_playlist", "Deep Focus")
+            pref_client = summary["preferences"].get("mail.preferred_client", "Microsoft Outlook")
+            
+            resp = (
+                f"Personal Memory Engine Active ({summary['contacts_count']} contacts stored).\n"
+                f"• User: {user_info}\n"
+                f"• Top Contacts: {contacts_list}\n"
+                f"• Favorite Playlist: '{fav_playlist}' (Spotify)\n"
+                f"• Preferred Mail: {pref_client}\n"
+                f"• Memory DB: {summary['db_path']}"
+            )
+            self._notify_action("completed", "Memory summary retrieved")
+            return {
+                "status": "success",
+                "action": "memory_summary",
+                "summary": summary,
+                "response": resp,
+            }
+
+        if prompt in {"sync contacts", "import contacts", "sync address book"}:
+            count = self.memory.sync_system_contacts()
+            self._notify_action("completed", f"Synced {count} contacts")
+            return {
+                "status": "success",
+                "action": "sync_contacts",
+                "count": count,
+                "response": f"Synced {count} new contacts from macOS Address Book into local memory.",
+            }
+
+        # Natural Language Knowledge & Memory Learning ("remember ...")
+        if prompt.startswith("remember ") or prompt.startswith("learn "):
+            mem_res = self.memory.remember(raw_prompt)
+            self._notify_action("completed", mem_res.get("response", "Remembered."))
+            return mem_res
+
+        # Contact Biography & Knowledge Query ("who is ...", "tell me about ...")
+        who_match = re.match(r"^(?:who\s+is|tell\s+me\s+about)\s+([a-zA-Z0-9\s]+?)\??$", raw_prompt, re.IGNORECASE)
+        if who_match:
+            target = who_match.group(1).strip()
+            bio = self.memory.who_is(target)
+            if bio:
+                self._notify_action("completed", f"Resolved {target}")
+                return {
+                    "status": "success",
+                    "action": "who_is",
+                    "target": target,
+                    "response": bio,
+                }
+            else:
+                return {
+                    "status": "not_found",
+                    "action": "who_is",
+                    "target": target,
+                    "response": f"I don't have '{target}' in personal memory yet. You can say 'remember {target} is {target.lower()}@domain.com' to save them.",
+                }
+
+        # 2. Habitual Playlist Recall ("open my playlist", "play my playlist", "play my music")
+        playlist_regex = re.compile(r"^(?:open|play)\s+(?:my\s+)?(?:favorite\s+|favourite\s+)?(?:spotify\s+)?(?:playlist|music|songs?)$", re.IGNORECASE)
+        if playlist_regex.match(raw_prompt.strip()):
+            fav_playlist = self.memory.get_preference("spotify.favorite_playlist", "Deep Focus")
+            self._notify_action("executing", f"Playing favorite playlist '{fav_playlist}' on Spotify")
+            res = self._control_spotify_play(fav_playlist)
+            if res.get("status") == "success":
+                res["action"] = "spotify_playlist"
+                res["playlist"] = fav_playlist
+                res["response"] = f"Now playing your favorite playlist '{fav_playlist}' on Spotify."
+            return res
+
+        # 3. Personal Intent Messaging & Email Flow ("message Josh", "email Josh", "i wanna message josh")
+        msg_match = re.match(
+            r"^(?:i\s+(?:wanna|want\s+to)\s+)?(?:send\s+(?:an?\s+)?(?:email|message)\s+to|message|email|mail|tell)\s+([a-zA-Z0-9\s]+?)(?:\s+(?:saying|about|with|that)\s+(.+))?$",
+            raw_prompt,
+            re.IGNORECASE
+        )
+        if msg_match:
+            target_raw = msg_match.group(1).strip()
+            content_raw = msg_match.group(2).strip() if msg_match.group(2) else None
+            if target_raw.lower() not in {"me", "notification", "note", "app", "application"}:
+                entity = self.memory.resolve_entity(target_raw)
+                if entity:
+                    client = self.memory.get_preference("mail.preferred_client", "Microsoft Outlook")
+                    return self._control_send_message(entity, content=content_raw, client=client)
+                else:
+                    return {
+                        "status": "not_found",
+                        "action": "send_message",
+                        "target": target_raw,
+                        "response": f"I couldn't find '{target_raw}' in personal contacts memory. You can say 'remember {target_raw} is email@example.com' to save them.",
+                    }
+
+        # 4. Screen Introspection & Active Window Reading
         if any(p in prompt for p in ["what is on my screen", "what's on my screen", "inspect screen", "read screen", "inspect active window", "read active window", "summarize screen", "what is on screen"]):
             return self._control_inspect_screen(prompt)
 
@@ -327,6 +429,8 @@ class AssistantBrain:
                 "messages": "Messages",
                 "calendar": "Calendar",
                 "mail": "Mail",
+                "outlook": "Microsoft Outlook",
+                "microsoft outlook": "Microsoft Outlook",
                 "system settings": "System Settings",
                 "settings": "System Settings",
             }
@@ -575,6 +679,95 @@ class AssistantBrain:
             "status": "error",
             "action": "create_note",
             "response": "Apple Notes is only supported on macOS.",
+        }
+
+    def _control_send_message(
+        self,
+        entity: Dict[str, Any],
+        content: Optional[str] = None,
+        client: str = "Microsoft Outlook",
+    ) -> Dict[str, Any]:
+        """Dispatches an email or message to a resolved contact entity using the preferred client."""
+        name = entity.get("name", "Contact")
+        email = entity.get("email", "").strip()
+        if not email:
+            return {
+                "status": "error",
+                "action": "send_message",
+                "target": name,
+                "response": f"Contact '{name}' is in memory, but has no email address configured.",
+            }
+
+        self._notify_action("executing", f"Composing message to {name} ({email}) in {client}")
+
+        subject = "Quick Note"
+        body = ""
+        if content:
+            clean_content = content.strip().strip('"\'')
+            if len(clean_content) < 50:
+                subject = clean_content.capitalize()
+                body = clean_content
+            else:
+                subject = "Update"
+                body = clean_content
+
+        encoded_subject = urllib.parse.quote(subject)
+        encoded_body = urllib.parse.quote(body)
+        mailto_url = f"mailto:{email}?subject={encoded_subject}&body={encoded_body}"
+
+        if sys.platform == "darwin":
+            # If Outlook is requested/preferred
+            if "outlook" in client.lower():
+                res = subprocess.run(["open", "-a", "Microsoft Outlook", mailto_url], capture_output=True, text=True)
+                if res.returncode == 0:
+                    return {
+                        "status": "success",
+                        "action": "send_message",
+                        "recipient": name,
+                        "email": email,
+                        "company": entity.get("company", ""),
+                        "role": entity.get("role", ""),
+                        "client": "Microsoft Outlook",
+                        "subject": subject,
+                        "body": body,
+                        "response": f"Opened Microsoft Outlook compose window to {name} ({email}).",
+                    }
+
+            # Fallback to system mail client
+            res = subprocess.run(["open", mailto_url], capture_output=True, text=True)
+            if res.returncode == 0:
+                return {
+                    "status": "success",
+                    "action": "send_message",
+                    "recipient": name,
+                    "email": email,
+                    "company": entity.get("company", ""),
+                    "role": entity.get("role", ""),
+                    "client": "Mail",
+                    "subject": subject,
+                    "body": body,
+                    "response": f"Opened email compose window to {name} ({email}).",
+                }
+            else:
+                return {
+                    "status": "error",
+                    "action": "send_message",
+                    "response": f"Failed to open mail client: {res.stderr.strip()}",
+                }
+
+        # Cross-platform fallback
+        webbrowser.open(mailto_url)
+        return {
+            "status": "success",
+            "action": "send_message",
+            "recipient": name,
+            "email": email,
+            "company": entity.get("company", ""),
+            "role": entity.get("role", ""),
+            "client": client,
+            "subject": subject,
+            "body": body,
+            "response": f"Opened email composer for {name} ({email}).",
         }
 
     def _control_clipboard(self, prompt: str, raw_prompt: str) -> Dict[str, Any]:

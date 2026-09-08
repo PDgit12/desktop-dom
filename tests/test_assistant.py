@@ -492,5 +492,167 @@ def test_wake_word_listener_thread_termination():
         assert listener._stop_event.is_set()
         mock_thread.join.assert_called_once_with(timeout=1.5)
 
+def test_aura_memory_crud_and_seed(tmp_path):
+    from desktop_dom.assistant.memory import AuraMemory
+    db_file = tmp_path / "memory_test.db"
+    mem = AuraMemory(db_file)
+    
+    # Check default seeded contacts
+    josh = mem.resolve_entity("josh")
+    assert josh is not None
+    assert josh["name"] == "Joshua Rayan"
+    assert josh["email"] == "josh@crcle.ai"
+    assert josh["role"] == "Co-Founder & CEO"
+    assert josh["company"] == "Crcle.ai"
+
+    cyril = mem.resolve_entity("cyril")
+    assert cyril is not None
+    assert cyril["name"] == "Cyril Rayan"
+    assert cyril["email"] == "cyril@crcle.ai"
+
+    piyush = mem.resolve_entity("piyush")
+    assert piyush is not None
+    assert piyush["name"] == "Piyush Dua"
+    assert piyush["email"] == "piyushdua01@gmail.com"
+
+    # Check preferences
+    fav_pl = mem.get_preference("spotify.favorite_playlist")
+    assert fav_pl == "Deep Focus"
+    mail_cli = mem.get_preference("mail.preferred_client")
+    assert mail_cli == "Microsoft Outlook"
+
+def test_aura_memory_natural_language_learning(tmp_path):
+    from desktop_dom.assistant.memory import AuraMemory
+    db_file = tmp_path / "memory_learn.db"
+    mem = AuraMemory(db_file)
+
+    # Learn new contact
+    res = mem.remember("remember Sarah is sarah@crcle.ai")
+    assert res["status"] == "success"
+    sarah = mem.resolve_entity("sarah")
+    assert sarah is not None
+    assert sarah["email"] == "sarah@crcle.ai"
+
+    # Update existing contact
+    res_up = mem.remember("remember Josh's email is joshua@crcle.ai")
+    assert res_up["status"] == "success"
+    josh_updated = mem.resolve_entity("josh")
+    assert josh_updated["email"] == "joshua@crcle.ai"
+
+    # Learn playlist
+    res_pl = mem.remember("remember my favorite playlist is Lalkara")
+    assert res_pl["status"] == "success"
+    assert mem.get_preference("spotify.favorite_playlist") == "Lalkara"
+
+def test_assistant_messaging_fast_path(tmp_path):
+    from desktop_dom.assistant.memory import AuraMemory
+    mem = AuraMemory(tmp_path / "mem.db")
+    brain = AssistantBrain(preferred_model="test-model", memory=mem)
+
+    # 1. Standard message Josh
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value.returncode = 0
+        res = brain.execute_intent("message Josh")
+        assert res["status"] == "success"
+        assert res["action"] == "send_message"
+        assert res["recipient"] == "Joshua Rayan"
+        assert res["email"] == "josh@crcle.ai"
+        assert res["client"] == "Microsoft Outlook"
+
+    # 2. Colloquial phrasing with message content
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value.returncode = 0
+        res2 = brain.execute_intent("i wanna message josh saying the slides are ready")
+        assert res2["status"] == "success"
+        assert res2["action"] == "send_message"
+        assert res2["recipient"] == "Joshua Rayan"
+        assert res2["body"] == "the slides are ready"
+
+    # 3. Email Josh about meeting
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value.returncode = 0
+        res3 = brain.execute_intent("email Josh about meeting tomorrow")
+        assert res3["status"] == "success"
+        assert res3["recipient"] == "Joshua Rayan"
+        assert res3["subject"] == "Meeting tomorrow"
+
+    # 4. Unknown recipient - zero hallucination
+    res_unknown = brain.execute_intent("message NonExistentPerson")
+    assert res_unknown["status"] == "not_found"
+    assert "NonExistentPerson" in res_unknown["response"]
+
+def test_assistant_habitual_playlist(tmp_path):
+    from desktop_dom.assistant.memory import AuraMemory
+    mem = AuraMemory(tmp_path / "mem.db")
+    brain = AssistantBrain(preferred_model="test-model", memory=mem)
+
+    with patch.object(brain, "_control_spotify_play") as mock_spotify:
+        mock_spotify.return_value = {"status": "success", "action": "spotify_play", "query": "Deep Focus"}
+        res = brain.execute_intent("open my playlist")
+        assert res["status"] == "success"
+        assert res["action"] == "spotify_playlist"
+        assert res["playlist"] == "Deep Focus"
+        mock_spotify.assert_called_with("Deep Focus")
+
+    # Change playlist via natural language
+    res_rem = brain.execute_intent("remember my favorite playlist is Lofi Beats")
+    assert res_rem["status"] == "success"
+
+    with patch.object(brain, "_control_spotify_play") as mock_spotify2:
+        mock_spotify2.return_value = {"status": "success", "action": "spotify_play", "query": "Lofi Beats"}
+        res2 = brain.execute_intent("play my playlist")
+        assert res2["status"] == "success"
+        assert res2["playlist"] == "Lofi Beats"
+        mock_spotify2.assert_called_with("Lofi Beats")
+
+def test_assistant_memory_inspection_and_who_is(tmp_path):
+    from desktop_dom.assistant.memory import AuraMemory
+    mem = AuraMemory(tmp_path / "mem.db")
+    brain = AssistantBrain(preferred_model="test-model", memory=mem)
+
+    # Who is Josh
+    res_who = brain.execute_intent("who is Josh?")
+    assert res_who["status"] == "success"
+    assert res_who["action"] == "who_is"
+    assert "Joshua Rayan" in res_who["response"]
+    assert "Crcle.ai" in res_who["response"]
+
+    # Who is unknown
+    res_who_unk = brain.execute_intent("who is UnknownCandidate?")
+    assert res_who_unk["status"] == "not_found"
+
+    # /memory command
+    res_mem = brain.execute_intent("/memory")
+    assert res_mem["status"] == "success"
+    assert res_mem["action"] == "memory_summary"
+    assert "Personal Memory Engine Active" in res_mem["response"]
+
+def test_assistant_compound_with_memory(tmp_path):
+    from desktop_dom.assistant.memory import AuraMemory
+    mem = AuraMemory(tmp_path / "mem.db")
+    brain = AssistantBrain(preferred_model="test-model", memory=mem)
+
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value.returncode = 0
+        res = brain.execute_intent("open outlook and message josh")
+        assert res["status"] == "success"
+        assert res["action"] == "compound_action"
+        assert len(res["parts"]) == 2
+        assert res["parts"][0]["action"] == "open_app"
+        assert res["parts"][1]["action"] == "send_message"
+
+def test_aura_memory_submillisecond_latency(tmp_path):
+    import time
+    from desktop_dom.assistant.memory import AuraMemory
+    mem = AuraMemory(tmp_path / "mem_latency.db")
+    
+    start_t = time.perf_counter()
+    ent = mem.resolve_entity("josh")
+    elapsed_ms = (time.perf_counter() - start_t) * 1000
+    assert ent is not None
+    # Sub-millisecond budget
+    assert elapsed_ms < 2.0, f"Memory lookup took {elapsed_ms:.3f}ms, expected < 2.0ms"
+
+
 
 

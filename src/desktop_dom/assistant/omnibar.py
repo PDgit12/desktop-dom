@@ -889,7 +889,22 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       currentResultRaw = respText;
 
       const action = payload.action || "";
-      if (action === "calculate" && payload.result) {
+      if (action === "send_message" && payload.recipient) {
+        resultBody.innerHTML = `
+          <div class="result-math-highlight" style="font-size: 18px; font-weight: 600; color: #f4f4f5; margin-bottom: 4px;">${escapeHtml(payload.recipient)}</div>
+          <div class="result-math-sub" style="font-size: 12px; color: #38bdf8; display: flex; align-items: center; gap: 6px;">
+            <span>${escapeHtml(payload.email || "")}</span>
+            <span style="color: #52525b;">·</span>
+            <span style="color: #a1a1aa;">${escapeHtml(payload.client || "Microsoft Outlook")}</span>
+            ${payload.subject ? `<span style="color: #52525b;">·</span> <span style="color: #cbd5e1;">"${escapeHtml(payload.subject)}"</span>` : ""}
+          </div>
+        `;
+      } else if (action === "spotify_playlist" && payload.playlist) {
+        resultBody.innerHTML = `
+          <div class="result-math-highlight" style="font-size: 18px; font-weight: 600; color: #10b981; margin-bottom: 4px;">${escapeHtml(payload.playlist)}</div>
+          <div class="result-math-sub" style="font-size: 12px; color: #a1a1aa;">Habitual Playlist · Spotify Native AppleScript</div>
+        `;
+      } else if (action === "calculate" && payload.result) {
         resultBody.innerHTML = `
           <div class="result-math-highlight">${escapeHtml(payload.result)}</div>
           <div class="result-math-sub">${escapeHtml(payload.expression || "")}</div>
@@ -901,7 +916,9 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       const engine = payload.engine || "fast_path";
       const latency = payload.latency_ms ? `${Math.round(payload.latency_ms)}ms` : "";
 
-      if (engine === "fast_path") {
+      if (action === "send_message" || action === "spotify_playlist" || action === "who_is" || action === "memory_summary" || action.startsWith("remember_")) {
+        resultEnginePill.innerText = latency ? `Memory · ${latency}` : "Memory";
+      } else if (engine === "fast_path") {
         resultEnginePill.innerText = latency ? `Fast-Path · ${latency}` : "Fast-Path";
       } else if (engine === "ollama") {
         resultEnginePill.innerText = latency ? `Ollama · ${latency}` : "Ollama";
