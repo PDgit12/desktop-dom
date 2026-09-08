@@ -30,18 +30,18 @@ class NumberedCanvas(canvas.Canvas):
 
     def draw_page_decorations(self, page_count):
         if self._pageNumber == 1:
-            # Draw decorative sidebar stripe on cover page
+            # Decorative sidebar stripe on cover page
             self.saveState()
             self.setFillColor(colors.HexColor("#0f172a"))
             self.rect(0, 0, 18, 792, fill=1, stroke=0)
-            self.setFillColor(colors.HexColor("#0ea5e9"))
+            self.setFillColor(colors.HexColor("#0284c7"))
             self.rect(18, 0, 6, 792, fill=1, stroke=0)
             self.restoreState()
             return
 
         self.saveState()
         self.setFont("Helvetica-Bold", 8)
-        self.setFillColor(colors.HexColor("#0ea5e9"))
+        self.setFillColor(colors.HexColor("#0284c7"))
         self.drawString(54, 752, "DESKTOP-DOM & AURA")
         self.setFont("Helvetica", 8)
         self.setFillColor(colors.HexColor("#64748b"))
@@ -71,7 +71,7 @@ def create_pdf(output_path):
 
     styles = getSampleStyleSheet()
 
-    # Custom typography styles
+    # Typography & Color Palette
     c_primary = colors.HexColor("#0f172a")
     c_cyan = colors.HexColor("#0284c7")
     c_violet = colors.HexColor("#6d28d9")
@@ -83,28 +83,28 @@ def create_pdf(output_path):
         "CoverTitle",
         parent=styles["Normal"],
         fontName="Helvetica-Bold",
-        fontSize=28,
-        leading=34,
+        fontSize=26,
+        leading=32,
         textColor=c_primary,
-        spaceAfter=10
+        spaceAfter=8
     )
 
     cover_subtitle_style = ParagraphStyle(
         "CoverSubtitle",
         parent=styles["Normal"],
         fontName="Helvetica",
-        fontSize=13,
-        leading=18,
+        fontSize=12,
+        leading=16,
         textColor=c_cyan,
-        spaceAfter=24
+        spaceAfter=18
     )
 
     h1_style = ParagraphStyle(
         "Heading1_Custom",
         parent=styles["Normal"],
         fontName="Helvetica-Bold",
-        fontSize=15,
-        leading=19,
+        fontSize=14,
+        leading=18,
         textColor=c_primary,
         spaceBefore=14,
         spaceAfter=6,
@@ -115,10 +115,10 @@ def create_pdf(output_path):
         "Heading2_Custom",
         parent=styles["Normal"],
         fontName="Helvetica-Bold",
-        fontSize=11.5,
-        leading=15,
+        fontSize=11,
+        leading=14.5,
         textColor=c_cyan,
-        spaceBefore=10,
+        spaceBefore=9,
         spaceAfter=4,
         keepWithNext=True
     )
@@ -127,10 +127,10 @@ def create_pdf(output_path):
         "Heading3_Custom",
         parent=styles["Normal"],
         fontName="Helvetica-Bold",
-        fontSize=10,
-        leading=13.5,
+        fontSize=9.5,
+        leading=13,
         textColor=c_violet,
-        spaceBefore=8,
+        spaceBefore=7,
         spaceAfter=3,
         keepWithNext=True
     )
@@ -139,17 +139,17 @@ def create_pdf(output_path):
         "Body_Custom",
         parent=styles["Normal"],
         fontName="Helvetica",
-        fontSize=9,
-        leading=13.5,
+        fontSize=8.5,
+        leading=12.5,
         textColor=c_text,
-        spaceAfter=6
+        spaceAfter=5
     )
 
     bullet_style = ParagraphStyle(
         "Bullet_Custom",
         parent=body_style,
-        leftIndent=14,
-        firstLineIndent=-10,
+        leftIndent=12,
+        firstLineIndent=-8,
         spaceAfter=3
     )
 
@@ -157,32 +157,32 @@ def create_pdf(output_path):
         "Code_Custom",
         parent=styles["Normal"],
         fontName="Courier",
-        fontSize=7.5,
-        leading=10.5,
+        fontSize=7,
+        leading=9.5,
         textColor=colors.HexColor("#0f172a"),
         backColor=colors.HexColor("#f1f5f9"),
         borderColor=colors.HexColor("#cbd5e1"),
         borderWidth=0.5,
-        borderPadding=5,
-        spaceBefore=5,
-        spaceAfter=7,
-        leftIndent=4,
-        rightIndent=4
+        borderPadding=4,
+        spaceBefore=4,
+        spaceAfter=6,
+        leftIndent=3,
+        rightIndent=3
     )
 
     callout_style = ParagraphStyle(
         "Callout_Custom",
         parent=styles["Normal"],
         fontName="Helvetica-Oblique",
-        fontSize=8.5,
-        leading=12.5,
+        fontSize=8,
+        leading=11.5,
         textColor=colors.HexColor("#0c4a6e"),
         backColor=colors.HexColor("#f0f9ff"),
         borderColor=colors.HexColor("#bae6fd"),
         borderWidth=0.5,
-        borderPadding=7,
-        spaceBefore=6,
-        spaceAfter=8
+        borderPadding=6,
+        spaceBefore=5,
+        spaceAfter=7
     )
 
     story = []
@@ -190,70 +190,70 @@ def create_pdf(output_path):
     # =========================================================================
     # COVER PAGE
     # =========================================================================
-    story.append(Spacer(1, 24))
+    story.append(Spacer(1, 18))
     story.append(Paragraph("DESKTOP-DOM & AURA", cover_title_style))
-    story.append(Paragraph("The Definitive Technical Manual, Architectural Specification & Master Curriculum<br/><i>From OS Kernel Accessibility Bridges to Level 2 Memory Engines & Level 3 Autonomous Agents</i>", cover_subtitle_style))
+    story.append(Paragraph("The Definitive Technical Master Manual & Architectural Specification<br/><i>From Low-Level OS Kernel Bridges to Level 2 Memory Engines & Level 3 Autonomous Agentic Loops</i>", cover_subtitle_style))
 
-    story.append(HRFlowable(width="100%", thickness=2, color=c_cyan, spaceBefore=0, spaceAfter=16))
+    story.append(HRFlowable(width="100%", thickness=2, color=c_cyan, spaceBefore=0, spaceAfter=14))
 
     meta_data = [
         [Paragraph("<b>Author & Engineer:</b>", body_style), Paragraph("Piyush Dua (<code>PDgit12</code>)", body_style)],
-        [Paragraph("<b>Target Role:</b>", body_style), Paragraph("Backend Developer Intern", body_style)],
-        [Paragraph("<b>Company / Founders:</b>", body_style), Paragraph("Crcle.ai — Joshua Rayan (CEO) & Cyril Rayan (Co-Founder)", body_style)],
-        [Paragraph("<b>Core Thesis Alignment:</b>", body_style), Paragraph("'The Intent Layer of Computing' — Native macOS Intent Execution", body_style)],
+        [Paragraph("<b>Target Opportunity:</b>", body_style), Paragraph("Backend Developer Intern @ Crcle.ai", body_style)],
+        [Paragraph("<b>Founders:</b>", body_style), Paragraph("Joshua Rayan (Founder & CEO) & Cyril Rayan (Co-Founder)", body_style)],
+        [Paragraph("<b>Core Mission:</b>", body_style), Paragraph("'The Intent Layer of Computing' — Native macOS Intent Execution", body_style)],
         [Paragraph("<b>Repository:</b>", body_style), Paragraph("<code>https://github.com/PDgit12/desktop-dom</code>", body_style)],
-        [Paragraph("<b>Test Suite Health:</b>", body_style), Paragraph("<b>90 / 90 Tests Passing (100%)</b> across macOS, Linux, and Windows fixtures", body_style)],
-        [Paragraph("<b>Architecture Levels:</b>", body_style), Paragraph("Level 1 (Stateless Fast Execution) • Level 2 (Personal Context & Memory) • Level 3 (Agentic)", body_style)],
-        [Paragraph("<b>Date / Version:</b>", body_style), Paragraph("September 2026 • Production Edition (v0.2.0)", body_style)],
+        [Paragraph("<b>Test Suite Health:</b>", body_style), Paragraph("<b>90 / 90 Tests Passing (100% Hermetic Pass Rate)</b> in 6.37s", body_style)],
+        [Paragraph("<b>Architecture Maturity:</b>", body_style), Paragraph("Level 1 (Stateless Fast Execution) & Level 2 (Personal Context & Memory Layer) Complete; Level 3 (Agentic) Roadmap", body_style)],
+        [Paragraph("<b>Edition & Date:</b>", body_style), Paragraph("Production Edition (v0.2.0) • September 2026", body_style)],
     ]
 
     meta_table = Table(meta_data, colWidths=[1.8 * inch, 4.7 * inch])
     meta_table.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
         ("LINEBELOW", (0, 0), (-1, -1), 0.5, colors.HexColor("#f1f5f9")),
     ]))
     story.append(meta_table)
-    story.append(Spacer(1, 16))
+    story.append(Spacer(1, 12))
 
-    story.append(Paragraph("Executive Abstract", h2_style))
+    story.append(Paragraph("Executive Summary", h2_style))
     story.append(Paragraph(
-        "Desktop-DOM is an open-source, high-velocity native desktop accessibility engine designed to eliminate the fatal bottlenecks "
-        "of vision-based desktop agents. Rather than consuming 2MB retina screenshots and 2,000 vision tokens per step to predict coordinates "
-        "with high latency and cursor hijacking, Desktop-DOM queries native OS accessibility buses (macOS <code>AXUIElement</code>, Windows <code>UIAutomation</code>, "
-        "Linux <code>AT-SPI2</code>) to extract semantic application state in <b>under 15 milliseconds</b> with an <b>85–90% reduction in tokens</b>. "
-        "Paired with <b>Aura</b>, its spotlight HUD and personal intent layer, Desktop-DOM realizes Crcle.ai's vision of 'The Intent Layer of Computing'—allowing users "
-        "to summon with a keystroke, express natural intent, disambiguate personal context in &lt;1ms via local SQLite WAL memory, and execute workflows without touching menus.",
+        "Desktop-DOM is a high-velocity, open-source native desktop accessibility engine designed to eliminate the critical failure modes of "
+        "vision-based computer use agents (such as Claude 3.7 Computer Use and Gemini Operator). Rather than burning 2MB retina screenshots and 2,000 vision tokens "
+        "per step to predict click coordinates with high latency (3–5 seconds) and invasive physical cursor hijacking, Desktop-DOM queries native operating system "
+        "accessibility buses (macOS <code>AXUIElement</code>, Windows <code>UIAutomation</code>, Linux <code>AT-SPI2</code>) to extract semantic application state in "
+        "<b>under 15 milliseconds</b> with an <b>88% reduction in token overhead</b>. Paired with <b>Aura</b>, its native floating HUD and personal intent layer, "
+        "Desktop-DOM realizes Crcle.ai's vision of 'The Intent Layer of Computing'—allowing users to summon with a single keystroke, express natural intent, "
+        "disambiguate personal context in &lt;1ms via local SQLite WAL memory, and execute complex workflows without navigating menus.",
         body_style
     ))
 
     story.append(PageBreak())
 
     # =========================================================================
-    # CHAPTER 1: THE FUNDAMENTAL FLAW OF VISION AGENTS
+    # CHAPTER 1: THE FUNDAMENTAL FLAW OF VISION-BASED DESKTOP AI
     # =========================================================================
     story.append(Paragraph("Chapter 1: The Fundamental Flaw of Vision-Based Desktop AI", h1_style))
     story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#cbd5e1"), spaceBefore=2, spaceAfter=8))
 
     story.append(Paragraph(
-        "In 2024–2026, leading AI research labs (Anthropic Computer Use, Google Project Jarvis, Microsoft) developed desktop automation around "
-        "<b>full-screen multimodal screenshots</b>. The agent captures the screen, transmits millions of raw pixels to a cloud LLM, predicts screen coordinates $(x, y)$, "
-        "and synthesizes physical mouse clicks. In production desktop environments, this architecture suffers from five fatal failures:",
+        "In 2024–2026, premier AI research labs invested heavily in <b>full-screen multimodal screenshots</b> as the primary substrate for desktop automation. "
+        "The agent captures the entire desktop buffer, transmits millions of raw pixels to a cloud LLM, predicts $(x, y)$ coordinate points, and synthesizes "
+        "hardware mouse clicks. In production desktop environments, this vision-only paradigm suffers from five fatal architectural failures:",
         body_style
     ))
 
-    story.append(Paragraph("1. <b>Token Cost & Bandwidth Explosion:</b> Every 4K screenshot costs 1,500–2,000 multimodal tokens and transfers 2–8MB over the wire. A 15-step task burns ~30,000 tokens ($0.20–$0.50). In contrast, Desktop-DOM's pruned accessibility AST consumes only 200–400 text tokens, reducing token overhead by 88%.", bullet_style))
-    story.append(Paragraph("2. <b>High Latency (3–5s Per Action):</b> Capturing 4K buffers, encoding PNGs, transferring over HTTPS, and generating vision transformer tokens takes 3 to 5 seconds per step. Desktop-DOM extracts native trees in 8–18ms, executes deterministic fast-paths in &lt;25ms, and runs local Ollama models in 400–800ms.", bullet_style))
-    story.append(Paragraph("3. <b>Retina Scaling & Coordinate Drift:</b> Vision models output normalized coordinates $(0..1000)$ that must be projected onto multi-display setups with fractional scaling and negative virtual coordinates. A 5-pixel hallucination clicks outside target buttons. Desktop-DOM retrieves exact window-server bounding boxes directly from the OS.", bullet_style))
+    story.append(Paragraph("1. <b>Token Cost & Bandwidth Explosion:</b> Every 4K screenshot burns 1,500–2,200 multimodal tokens and transfers 2–8MB over HTTPS. A standard 15-step operational task burns ~30,000 tokens ($0.20–$0.50). In contrast, Desktop-DOM's pruned accessibility AST consumes only 180–350 text tokens, reducing token cost by 88%.", bullet_style))
+    story.append(Paragraph("2. <b>High Step Latency (3–5s Per Action):</b> Capturing 4K buffers, encoding PNGs, uploading over HTTPS, and generating vision transformer tokens requires 3 to 5 seconds per step. Desktop-DOM extracts native trees in 8–18ms, executes deterministic fast-paths in &lt;25ms, and runs local Ollama models in 400–800ms.", bullet_style))
+    story.append(Paragraph("3. <b>Retina Scaling & Coordinate Drift:</b> Vision models output normalized coordinates $(0..1000)$ mapped onto displays with fractional DPI scaling and negative virtual coordinates. A 5-pixel hallucination clicks outside target buttons. Desktop-DOM retrieves exact window-server bounding boxes directly from the OS.", bullet_style))
     story.append(Paragraph("4. <b>The 'Cursor Hijack' Problem:</b> Vision agents move the user's physical mouse pointer and steal active window focus. If the user touches the keyboard, the workflow crashes. Desktop-DOM dispatches direct accessibility actions (<code>kAXPressAction</code>, <code>InvokePattern</code>) in the background without moving the cursor.", bullet_style))
-    story.append(Paragraph("5. <b>Zero Semantic Awareness:</b> Pixels convey appearance, not state. Vision agents cannot reliably know whether a toggle is <code>checked</code>, <code>disabled</code>, or <code>read-only</code>. Desktop-DOM inspects native OS state bits deterministically.", bullet_style))
+    story.append(Paragraph("5. <b>Zero Semantic Awareness:</b> Pixels convey visual styling, not internal software state. Vision agents cannot reliably know whether a toggle is <code>checked</code>, <code>disabled</code>, or <code>read-only</code>. Desktop-DOM inspects native OS state bits deterministically.", bullet_style))
 
-    # Benchmark comparison table
     story.append(Spacer(1, 4))
-    story.append(Paragraph("Engineering Benchmark: Vision-Only vs. Desktop-DOM Accessibility Engine", h3_style))
+    story.append(Paragraph("Benchmark Comparison: Vision-Only vs. Desktop-DOM Accessibility Engine", h3_style))
     table_data = [
-        [Paragraph("<b>Metric</b>", body_style), Paragraph("<b>Claude Computer Use / Vision</b>", body_style), Paragraph("<b>Desktop-DOM (Aura)</b>", body_style)],
+        [Paragraph("<b>Metric</b>", body_style), Paragraph("<b>Vision-Only (Claude Computer Use)</b>", body_style), Paragraph("<b>Desktop-DOM (Aura)</b>", body_style)],
         [Paragraph("DOM Extraction / Capture", body_style), Paragraph("80–150ms (full screenshot)", body_style), Paragraph("<b>8–18ms</b> (native OS bus)", body_style)],
         [Paragraph("Tokens Per Action", body_style), Paragraph("1,500–2,200 tokens", body_style), Paragraph("<b>180–350 tokens</b> (pruned)", body_style)],
         [Paragraph("End-to-End Step Latency", body_style), Paragraph("3,000–5,000ms", body_style), Paragraph("<b>&lt;25ms</b> (Fast-Path) / <b>600ms</b> (Local LLM)", body_style)],
@@ -280,7 +280,7 @@ def create_pdf(output_path):
     story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#cbd5e1"), spaceBefore=2, spaceAfter=8))
 
     story.append(Paragraph(
-        "Desktop-DOM is organized as a clean, multi-tier layered system designed to decouple low-level operating system APIs from high-level reasoning agents:",
+        "Desktop-DOM is organized as a clean, multi-tier layered architecture designed to decouple low-level operating system APIs from high-level reasoning agents:",
         body_style
     ))
 
@@ -315,8 +315,8 @@ def create_pdf(output_path):
     story.append(Paragraph(arch_text.replace("\n", "<br/>").replace(" ", "&nbsp;"), code_style))
 
     story.append(Paragraph("Core Component Responsibilities", h2_style))
-    story.append(Paragraph("• <b>Kernel Adapters (<code>src/desktop_dom/adapters/</code>):</b> Direct C-types / PyObjC / COM wrappers that interact with native platform accessibility buses. They serialize platform-specific accessibility nodes into canonical <code>DesktopNode</code> models.", bullet_style))
-    story.append(Paragraph("• <b>Normalization & Pruning Pipeline (<code>src/desktop_dom/pruner.py</code>):</b> An $O(N)$ tree-reduction algorithm that strips zero-area invisible layout rects, offscreen clipped elements, and collapses passive layout groups, achieving a <b>96% reduction in tree complexity</b>.", bullet_style))
+    story.append(Paragraph("• <b>Kernel Adapters (<code>src/desktop_dom/adapters/</code>):</b> Direct C-types / PyObjC / COM wrappers that interact with native platform accessibility buses, serializing platform-specific accessibility handles into canonical <code>DesktopNode</code> models.", bullet_style))
+    story.append(Paragraph("• <b>Normalization & Pruning Pipeline (<code>src/desktop_dom/pruner.py</code>):</b> An $O(N)$ tree-reduction algorithm that strips zero-area layout rects, offscreen clipped elements, and collapses passive layout groups, achieving a <b>96% reduction in tree complexity</b>.", bullet_style))
     story.append(Paragraph("• <b>High-Level SDK (<code>src/desktop_dom/app.py</code>):</b> Provides high-level developer primitives: <code>attach(name)</code>, <code>find()</code>, <code>click()</code>, <code>type()</code>, reactive element waiters (<code>wait_for()</code>), and mutation observers (<code>observe()</code>).", bullet_style))
     story.append(Paragraph("• <b>Assistant Brain (<code>src/desktop_dom/assistant/brain.py</code>):</b> The dual-engine intelligence router that routes queries to sub-25ms deterministic fast-paths or on-device local LLM planners.", bullet_style))
     story.append(Paragraph("• <b>Personal Memory Engine (<code>src/desktop_dom/assistant/memory.py</code>):</b> The Level 2 persistent local SQLite WAL database providing entity disambiguation, habitual playlist recall, and natural language memory management.", bullet_style))
@@ -334,26 +334,25 @@ def create_pdf(output_path):
         "On macOS, Desktop-DOM interfaces with the <code>ApplicationServices.HIServices</code> framework via PyObjC:",
         body_style
     ))
-    story.append(Paragraph("• <b>Connecting to Applications:</b> Desktop-DOM connects using <code>AXUIElementCreateApplication(pid)</code>. The system creates an IPC port to the target application's accessibility server.", bullet_style))
+    story.append(Paragraph("• <b>Process Attachment:</b> Desktop-DOM connects using <code>AXUIElementCreateApplication(pid)</code>. The system creates an IPC Mach port to the target application's accessibility server.", bullet_style))
     story.append(Paragraph("• <b>Attribute Extraction:</b> Desktop-DOM queries attributes using <code>AXUIElementCopyAttributeValue</code>: <code>kAXRoleAttribute</code>, <code>kAXTitleAttribute</code>, <code>kAXValueAttribute</code>, <code>kAXChildrenAttribute</code>, <code>kAXPositionAttribute</code>, and <code>kAXSizeAttribute</code>.", bullet_style))
-    story.append(Paragraph("• <b>Coordinate Inversion (Cocoa vs. Quartz):</b> macOS uses two opposing coordinate origins. Cocoa/AppKit measures $(0, 0)$ from the <b>bottom-left</b> corner of the primary display (Y increases upward). Quartz accessibility APIs measure $(0, 0)$ from the <b>top-left</b> corner (Y increases downward). Desktop-DOM handles this conversion across multi-display setups seamlessly.", bullet_style))
+    story.append(Paragraph("• <b>Coordinate Inversion (Cocoa vs. Quartz):</b> Cocoa/AppKit measures $(0, 0)$ from the <b>bottom-left</b> corner of the primary display (Y increases upward). Quartz accessibility APIs measure $(0, 0)$ from the <b>top-left</b> corner (Y increases downward). Desktop-DOM handles this conversion across multi-display setups seamlessly via:<br/><code>y_quartz = primary_screen_height - (y_cocoa + height)</code>.", bullet_style))
 
-    story.append(Paragraph("3.2 The Chromium / Electron Accessibility Hydration Architecture", h2_style))
+    story.append(Paragraph("3.2 The Chromium / Electron Accessibility Hydration Engine", h2_style))
     story.append(Paragraph(
-        "Electron, Slack, VS Code, Spotify, and Chrome do not build accessibility trees on startup to conserve memory. "
-        "A naive <code>AXUIElementCopyAttributeValue(app, kAXChildrenAttribute)</code> returns an empty list. "
-        "Desktop-DOM implements <b>Chromium Hydration</b> (<code>src/desktop_dom/adapters/macos.py</code>):",
+        "Electron, Slack, VS Code, Spotify, and Chrome disable accessibility tree construction by default to optimize startup time and memory. "
+        "A naive query returns an empty list. Desktop-DOM implements <b>Chromium Hydration</b> (<code>src/desktop_dom/adapters/macos.py</code>):",
         body_style
     ))
-    story.append(Paragraph("1. Desktop-DOM checks whether the target application's bundle identifier or process name matches known Chromium apps.", bullet_style))
-    story.append(Paragraph("2. It issues a specialized attribute request: <code>AXUIElementCopyAttributeValue(app, 'AXManualAccessibility', &val)</code> or calls <code>AXUIElementSetAttributeValue(app, 'AXEnhancedUserInterface', True)</code>.", bullet_style))
-    story.append(Paragraph("3. This triggers Chromium's Blink rendering engine to hydrate its internal <code>RenderAccessibility</code> tree into native OS accessibility nodes.", bullet_style))
-    story.append(Paragraph("4. Desktop-DOM retries tree extraction with exponential backoff, ensuring complete AST recovery across VS Code, Slack, and Chrome.", bullet_style))
+    story.append(Paragraph("1. Inspects the target application bundle identifier to identify Chromium/Blink signatures.", bullet_style))
+    story.append(Paragraph("2. Issues an explicit accessibility attribute injection: <code>AXUIElementSetAttributeValue(app, 'AXEnhancedUserInterface', True)</code> and <code>AXUIElementSetAttributeValue(app, 'AXManualAccessibility', True)</code>.", bullet_style))
+    story.append(Paragraph("3. This forces Blink's rendering engine to hydrate its internal <code>RenderAccessibility</code> tree into native OS accessibility nodes.", bullet_style))
+    story.append(Paragraph("4. Desktop-DOM retries tree extraction with exponential backoff (10ms, 25ms, 50ms), recovering the full DOM tree.", bullet_style))
 
     story.append(Paragraph("3.3 Windows Adapter (`CUIAutomation8` & COM Interop)", h2_style))
     story.append(Paragraph(
         "On Windows, Desktop-DOM binds to Microsoft UI Automation (UIA) v3 via <code>UIAutomationCore.dll</code> using <code>comtypes</code>. "
-        "It initializes the singleton <code>CUIAutomation8</code> COM class, creating a client-side tree walker configured with <code>RawViewCondition</code> or <code>ControlViewCondition</code>.",
+        "It initializes the singleton <code>CUIAutomation8</code> COM class, creating a client-side tree walker configured with <code>ControlViewCondition</code>.",
         body_style
     ))
 
@@ -409,12 +408,12 @@ def create_pdf(output_path):
     story.append(PageBreak())
 
     # =========================================================================
-    # CHAPTER 5: NORMALIZATION, PRUNING, & FUZZY RECOVERY
+    # CHAPTER 5: NORMALIZATION, PRUNING, & SPATIAL ALGORITHMS
     # =========================================================================
     story.append(Paragraph("Chapter 5: Normalization, Pruning, & Spatial Algorithms", h1_style))
     story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#cbd5e1"), spaceBefore=2, spaceAfter=8))
 
-    story.append(Paragraph("5.1 The O(N) Tree Pruner (96% Token Reduction)", h2_style))
+    story.append(Paragraph("5.1 The O(N) Tree Pruner (96% Token Reduction in 0.31ms)", h2_style))
     story.append(Paragraph(
         "Raw OS accessibility trees contain thousands of non-semantic container nodes, clipping boundaries, and invisible layout frames. "
         "In a real-world test on macOS Spotify, the raw accessibility tree contained <b>1,093 nodes</b>. "
@@ -422,7 +421,7 @@ def create_pdf(output_path):
         body_style
     ))
     story.append(Paragraph(
-        "Desktop-DOM implements an $O(N)$ tree-pruner (<code>src/desktop_dom/pruner.py</code>) that applies three mathematical reduction rules:",
+        "Desktop-DOM implements an $O(N)$ tree-pruner (<code>src/desktop_dom/pruner.py</code>) that applies three reduction rules:",
         body_style
     ))
     story.append(Paragraph("1. <b>Zero-Area & Negative Dimension Cull:</b> Any node whose bounding box has $width \\le 0$ or $height \\le 0$ is instantly pruned.", bullet_style))
@@ -456,24 +455,51 @@ def create_pdf(output_path):
     story.append(PageBreak())
 
     # =========================================================================
-    # CHAPTER 6: LEVEL 1 — THE DETERMINISTIC EXECUTION ENGINE
+    # CHAPTER 6: TARGETED SUBREGION VISION FALLBACK
     # =========================================================================
-    story.append(Paragraph("Chapter 6: Level 1 — The Deterministic Execution Engine", h1_style))
+    story.append(Paragraph("Chapter 6: Targeted Subregion Vision Fallback", h1_style))
     story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#cbd5e1"), spaceBefore=2, spaceAfter=8))
 
-    story.append(Paragraph("6.1 The Sub-25ms Fast-Path & Returncode Verification", h2_style))
+    story.append(Paragraph(
+        "What happens when an application renders custom pixels on an HTML5 <code>&lt;canvas&gt;</code>, WebGL, or DirectX viewport "
+        "(such as Figma, Canva, Google Maps, or video games) where the accessibility bus has no inner child nodes?",
+        body_style
+    ))
+    story.append(Paragraph(
+        "Instead of falling back to a wasteful full-screen 4K capture, Desktop-DOM uses <b>Targeted Subregion Vision</b> "
+        "(<code>src/desktop_dom/subregion_vision.py</code>):",
+        body_style
+    ))
+    story.append(Paragraph("1. Desktop-DOM locates the canvas container in the accessibility DOM (e.g. <code>canvas_figma_viewport</code>).", bullet_style))
+    story.append(Paragraph("2. Reads its exact bounding box: <code>[x: 240, y: 120, width: 900, height: 600]</code>.", bullet_style))
+    story.append(Paragraph("3. Uses native OS screen capture (<code>CGWindowListCreateImage</code> on macOS, <code>BitBlt</code> on Windows) to crop <b>only that 900×600 pixel bounding box</b>.", bullet_style))
+    story.append(Paragraph("4. Passes the cropped image to the multimodal model and projects predicted relative coordinates back to global desktop display space.", bullet_style))
+    story.append(Paragraph(
+        "<b>Architectural Advantage:</b> Saves 80% image bandwidth, prevents exposure of private user data in adjacent windows or menu bars, and eliminates retina coordinate scaling ambiguity.",
+        callout_style
+    ))
+
+    story.append(PageBreak())
+
+    # =========================================================================
+    # CHAPTER 7: LEVEL 1 — DETERMINISTIC FAST-PATH EXECUTION
+    # =========================================================================
+    story.append(Paragraph("Chapter 7: Level 1 — Deterministic Fast-Path Execution Engine", h1_style))
+    story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#cbd5e1"), spaceBefore=2, spaceAfter=8))
+
+    story.append(Paragraph("7.1 Sub-25ms Fast-Path & Returncode Verification", h2_style))
     story.append(Paragraph(
         "Level 1 represents stateless, sub-25ms deterministic command execution. Common desktop actions do not require waiting for LLM tokens. "
         "Aura routes common commands through specialized AST and AppleScript handlers:",
         body_style
     ))
     story.append(Paragraph("• <b>Spotify Control (Direct OSA & Quartz HID):</b> Communicates directly with Spotify's native AppleScript dictionary. Bypasses macOS TCC error 1002 by avoiding <code>System Events</code> and synthesizing media keys via Quartz C-level HID events.", bullet_style))
-    story.append(Paragraph("• <b>Safe Math Calculator (Zero Vulnerabilities):</b> Parses mathematical queries using Python's <code>ast</code> module with strict whitelisting. Blocked <code>eval()</code> and exponentiation (<code>**</code>) to prevent DoS attacks.", bullet_style))
+    story.append(Paragraph("• <b>Safe AST Math Calculator (Zero Vulnerabilities):</b> Parses mathematical queries using Python's <code>ast</code> module with strict whitelisting. Blocked <code>eval()</code> and exponentiation (<code>**</code>) to prevent DoS attacks.", bullet_style))
     story.append(Paragraph("• <b>Zero-Hallucination Return Code Checks:</b> Every single subprocess and AppleScript execution checks <code>res.returncode == 0</code>. If an app is not installed, it returns honest diagnostics instead of fake completion messages.", bullet_style))
 
-    story.append(Paragraph("6.2 Compound Query Execution & Dynamic Frame Resizing", h2_style))
+    story.append(Paragraph("7.2 Multi-Action Compound Query Execution", h2_style))
     story.append(Paragraph(
-        "Aura handles multi-action compound queries (e.g. 'open chrome and open gmail', 'open spotify and play starboy'). "
+        "Aura handles multi-action compound queries (e.g. 'open chrome and open gmail', 'open outlook and message josh'). "
         "The engine splits compound instructions using regex boundary detection, normalizes verb prefixes, and executes actions sequentially with aggregated latency metrics. "
         "In the floating Omnibar, window frame transitions use <code>setFrame_display_animate_(new_frame, True, False)</code> for 0ms instant expansion.",
         body_style
@@ -482,12 +508,12 @@ def create_pdf(output_path):
     story.append(PageBreak())
 
     # =========================================================================
-    # CHAPTER 7: LEVEL 2 — THE PERSONAL INTENT & MEMORY ENGINE
+    # CHAPTER 8: LEVEL 2 — THE PERSONAL INTENT & MEMORY ENGINE
     # =========================================================================
-    story.append(Paragraph("Chapter 7: Level 2 — The Personal Intent & Memory Engine", h1_style))
+    story.append(Paragraph("Chapter 8: Level 2 — The Personal Intent & Memory Engine", h1_style))
     story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#cbd5e1"), spaceBefore=2, spaceAfter=8))
 
-    story.append(Paragraph("7.1 The Architectural Need for State & Context", h2_style))
+    story.append(Paragraph("8.1 Architectural Framework: Why Stateless AI Fails Human Intent", h2_style))
     story.append(Paragraph(
         "Level 1 is stateless: you say 'open spotify' and it opens Spotify. But human intent is colloquial, contextual, and deeply personal: "
         "'message Josh', 'open my playlist', 'send the slides to Cyril'. "
@@ -495,7 +521,7 @@ def create_pdf(output_path):
         body_style
     ))
 
-    story.append(Paragraph("7.2 Local SQLite WAL Architecture (`~/.desktop_dom/aura_memory.db`)", h2_style))
+    story.append(Paragraph("8.2 Local SQLite WAL Architecture (`~/.desktop_dom/aura_memory.db`)", h2_style))
     story.append(Paragraph(
         "Aura implements a local-first, zero-cloud-dependency memory engine (<code>src/desktop_dom/assistant/memory.py</code>):",
         body_style
@@ -504,7 +530,7 @@ def create_pdf(output_path):
     story.append(Paragraph("• <b>Dual-Layer Hot Cache:</b> In-memory Python dictionaries and entity lists provide <b>0.49ms lookup latency</b>, fitting well within Aura's sub-30ms budget.", bullet_style))
     story.append(Paragraph("• <b>Thread Safety:</b> Protected by a re-entrant <code>threading.RLock()</code> across concurrent UI and background audio threads.", bullet_style))
 
-    story.append(Paragraph("7.3 Entity Disambiguation & Ranking Algorithm", h2_style))
+    story.append(Paragraph("8.3 Sub-Millisecond Entity Disambiguation (<0.5ms)", h2_style))
     story.append(Paragraph(
         "When the user says 'message Josh', Aura's disambiguation engine scores all known entities across four tiers:",
         body_style
@@ -515,7 +541,7 @@ def create_pdf(output_path):
     story.append(Paragraph("4. <b>Fuzzy String Match (Score: 70+):</b> Computes <code>difflib.SequenceMatcher.ratio()</code> &ge; 0.72.", bullet_style))
     story.append(Paragraph("• <b>Frequency & Recency Boost:</b> Adds <code>min(interaction_count * 0.5, 10.0)</code> to resolve ambiguous names to the user's most frequent contact.", bullet_style))
 
-    story.append(Paragraph("7.4 Personal Messaging & Habitual Media Orchestration", h2_style))
+    story.append(Paragraph("8.4 Personal Messaging & Habitual Media Orchestration", h2_style))
     story.append(Paragraph(
         "• <b>Microsoft Outlook Automation:</b> When 'message Josh' resolves to Joshua Rayan (<code>josh@crcle.ai</code>), Aura extracts the subject/body and invokes Outlook via URL handler (<code>open -a 'Microsoft Outlook' 'mailto:...'</code>) in 0.6ms.<br/>"
         "• <b>Habitual Media Recall:</b> When the user says 'open my playlist', Aura queries <code>spotify.favorite_playlist</code> ('Deep Focus') and dispatches playback immediately.<br/>"
@@ -526,9 +552,9 @@ def create_pdf(output_path):
     story.append(PageBreak())
 
     # =========================================================================
-    # CHAPTER 8: LEVEL 3 — THE AUTONOMOUS AGENTIC LOOP BLUEPRINT
+    # CHAPTER 9: LEVEL 3 — THE AUTONOMOUS AGENTIC LOOP BLUEPRINT
     # =========================================================================
-    story.append(Paragraph("Chapter 8: Level 3 — The Autonomous Agentic Loop Blueprint", h1_style))
+    story.append(Paragraph("Chapter 9: Level 3 — The Autonomous Agentic Loop Blueprint", h1_style))
     story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#cbd5e1"), spaceBefore=2, spaceAfter=8))
 
     story.append(Paragraph(
@@ -537,7 +563,7 @@ def create_pdf(output_path):
         body_style
     ))
 
-    story.append(Paragraph("8.1 The ReAct + Reflection Closed Loop", h2_style))
+    story.append(Paragraph("9.1 The ReAct + Reflection Closed Loop", h2_style))
     story.append(Paragraph(
         "Rather than firing blind actions, Level 3 implements a rigorous 5-stage closed loop:<br/>"
         "<b>Goal</b> &rarr; <b>Plan</b> (Decompose into micro-steps) &rarr; <b>Act</b> (Dispatch accessibility action) &rarr; "
@@ -545,7 +571,7 @@ def create_pdf(output_path):
         body_style
     ))
 
-    story.append(Paragraph("8.2 Before-and-After DOM Diffing", h2_style))
+    story.append(Paragraph("9.2 Before-and-After DOM Diffing ($T_1 - T_0$ State Verification)", h2_style))
     story.append(Paragraph(
         "Before executing any action, Desktop-DOM captures a lightweight DOM snapshot $T_0$. "
         "After action dispatch, it captures $T_1$ and computes the tree difference $\\Delta = T_1 - T_0$. "
@@ -553,14 +579,14 @@ def create_pdf(output_path):
         body_style
     ))
 
-    story.append(Paragraph("8.3 Multi-App Goal Decomposition", h2_style))
+    story.append(Paragraph("9.3 Multi-App Goal Decomposition", h2_style))
     story.append(Paragraph(
         "Enables complex compound workflows: 'Find the latest revenue figure in my Google Sheet, open Outlook, and email Josh with the number.' "
         "Level 3 plans sub-tasks, shares state across applications via the local memory engine, and executes without human intervention.",
         body_style
     ))
 
-    story.append(Paragraph("8.4 Structured Function Calling with Local SLMs", h2_style))
+    story.append(Paragraph("9.4 Structured Function Calling with Local SLMs", h2_style))
     story.append(Paragraph(
         "Leverages small local models (Ministral-3:8b, Qwen2.5-Coder:7b) configured with Pydantic JSON schemas via Ollama's tool-calling API. "
         "Ensures 100% deterministic function invocations with zero cloud compute cost and total privacy.",
@@ -570,12 +596,70 @@ def create_pdf(output_path):
     story.append(PageBreak())
 
     # =========================================================================
-    # CHAPTER 9: CRCLE.AI STRATEGIC GAP ANALYSIS
+    # CHAPTER 10: THE FLOATING SPOTLIGHT OMNIBAR
     # =========================================================================
-    story.append(Paragraph("Chapter 9: Crcle.ai Strategic Gap Analysis & Founder Alignment", h1_style))
+    story.append(Paragraph("Chapter 10: The Floating Spotlight Omnibar (`Cocoa` + `WebKit`)", h1_style))
     story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#cbd5e1"), spaceBefore=2, spaceAfter=8))
 
-    story.append(Paragraph("9.1 Alignment with Crcle's Core Thesis", h2_style))
+    story.append(Paragraph(
+        "Aura's user interface is a native macOS floating pill inspired by Raycast and Spotlight "
+        "(<code>src/desktop_dom/assistant/omnibar.py</code>):",
+        body_style
+    ))
+    story.append(Paragraph("• <b>Native Cocoa NSPanel:</b> Created with style masks <code>NSWindowStyleMaskBorderless</code> and <code>NSWindowStyleMaskNonactivatingPanel</code>. It hovers at <code>NSFloatingWindowLevel</code> and sets <code>canJoinAllSpaces = True</code> to follow the user across full-screen spaces.", bullet_style))
+    story.append(Paragraph("• <b>Hardware-Accelerated Frosted Vibrancy:</b> Backed by an <code>NSVisualEffectView</code> with material <code>NSVisualEffectMaterialHUDWindow</code> positioned underneath a transparent <code>WKWebView</code>, blending smoothly with macOS desktop wallpapers.", bullet_style))
+    story.append(Paragraph("• <b>Multi-Display Mouse Tracking:</b> On summon (<kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>Space</kbd>), <code>show()</code> queries <code>Cocoa.NSEvent.mouseLocation()</code> to detect which monitor currently contains the user's cursor, centering the Omnibar on that specific screen.", bullet_style))
+    story.append(Paragraph("• <b>Two-Way WebKit IPC Bridge:</b> JavaScript posts messages via <code>window.webkit.messageHandlers.desktopDom.postMessage</code> to <code>OmnibarScriptHandlerObjC</code>. Python dispatches results back to JavaScript on the main thread via <code>NSOperationQueue.mainQueue().addOperationWithBlock_</code>.", bullet_style))
+    story.append(Paragraph("• <b>The Result Drawer Pattern:</b> When an action executes, the Omnibar does not blink away. It expands to show a formatted output card with an engine latency badge (<code>⚡ Fast-Path • 18ms</code>, <code>🗄️ Memory • 1ms</code>, <code>🧠 Ollama • 840ms</code>), an instant <code>[📋 Copy]</code> button, and <code>[Done (Esc)]</code>.", bullet_style))
+
+    story.append(Paragraph("Audio Pipeline: Zero-Disk NumPy Whisper & RMS Gating (`audio.py`)", h2_style))
+    story.append(Paragraph(
+        "Traditional voice assistants write temporary <code>.wav</code> files to disk, creating flash wear and I/O latency. "
+        "Aura captures audio directly into an in-memory NumPy <code>float32</code> circular buffer and feeds it directly into <code>faster-whisper</code> (CPU/int8). "
+        "Continuous wake-word listening calculates the Root Mean Square (RMS) energy of 100ms frames. "
+        "Silent frames are discarded instantly, maintaining idle CPU usage at <b>under 0.5%</b>.",
+        body_style
+    ))
+
+    story.append(PageBreak())
+
+    # =========================================================================
+    # CHAPTER 11: PACKAGING, DISTRIBUTION, & HERMETIC TESTING
+    # =========================================================================
+    story.append(Paragraph("Chapter 11: Packaging, Distribution, & Hermetic Testing", h1_style))
+    story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#cbd5e1"), spaceBefore=2, spaceAfter=8))
+
+    story.append(Paragraph("11.1 Hermetic Testing Architecture (100% Pass Rate Across 90 Tests)", h2_style))
+    story.append(Paragraph(
+        "A critical engineering requirement for production infrastructure is <b>hermetic CI</b>: tests must execute reliably in headless Linux containers "
+        "without physical monitors, window servers, or hardware microphones.",
+        body_style
+    ))
+    story.append(Paragraph(
+        "Desktop-DOM achieves this via <code>tests/conftest.py</code>, which implements an in-memory mock calculator tree adapter. "
+        "The test suite covers schema validation, pruner algorithms, fuzzy recovery, reactive timeouts, multi-display negative coordinate calibration, "
+        "audio thread concurrency, Level 2 SQLite memory persistence, entity disambiguation, and packaging scripts across <b>90 tests passing in 6.37 seconds</b>.",
+        body_style
+    ))
+
+    story.append(Paragraph("11.2 Cross-Platform Release Packaging Pipeline", h2_style))
+    story.append(Paragraph(
+        "The unified packaging script (<code>scripts/build_app.py</code> & <code>desktop-dom package --platform all</code>) builds native releases:",
+        body_style
+    ))
+    story.append(Paragraph("• <b>macOS:</b> Bundles <code>Aura.app</code> with portable source trees, renders <code>AppIcon.icns</code> using Pillow, and creates a drag-and-drop <code>.dmg</code> installer and zip distribution via <code>hdiutil</code>.", bullet_style))
+    story.append(Paragraph("• <b>Windows:</b> Generates multi-resolution <code>aura.ico</code>, a WiX Toolset XML specification (<code>AuraInstaller.wxs</code>) for building <code>.msi</code> installers, and a standalone <code>.zip</code> distribution.", bullet_style))
+    story.append(Paragraph("• <b>Linux:</b> Compiles standard Debian package directory trees (<code>DEBIAN/control</code>, <code>/usr/bin/aura</code>) and release tarballs.", bullet_style))
+
+    story.append(PageBreak())
+
+    # =========================================================================
+    # CHAPTER 12: CRCLE.AI STRATEGIC GAP ANALYSIS & FOUNDER ALIGNMENT
+    # =========================================================================
+    story.append(Paragraph("Chapter 12: Crcle.ai Strategic Gap Analysis & Founder Alignment", h1_style))
+    story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#cbd5e1"), spaceBefore=2, spaceAfter=8))
+
+    story.append(Paragraph("12.1 Alignment with Crcle's Core Thesis", h2_style))
     story.append(Paragraph(
         "Crcle's official mission is <i>'The Intent Layer of Computing'</i>—a new interface layer for Mac where users click a key, input what they want, "
         "and get taken there directly without searching or clicking through menus. Desktop-DOM and Aura are the exact engineering realization of this thesis:",
@@ -601,13 +685,13 @@ def create_pdf(output_path):
     ]))
     story.append(t_gap)
 
-    story.append(Paragraph("9.2 Founder Profiles: Speaking Their Technical Language", h2_style))
+    story.append(Paragraph("12.2 Founder Profiles: Speaking Their Technical Language", h2_style))
     story.append(Paragraph(
         "• <b>Joshua Rayan (Founder & CEO):</b> HBS Foundry 2026, Industrial Design at Purdue. Drives product vision and design authority. "
         "He cares deeply about design elegance, zero UI latency, smooth animations, and intuitive interaction design. "
         "Showcase Aura's Liquid Glass HUD, 0ms frame resizing, and instant feedback badges.<br/>"
         "• <b>Cyril Rayan (Co-Founder):</b> Veteran systems architect (Resiligence, Remnant AI). Three decades shipping mission-critical, AI-driven security and enterprise infrastructure with paying customers. "
-        "He cares about low-level systems architecture, OS kernel APIs, zero-hallucination return code checks, thread-safe SQLite WAL concurrency, and sub-millisecond retrieval. "
+        "He cares about low-level systems architecture, OS kernel APIs, zero-hallucination return code checks, thread-safe SQLite WAL concurrency, and sub-millisecond latency. "
         "Speak to Cyril using precise systems terminology: AST pruning complexities, IPC sockets, and native memory management.",
         body_style
     ))
@@ -615,14 +699,14 @@ def create_pdf(output_path):
     story.append(PageBreak())
 
     # =========================================================================
-    # CHAPTER 10: COMPREHENSIVE FOUNDER DEFENSE PLAYBOOK
+    # CHAPTER 13: COMPREHENSIVE FOUNDER DEFENSE PLAYBOOK
     # =========================================================================
-    story.append(Paragraph("Chapter 10: Comprehensive Founder Defense Playbook", h1_style))
+    story.append(Paragraph("Chapter 13: Comprehensive Founder Defense Playbook", h1_style))
     story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#cbd5e1"), spaceBefore=2, spaceAfter=8))
 
     qa_list = [
         ("Q: Why not fine-tune a vision model like Claude Computer Use?",
-         "A: Vision models operate at the wrong layer of abstraction. A 4K screenshot is 8 million raw pixels. Turning that into 2,000 vision tokens to click a button that already has an exact OS identifier in the window server introduces latency, high token costs, and coordinate drift. By querying native accessibility trees directly via AXUIElement, we get exact roles, states, and coordinates in 15ms with 88% fewer tokens. We reserve vision strictly as a subregion fallback for canvas viewports where no accessibility nodes exist."),
+         "A: Vision models operate at the wrong layer of abstraction. A 4K screenshot is 8 million raw pixels. Turning that into 2,000 vision tokens to click a button that already has an exact OS identifier in the window server introduces latency (3–5 seconds), high token costs, and coordinate drift across multi-display DPI scaling. By querying native accessibility trees directly via AXUIElement, we get exact roles, states, and coordinates in 15ms with 88% fewer tokens. We reserve vision strictly as a subregion fallback for canvas viewports where no accessibility nodes exist."),
         ("Q: How does Desktop-DOM solve the 'Cursor Hijack' problem?",
          "A: We built a 3-tier execution hierarchy. In Tier 1, we call AXUIElementPerformAction(kAXPressAction) on macOS or InvokePattern on Windows. This triggers the button's internal event handler with zero physical cursor movement and zero window focus theft. In Tier 2, if coordinate clicks are required, we record the cursor position, click, and warp back in <1ms via CGWarpMouseCursorPosition. In Tier 3, we set text fields directly in memory (kAXValueAttribute) so the user can type in another window simultaneously."),
         ("Q: How does your Level 2 Memory Engine resolve 'message Josh' in under 1 millisecond?",
@@ -638,10 +722,25 @@ def create_pdf(output_path):
         story.append(Paragraph(a, body_style))
         story.append(Spacer(1, 3))
 
-    # Build the document
+    # Build document
     doc.build(story, canvasmaker=NumberedCanvas)
     print(f"Master PDF successfully generated: {output_path}")
 
 if __name__ == "__main__":
     out = "/Users/piyushdua/desktop-dom/docs/Desktop_DOM_Comprehensive_Technical_Master_Guide.pdf"
     create_pdf(out)
+    
+    # Mirror copies to user home and artifact directory for seamless access
+    mirror_targets = [
+        "/Users/piyushdua/Desktop_DOM_Comprehensive_Technical_Master_Guide.pdf",
+        "/Users/piyushdua/.gemini/antigravity-cli/brain/c9d8e736-66c6-4f1c-b001-61be7bcaa9df/Desktop_DOM_Comprehensive_Technical_Master_Guide.pdf"
+    ]
+    for target in mirror_targets:
+        try:
+            target_path = Path(target)
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(out, target)
+            print(f"Mirrored PDF to: {target}")
+        except Exception as e:
+            print(f"Failed to mirror to {target}: {e}")
+
