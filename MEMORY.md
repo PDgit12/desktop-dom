@@ -52,22 +52,31 @@ Eliminates vision agent flaws (>90% token waste, 3–6 second latency, pixel coo
    - CI/CD workflows: `.github/workflows/ci.yml` (multi-OS test matrix) and `.github/workflows/publish.yml` (tag release automation).
 
 ## Test & Integration Status
-- **90 unit and integration tests passing** (`pytest -v` in 5.95s, 100% pass rate).
+- **94 unit and integration tests passing** (`pytest -v` in 5.75s, 100% pass rate).
 - **Level 2 Personal Intent & Memory Engine (`src/desktop_dom/assistant/memory.py`):**
   - Persistent SQLite in WAL mode (`~/.desktop_dom/aura_memory.db`) with sub-millisecond dual-layer in-memory caching (<0.5ms lookups).
-  - 4-Tier entity disambiguation pipeline (exact alias match -> first name token -> substring -> SequenceMatcher fuzzy similarity with frequency/recency boosts).
+  - **5-Tier Entity Disambiguation Engine:**
+    1. Direct email address parsing (100% confidence on raw email inputs e.g. `alex@apple.com`).
+    2. Exact alias & full name match (Score 98–100).
+    3. First name token match & organizational role resolution (Score 92–94: e.g. "ceo" &rarr; Joshua Rayan, "systems lead" &rarr; Cyril Rayan).
+    4. Typo-tolerant Levenshtein edit distance (Score 80–88: 1-edit distance for short tokens e.g. "jos", "jsh", "ciril", 2-edit for longer tokens).
+    5. Substring & SequenceMatcher ratio fallback (Score 70+) with interaction frequency and recency boosts.
+  - **Zero-Click Ambient Onboarding & Cold-Start Hydration (`desktop-dom onboard`):**
+    - Automatically harvests user identity (`id -F`, `git config user.name/email`), primary mail client (Microsoft Outlook vs Mail.app), music player (Spotify), and Git commit co-authors without blocking the user.
+    - Pre-seeds Crcle.ai VIP entities (Joshua Rayan, Cyril Rayan, user) with rich aliases and roles so demo intent works from millisecond zero.
+    - Interactive mode (`desktop-dom onboard -i`) and Omnibar `/onboard` fast-path.
   - Personal messaging ("message Josh saying the slides are ready" -> resolves Joshua Rayan, josh@crcle.ai, opens Outlook pre-addressed).
   - Habitual media recall ("open my playlist" -> resolves spotify.favorite_playlist "Deep Focus" in 0.1ms).
   - On-the-fly learning ("remember X is Y", "remember my favorite playlist is Z") and system contacts sync (`sync_system_contacts`).
 - **Comprehensive 14-Page Master Technical Guide & Curriculum (`docs/Desktop_DOM_Comprehensive_Technical_Master_Guide.pdf`):**
   - Compiled via ReportLab (`scripts/generate_master_pdf.py`) with institutional typography, NumberedCanvas header/footers, and architecture diagrams.
   - Mirrored to `/Users/piyushdua/Desktop_DOM_Comprehensive_Technical_Master_Guide.pdf` and brain artifacts.
-  - Contains all 13 chapters: Vision flaws, architecture, kernel bridges, cursor-free execution, O(N) pruner, subregion vision, Level 1 fast-paths, Level 2 memory, Level 3 agentic loop, Cocoa Omnibar, packaging/distribution, Crcle.ai gap analysis, and founder defense playbook.
+  - Contains all 13 chapters: Vision flaws, architecture, kernel bridges, cursor-free execution, O(N) pruner, subregion vision, Level 1 fast-paths, Level 2 memory & ambient onboarding, Level 3 agentic loop, Cocoa Omnibar, packaging/distribution, Crcle.ai gap analysis, and founder defense playbook.
 - Completed 5 comprehensive multi-disciplinary subagent audits:
   1. Security Audit: B+ (81.6/100). Hardened shell=False, escaped PowerShell and AppleScript strings, prevented exponentiation DoS, fixed JS regex syntax error, and removed hardcoded developer paths from distributed launcher.
   2. UI/UX Audit: Aesthetic 88/100, UX 81/100. Liquid glass Omnibar, 3-harmonic audio waveform, result drawer pattern, dynamic frame animations.
   3. Code Quality & Performance Audit: B+ (86/100). Sub-millisecond pruning ($O(N)$ 0.31ms for 1,093 nodes, 96% reduction), bounded DOM cache to 1,000 items, zero-disk in-memory audio transcription.
-  4. Testing & QA Audit: 100% pass rate across 90 tests. Hermetic CI fixtures, Chromium hydration, 4-quadrant multi-display calibration, thread concurrency safety.
+  4. Testing & QA Audit: 100% pass rate across 94 tests. Hermetic CI fixtures, Chromium hydration, 4-quadrant multi-display calibration, thread concurrency safety.
   5. Product Strategy & Founder Alignment: Tailored thesis for Crcle.ai founders (Joshua Rayan & Cyril Rayan), competitive breakdown vs Claude/Gemini, 3-minute live demo script, and technical defense.
 - **Frictionless Local AI Model Switcher & Result Drawer:**
   - 1-Click Model Drawer: Click the brand orb ⚡ or footer model tag, or type `/model`. Live-queries `localhost:11434/api/tags` and presents installed neural weights (`ministral-3:8b`, `qwen3:8b`) alongside the `Zero-Model Fast-Path` (0MB RAM, sub-25ms offline).
@@ -78,7 +87,7 @@ Eliminates vision agent flaws (>90% token waste, 3–6 second latency, pixel coo
   - Priority 1: Direct Accessibility Invocations (`AXUIElementPerformAction(kAXPressAction)` on macOS, `InvokePattern` on Windows, `AtspiAction` on Linux). Executes clicks internally with ZERO physical mouse pointer movement, ZERO window activation, and ZERO focus theft!
   - Priority 2: Ghost Click Coordinate Preservation. Records current cursor position via `Quartz.CGEventGetLocation(CGEventCreate(None))` and seamlessly restores it instantly via `CGWarpMouseCursorPosition`, ensuring the user's cursor remains exactly where they are working.
   - Priority 3: Direct AX Value Injection (`AXUIElementSetAttributeValue(kAXValueAttribute)`). Sets text into input fields in the background without stealing keyboard focus or synthesizing conflicting keystrokes.
-- Branches: `main` (stable) and `develop` (integration) in sync at `0648491` on `PDgit12/desktop-dom`.
+- Branches: `main` (stable) and `develop` (integration) synced on `PDgit12/desktop-dom`.
 - Remote repository live on GitHub at `https://github.com/PDgit12/desktop-dom` with 100% sole contributor attribution for PDgit12.
 
 

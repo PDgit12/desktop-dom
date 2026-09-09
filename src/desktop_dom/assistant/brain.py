@@ -35,6 +35,11 @@ class AssistantBrain:
         self.active_app: Optional[DesktopApp] = None
         self._action_callback: Optional[Callable[[str, str], None]] = None
         self.memory = memory or AuraMemory()
+        if not self.memory.get_preference("onboarding.completed"):
+            try:
+                self.memory.auto_hydrate_environment()
+            except Exception:
+                pass
 
     def set_action_callback(self, cb: Callable[[str, str], None]):
         """Sets a callback invoked when the brain decides on an action: cb(action_type, message)."""
@@ -192,7 +197,29 @@ class AssistantBrain:
                 "response": f"Active reasoning model switched to '{new_model}'.",
             }
 
-        # 1. Personal Context & Memory Status / Sync
+        # 1. Personal Context & Memory Status / Sync / Onboarding
+        if prompt in {"/onboard", "onboard", "setup", "run onboarding"}:
+            summary = self.memory.auto_hydrate_environment()
+            user_str = f"{summary.get('user_name', 'User')} ({summary.get('user_email', '')})"
+            mail_str = summary.get("mail_client", "Mail")
+            music_str = f"{summary.get('music_player', 'Spotify')} ('{self.memory.get_preference('spotify.favorite_playlist', 'Deep Focus')}')"
+            
+            resp = (
+                f"✓ Ambient Onboarding Complete ({summary.get('elapsed_ms', 0)}ms)\n"
+                f"• Identity: {user_str}\n"
+                f"• Preferred Mail: {mail_str}\n"
+                f"• Habitual Music: {music_str}\n"
+                f"• Contacts Hydrated: {len(self.memory._entity_cache)} records in SQLite WAL\n"
+                f"• Personal Intent Engine: Level 2 Active (<0.5ms resolution)"
+            )
+            self._notify_action("completed", "Onboarding completed")
+            return {
+                "status": "success",
+                "action": "onboard",
+                "summary": summary,
+                "response": resp,
+            }
+
         if prompt in {"/memory", "show memory", "memory", "view memory", "open memory", "check memory", "what is in memory"}:
             summary = self.memory.get_summary()
             contacts_list = ", ".join(f"{c['name']} ({c['email']})" for c in summary["top_contacts"]) or "None"
@@ -265,26 +292,36 @@ class AssistantBrain:
                 res["response"] = f"Now playing your favorite playlist '{fav_playlist}' on Spotify."
             return res
 
-        # 3. Personal Intent Messaging & Email Flow ("message Josh", "email Josh", "i wanna message josh")
+        # 3. Personal Intent Messaging & Email Flow ("message Josh", "email Josh", "shoot an email to josh", "ping josh")
         msg_match = re.match(
-            r"^(?:i\s+(?:wanna|want\s+to)\s+)?(?:send\s+(?:an?\s+)?(?:email|message)\s+to|message|email|mail|tell)\s+([a-zA-Z0-9\s]+?)(?:\s+(?:saying|about|with|that)\s+(.+))?$",
+            r"^(?:i\s+(?:wanna|want\s+to)\s+)?(?:send\s+(?:an?\s+)?(?:email|message)\s+to|shoot\s+(?:an?\s+)?(?:email|message)\s+to|reach\s+out\s+to|write\s+(?:to\s+)?|ping|message|email|mail|tell|text|slack)\s+([a-zA-Z0-9_.+-@\s]+?)(?:\s+(?:saying|about|with|that)\s+(.+))?$",
             raw_prompt,
             re.IGNORECASE
         )
         if msg_match:
             target_raw = msg_match.group(1).strip()
             content_raw = msg_match.group(2).strip() if msg_match.group(2) else None
+
+            # Detect client override in target or query (e.g. "message josh on outlook")
+            client_override = None
+            if re.search(r"\b(?:on|via|using)\s+outlook\b", target_raw, re.IGNORECASE):
+                client_override = "Microsoft Outlook"
+                target_raw = re.sub(r"\b(?:on|via|using)\s+outlook\b", "", target_raw, flags=re.IGNORECASE).strip()
+            elif re.search(r"\b(?:on|via|using)\s+mail\b", target_raw, re.IGNORECASE):
+                client_override = "Mail"
+                target_raw = re.sub(r"\b(?:on|via|using)\s+mail\b", "", target_raw, flags=re.IGNORECASE).strip()
+
             if target_raw.lower() not in {"me", "notification", "note", "app", "application"}:
                 entity = self.memory.resolve_entity(target_raw)
                 if entity:
-                    client = self.memory.get_preference("mail.preferred_client", "Microsoft Outlook")
+                    client = client_override or self.memory.get_preference("mail.preferred_client", "Microsoft Outlook")
                     return self._control_send_message(entity, content=content_raw, client=client)
                 else:
                     return {
                         "status": "not_found",
                         "action": "send_message",
                         "target": target_raw,
-                        "response": f"I couldn't find '{target_raw}' in personal contacts memory. You can say 'remember {target_raw} is email@example.com' to save them.",
+                        "response": f"I couldn't find '{target_raw}' in contacts. Say 'remember {target_raw} is {target_raw.lower()}@example.com' or input their email directly.",
                     }
 
         # 4. Screen Introspection & Active Window Reading

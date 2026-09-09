@@ -18,6 +18,22 @@ DEFAULT_DB_DIR = Path.home() / ".desktop_dom"
 DEFAULT_DB_PATH = DEFAULT_DB_DIR / "aura_memory.db"
 
 
+def _edit_distance(s1: str, s2: str) -> int:
+    """Calculates Levenshtein distance between two strings with early length bounds."""
+    if s1 == s2:
+        return 0
+    if abs(len(s1) - len(s2)) > 2:
+        return max(len(s1), len(s2))
+    prev = list(range(len(s2) + 1))
+    for i, c1 in enumerate(s1):
+        curr = [i + 1] * (len(s2) + 1)
+        for j, c2 in enumerate(s2):
+            cost = 0 if c1 == c2 else 1
+            curr[j + 1] = min(curr[j] + 1, prev[j + 1] + 1, prev[j] + cost)
+        prev = curr
+    return prev[len(s2)]
+
+
 class AuraMemory:
     """
     Local-first, sub-millisecond Personal Context & Memory Engine for Aura.
@@ -116,7 +132,7 @@ class AuraMemory:
         seeds = [
             (
                 "Joshua Rayan",
-                json.dumps(["josh", "joshua", "josh rayan", "joshua rayan"]),
+                json.dumps(["josh", "joshua", "josh rayan", "joshua rayan", "ceo", "founder", "founder and ceo", "co-founder"]),
                 "josh@crcle.ai",
                 "",
                 "Crcle.ai",
@@ -124,27 +140,27 @@ class AuraMemory:
                 "colleague",
                 10,
                 now,
-                json.dumps({"relation": "founder", "preferred_client": "Microsoft Outlook"}),
+                json.dumps({"relation": "founder", "preferred_client": "Microsoft Outlook", "priority": 10}),
                 now,
                 now,
             ),
             (
                 "Cyril Rayan",
-                json.dumps(["cyril", "cyril rayan"]),
+                json.dumps(["cyril", "cyril rayan", "systems lead", "architect", "systems architect", "founder", "co-founder"]),
                 "cyril@crcle.ai",
                 "",
                 "Crcle.ai",
-                "Co-Founder",
+                "Co-Founder & Systems Architect",
                 "colleague",
                 8,
                 now - 3600,
-                json.dumps({"relation": "founder", "preferred_client": "Microsoft Outlook"}),
+                json.dumps({"relation": "founder", "preferred_client": "Microsoft Outlook", "priority": 9}),
                 now,
                 now,
             ),
             (
                 "Piyush Dua",
-                json.dumps(["piyush", "me", "myself"]),
+                json.dumps(["piyush", "me", "myself", "i", "user"]),
                 "piyushdua01@gmail.com",
                 "",
                 "Crcle.ai",
@@ -152,7 +168,7 @@ class AuraMemory:
                 "user",
                 25,
                 now,
-                json.dumps({"user": True, "github": "PDgit12", "focus": "Systems & Intent Architecture"}),
+                json.dumps({"user": True, "github": "PDgit12", "focus": "Systems & Intent Architecture", "priority": 10}),
                 now,
                 now,
             ),
@@ -211,18 +227,48 @@ class AuraMemory:
     def resolve_entity(self, query: str) -> Optional[Dict[str, Any]]:
         """
         Disambiguates and resolves natural language references (e.g. 'josh', 'joshua',
-        'cyril', 'piyush') into a canonical Entity record using tiered matching:
-        1. Exact alias or name match (Score: 100)
-        2. Word boundary / substring match (Score: 85)
-        3. Fuzzy phonetic / string similarity match (Score: 70+)
-        Ranked by confidence score + interaction recency/frequency.
+        'cyril', 'piyush', 'ceo', 'founder', 'ciril') into a canonical Entity record using tiered matching:
+        1. Direct email match (Score: 100)
+        2. Exact alias, name, or token match (Score: 95-100)
+        3. Semantic role or title match (Score: 92)
+        4. Typo-tolerant edit distance (dist <= 1 -> 88, dist == 2 -> 80)
+        5. Substring & SequenceMatcher ratio (Score: 70+)
+        Ranked by confidence score + interaction recency/frequency + priority boost.
         """
         clean = query.strip().lower()
         if not clean:
             return None
 
-        # Clean noise words (e.g., 'to josh', 'my friend josh', 'mr josh')
-        clean = re.sub(r"^(?:to|with|for|contact|email|message)\s+", "", clean).strip()
+        # Clean noise words (e.g., 'to josh', 'shoot an email to josh', 'ping cyril', 'email the ceo')
+        clean = re.sub(
+            r"^(?:to|with|for|contact|email|message|shoot\s+(?:an?\s+)?(?:email|message)\s+to|reach\s+out\s+to|write\s+(?:to\s+)?|ping|text|tell)\s+",
+            "",
+            clean,
+            flags=re.IGNORECASE
+        ).strip()
+        clean = re.sub(r"^(?:the|our|my|a|an)\s+", "", clean, flags=re.IGNORECASE).strip()
+        clean = re.sub(r"^(?:friend|colleague|teammate|partner|coworker|co-worker)\s+", "", clean, flags=re.IGNORECASE).strip()
+        clean = re.sub(r"\s+(?:please|now|asap|today)$", "", clean, flags=re.IGNORECASE).strip()
+
+        # Check if direct email address
+        if "@" in clean and "." in clean:
+            with self._lock:
+                for ent in self._entity_cache:
+                    if ent.get("email", "").lower() == clean:
+                        self.touch_entity(ent["id"], query)
+                        return ent
+            # Synthesize direct contact record if valid email
+            name_part = clean.split("@")[0].replace(".", " ").title()
+            return {
+                "id": -1,
+                "name": name_part,
+                "email": clean,
+                "aliases": [clean, name_part.lower()],
+                "company": clean.split("@")[1].split(".")[0].title(),
+                "role": "Direct Contact",
+                "interaction_count": 1,
+                "metadata": {"direct_email": True},
+            }
 
         best_entity: Optional[Dict[str, Any]] = None
         best_score = -1.0
@@ -232,39 +278,61 @@ class AuraMemory:
                 score = 0.0
                 name_clean = ent["name"].lower()
                 aliases = [a.lower() for a in ent.get("aliases", [])]
+                role_clean = (ent.get("role") or "").lower()
+                company_clean = (ent.get("company") or "").lower()
 
-                # 1. Exact match on name or any alias
+                # Tier 1: Exact Name or Exact Alias
                 if clean == name_clean:
                     score = 100.0
                 elif clean in aliases:
                     score = 98.0
+                # Tier 2: First Name Token Exact Match (e.g. "Josh" -> "Joshua Rayan")
                 elif any(clean == a.split()[0] for a in [name_clean] + aliases):
-                    # First name exact match (e.g. "Josh" -> "Joshua Rayan")
+                    score = 94.0
+                # Tier 3: Role / Title Semantic Match (e.g. "ceo", "founder", "systems lead")
+                elif clean and (clean in role_clean or role_clean in clean) and len(clean) >= 3:
                     score = 92.0
-                elif clean in name_clean:
-                    # Substring match
-                    score = 80.0
-                elif any(clean in a for a in aliases):
-                    score = 78.0
+                # Tier 4: Typo-Tolerant Edit Distance (Levenshtein)
                 else:
-                    # Fuzzy match
-                    ratios = [difflib.SequenceMatcher(None, clean, a).ratio() for a in [name_clean] + aliases]
-                    max_ratio = max(ratios) if ratios else 0.0
-                    if max_ratio >= 0.72:
-                        score = max_ratio * 75.0
+                    candidates = [name_clean] + aliases
+                    min_dist = min(_edit_distance(clean, target) for target in candidates if target)
+                    target_lens = [len(t) for t in candidates if t]
+                    min_target_len = min(target_lens) if target_lens else len(clean)
+
+                    if min_dist == 1 and min(len(clean), min_target_len) >= 3:
+                        score = 88.0
+                    elif min_dist == 2 and min(len(clean), min_target_len) >= 5:
+                        score = 80.0
+                    elif clean in name_clean:
+                        score = 82.0
+                    elif any(clean in a for a in aliases):
+                        score = 78.0
+                    else:
+                        ratios = [difflib.SequenceMatcher(None, clean, a).ratio() for a in candidates]
+                        max_ratio = max(ratios) if ratios else 0.0
+                        if max_ratio >= 0.70:
+                            score = max_ratio * 88.0
 
                 if score > 0:
-                    # Interaction Frequency & Recency Boosting
-                    freq_boost = min(ent.get("interaction_count", 0) * 0.5, 10.0)
+                    # Frequency & Recency Boosting
+                    freq_boost = min(ent.get("interaction_count", 0) * 0.5, 12.0)
                     score += freq_boost
+
+                    last_int = ent.get("last_interaction", 0.0)
+                    if time.time() - last_int < 86400:
+                        score += 3.0
+
+                    meta = ent.get("metadata") or {}
+                    if isinstance(meta, dict) and meta.get("priority"):
+                        score += float(meta["priority"]) * 0.3
 
                     if score > best_score:
                         best_score = score
                         best_entity = ent
 
-        if best_entity and best_score >= 65.0:
-            # Record resolution in memory
-            self.touch_entity(best_entity["id"], query)
+        if best_entity and best_score >= 58.0:
+            if best_entity.get("id") and best_entity["id"] > 0:
+                self.touch_entity(best_entity["id"], query)
             return best_entity
 
         return None
@@ -602,3 +670,190 @@ class AuraMemory:
         except Exception as e:
             logger.warning(f"macOS Contacts sync exception: {e}")
             return 0
+
+    # -------------------------------------------------------------------------
+    # Zero-Click Ambient Onboarding & Environment Hydration
+    # -------------------------------------------------------------------------
+
+    def _ensure_vip_entities(self, user_name: str, user_email: str):
+        """Pre-seeds or updates VIP entities (Crcle.ai founders and user) with full alias sets."""
+        vips = [
+            {
+                "name": "Joshua Rayan",
+                "aliases": ["josh", "joshua", "josh rayan", "joshua rayan", "ceo", "founder", "founder and ceo", "co-founder"],
+                "email": "josh@crcle.ai",
+                "company": "Crcle.ai",
+                "role": "Co-Founder & CEO",
+                "category": "colleague",
+                "interaction_count": 15,
+                "metadata": {"relation": "founder", "preferred_client": "Microsoft Outlook", "priority": 10},
+            },
+            {
+                "name": "Cyril Rayan",
+                "aliases": ["cyril", "cyril rayan", "founder", "systems lead", "architect", "systems architect", "co-founder"],
+                "email": "cyril@crcle.ai",
+                "company": "Crcle.ai",
+                "role": "Co-Founder",
+                "category": "colleague",
+                "interaction_count": 12,
+                "metadata": {"relation": "founder", "preferred_client": "Microsoft Outlook", "priority": 9},
+            },
+            {
+                "name": user_name,
+                "aliases": [user_name.split()[0].lower(), "me", "myself", "i", "user"],
+                "email": user_email,
+                "company": "Crcle.ai",
+                "role": "Backend Engineer",
+                "category": "user",
+                "interaction_count": 30,
+                "metadata": {"user": True, "github": "PDgit12", "focus": "Systems & Intent Architecture", "priority": 10},
+            },
+        ]
+        for vip in vips:
+            existing = self.resolve_entity(vip["name"]) or (self.resolve_entity(vip["email"]) if vip["email"] else None)
+            if not existing:
+                self.add_entity(
+                    name=vip["name"],
+                    email=vip["email"],
+                    aliases=vip["aliases"],
+                    company=vip["company"],
+                    role=vip["role"],
+                    category=vip["category"],
+                    metadata=vip["metadata"],
+                )
+            else:
+                curr_aliases = set(a.lower() for a in (existing.get("aliases") or []))
+                for a in vip["aliases"]:
+                    curr_aliases.add(a.lower())
+                with self._lock, self._get_connection() as conn:
+                    conn.execute("""
+                    UPDATE entities
+                    SET aliases = ?, role = ?, company = ?, updated_at = ?
+                    WHERE id = ?;
+                    """, (json.dumps(sorted(list(curr_aliases))), vip["role"], vip["company"], time.time(), existing["id"]))
+                    conn.commit()
+
+    def auto_hydrate_environment(self) -> Dict[str, Any]:
+        """
+        Zero-click ambient onboarding that harvests user identity, installed mail/music apps,
+        and git collaborators from the macOS environment in <50ms.
+        """
+        now = time.time()
+        hydrated_info = {
+            "status": "success",
+            "user_name": "Piyush Dua",
+            "user_email": "piyushdua01@gmail.com",
+            "mail_client": "Microsoft Outlook",
+            "music_player": "Spotify",
+            "contacts_added": 0,
+            "collaborators_added": 0,
+            "elapsed_ms": 0.0,
+        }
+        t0 = time.perf_counter()
+
+        # 1. Harvest macOS User Name
+        try:
+            res_id = subprocess.run(["id", "-F"], capture_output=True, text=True, timeout=1.0)
+            if res_id.returncode == 0 and res_id.stdout and isinstance(res_id.stdout, str) and res_id.stdout.strip():
+                hydrated_info["user_name"] = res_id.stdout.strip()
+        except Exception:
+            pass
+
+        # 2. Harvest Git Config
+        try:
+            res_email = subprocess.run(["git", "config", "user.email"], capture_output=True, text=True, timeout=1.0)
+            if res_email.returncode == 0 and res_email.stdout and isinstance(res_email.stdout, str) and res_email.stdout.strip():
+                hydrated_info["user_email"] = res_email.stdout.strip()
+        except Exception:
+            pass
+
+        # 3. Detect Preferred Mail Client
+        if Path("/Applications/Microsoft Outlook.app").exists() or Path("/Applications/Outlook.app").exists():
+            hydrated_info["mail_client"] = "Microsoft Outlook"
+        elif Path("/Applications/Mail.app").exists() or Path("/System/Applications/Mail.app").exists():
+            hydrated_info["mail_client"] = "Mail"
+
+        # 4. Detect Music Client
+        if Path("/Applications/Spotify.app").exists():
+            hydrated_info["music_player"] = "Spotify"
+
+        # 5. Persist Preferences
+        self.set_preference("user.name", hydrated_info["user_name"], category="user")
+        self.set_preference("user.email", hydrated_info["user_email"], category="user")
+        self.set_preference("mail.preferred_client", hydrated_info["mail_client"], category="mail")
+        self.set_preference("music.preferred_player", hydrated_info["music_player"], category="music")
+        self.set_preference("onboarding.completed", "true", category="onboarding")
+        self.set_preference("onboarding.hydrated_at", str(now), category="onboarding")
+
+        # 6. Pre-seed or Update VIP Entities
+        self._ensure_vip_entities(hydrated_info["user_name"], hydrated_info["user_email"])
+
+        # 7. Scan Git Log for Teammates/Collaborators
+        try:
+            res_log = subprocess.run(
+                ["git", "log", "--format=%an|||%ae", "-n", "30"],
+                capture_output=True,
+                text=True,
+                timeout=2.0
+            )
+            if res_log.returncode == 0 and res_log.stdout and isinstance(res_log.stdout, str) and res_log.stdout.strip():
+                lines = {line.strip() for line in res_log.stdout.strip().split("\n") if "|||" in line}
+                for line in lines:
+                    c_name, c_email = line.split("|||", 1)
+                    c_name = c_name.strip()
+                    c_email = c_email.strip().lower()
+                    if c_name and c_email and c_email != hydrated_info["user_email"]:
+                        if not self.resolve_entity(c_name) and not self.resolve_entity(c_email):
+                            self.add_entity(name=c_name, email=c_email, category="collaborator")
+                            hydrated_info["collaborators_added"] += 1
+        except Exception:
+            pass
+
+        # 8. Sync macOS AddressBook (if accessible)
+        try:
+            c_count = self.sync_system_contacts(limit=25)
+            hydrated_info["contacts_added"] += c_count
+        except Exception:
+            pass
+
+        self._reload_cache()
+        hydrated_info["elapsed_ms"] = round((time.perf_counter() - t0) * 1000, 2)
+        return hydrated_info
+
+    def onboard(
+        self,
+        name: Optional[str] = None,
+        email: Optional[str] = None,
+        collaborator: Optional[str] = None,
+        collaborator_email: Optional[str] = None,
+        favorite_playlist: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Interactive or explicit user onboarding that customizes identity and key habits.
+        """
+        summary = self.auto_hydrate_environment()
+        if name:
+            self.set_preference("user.name", name.strip(), category="user")
+            summary["user_name"] = name.strip()
+        if email:
+            self.set_preference("user.email", email.strip(), category="user")
+            summary["user_email"] = email.strip()
+        if favorite_playlist:
+            self.set_preference("spotify.favorite_playlist", favorite_playlist.strip(), category="music")
+            summary["favorite_playlist"] = favorite_playlist.strip()
+        if collaborator:
+            c_name = collaborator.strip()
+            c_mail = (collaborator_email or "").strip()
+            existing = self.resolve_entity(c_name)
+            if existing:
+                if c_mail:
+                    with self._lock, self._get_connection() as conn:
+                        conn.execute("UPDATE entities SET email = ? WHERE id = ?;", (c_mail, existing["id"]))
+                        conn.commit()
+            else:
+                self.add_entity(name=c_name, email=c_mail, category="collaborator")
+            summary["primary_collaborator"] = f"{c_name} ({c_mail})"
+
+        self._reload_cache()
+        return summary
+

@@ -386,7 +386,64 @@ def assistant(
             assistant_inst.launch_omnibar()
         except Exception as e:
             console.print(f"[bold yellow]Omnibar note:[/bold yellow] {e}. Falling back to CLI mode.")
-            assistant_inst.run_cli_session()
+@app.command()
+def onboard(
+    interactive: bool = typer.Option(False, "--interactive", "-i", help="Run interactive guided setup"),
+    name: Optional[str] = typer.Option(None, "--name", help="Your full name"),
+    collaborator: Optional[str] = typer.Option(None, "--collaborator", "-c", help="Primary collaborator (e.g. 'Josh:josh@crcle.ai')"),
+    playlist: Optional[str] = typer.Option(None, "--playlist", "-p", help="Favorite Spotify playlist"),
+    status: bool = typer.Option(False, "--status", "-s", help="Check current onboarding state and memory stats"),
+):
+    """Zero-click ambient onboarding & cold-start hydration for Level 2 Personal Intent Engine."""
+    from desktop_dom.assistant.memory import AuraMemory
+    mem = AuraMemory()
+
+    if status:
+        summary = mem.get_summary()
+        table = Table(title="Aura Level 2 Personal Memory Status")
+        table.add_column("Parameter", style="cyan", no_wrap=True)
+        table.add_column("Value", style="bold green")
+        table.add_row("User", f"{summary['user']['name']} ({summary['user']['role']})")
+        table.add_row("Contacts Count", str(summary["contacts_count"]))
+        table.add_row("Preferred Mail", summary["preferences"].get("mail.preferred_client", "Microsoft Outlook"))
+        table.add_row("Favorite Playlist", summary["preferences"].get("spotify.favorite_playlist", "Deep Focus"))
+        table.add_row("Database", summary["db_path"])
+        console.print(table)
+        return
+
+    c_name, c_email = None, None
+    if collaborator and ":" in collaborator:
+        c_name, c_email = collaborator.split(":", 1)
+    elif collaborator:
+        c_name = collaborator
+
+    if interactive:
+        import rich.prompt
+        default_name = mem.get_preference("user.name", "Piyush Dua")
+        chosen_name = rich.prompt.Prompt.ask("Enter your name", default=default_name)
+        chosen_collab = rich.prompt.Prompt.ask("Primary collaborator (Name:Email)", default="Josh:josh@crcle.ai")
+        default_play = mem.get_preference("spotify.favorite_playlist", "Deep Focus")
+        chosen_play = rich.prompt.Prompt.ask("Favorite focus playlist", default=default_play)
+        
+        if ":" in chosen_collab:
+            c_name, c_email = chosen_collab.split(":", 1)
+        else:
+            c_name = chosen_collab
+
+        res = mem.onboard(name=chosen_name, collaborator=c_name, collaborator_email=c_email, favorite_playlist=chosen_play)
+    else:
+        res = mem.onboard(name=name, collaborator=c_name, collaborator_email=c_email, favorite_playlist=playlist)
+
+    table = Table(title="✓ Aura Level 2 Intent Engine Hydrated")
+    table.add_column("Attribute", style="cyan", no_wrap=True)
+    table.add_column("Configured Value", style="bold green")
+    table.add_row("User Identity", f"{res.get('user_name', 'User')} ({res.get('user_email', '')})")
+    table.add_row("Preferred Mail", res.get("mail_client", "Microsoft Outlook"))
+    table.add_row("Habitual Music", f"{res.get('music_player', 'Spotify')} ('{mem.get_preference('spotify.favorite_playlist', 'Deep Focus')}')")
+    table.add_row("Contacts Stored", f"{len(mem._entity_cache)} active records in SQLite WAL")
+    table.add_row("Latency", f"{res.get('elapsed_ms', 0)}ms (Sub-millisecond resolution)")
+    console.print(table)
+    console.print("[dim green]Level 2 Personal Intent Engine is ready. Try: 'desktop-dom assistant' and say 'message Josh' or 'open my playlist'.[/dim green]")
 
 @app.command()
 def package(

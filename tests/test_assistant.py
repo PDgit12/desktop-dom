@@ -653,6 +653,85 @@ def test_aura_memory_submillisecond_latency(tmp_path):
     # Sub-millisecond budget
     assert elapsed_ms < 2.0, f"Memory lookup took {elapsed_ms:.3f}ms, expected < 2.0ms"
 
+def test_aura_memory_typo_and_role_disambiguation(tmp_path):
+    from desktop_dom.assistant.memory import AuraMemory
+    mem = AuraMemory(tmp_path / "mem_disambig.db")
+    
+    # 1. Typo tolerance
+    assert mem.resolve_entity("jos")["name"] == "Joshua Rayan"
+    assert mem.resolve_entity("jsh")["name"] == "Joshua Rayan"
+    assert mem.resolve_entity("ciril")["name"] == "Cyril Rayan"
+    assert mem.resolve_entity("piush")["name"] == "Piyush Dua"
+
+    # 2. Semantic role & title disambiguation
+    assert mem.resolve_entity("ceo")["name"] == "Joshua Rayan"
+    assert mem.resolve_entity("the ceo")["name"] == "Joshua Rayan"
+    assert mem.resolve_entity("our systems lead")["name"] == "Cyril Rayan"
+    assert mem.resolve_entity("founder") is not None
+
+def test_aura_memory_direct_email_resolution(tmp_path):
+    from desktop_dom.assistant.memory import AuraMemory
+    mem = AuraMemory(tmp_path / "mem_email.db")
+    
+    # Direct valid email string
+    res = mem.resolve_entity("alex@apple.com")
+    assert res is not None
+    assert res["email"] == "alex@apple.com"
+    assert res["name"] == "Alex"
+    assert res["company"] == "Apple"
+
+def test_aura_memory_auto_hydration_and_onboarding(tmp_path):
+    from desktop_dom.assistant.memory import AuraMemory
+    mem = AuraMemory(tmp_path / "mem_onboard.db")
+    
+    # Run auto hydration
+    summary = mem.auto_hydrate_environment()
+    assert summary["status"] == "success"
+    assert mem.get_preference("onboarding.completed") == "true"
+    assert len(mem.list_entities()) >= 3
+
+    # Run explicit onboard customization
+    custom = mem.onboard(
+        name="Piyush Custom",
+        collaborator="Josh",
+        collaborator_email="josh@crcle.ai",
+        favorite_playlist="Synthwave Focus"
+    )
+    assert custom["user_name"] == "Piyush Custom"
+    assert custom["favorite_playlist"] == "Synthwave Focus"
+    assert mem.get_preference("spotify.favorite_playlist") == "Synthwave Focus"
+
+def test_assistant_broadened_messaging_phrasing(tmp_path):
+    from desktop_dom.assistant.memory import AuraMemory
+    mem = AuraMemory(tmp_path / "mem_phrasing.db")
+    brain = AssistantBrain(preferred_model="test-model", memory=mem)
+
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value.returncode = 0
+        mock_run.return_value.stdout = ""
+
+        # Shoot an email
+        res1 = brain.execute_intent("shoot an email to josh saying the deck is finalized")
+        assert res1["status"] == "success"
+        assert res1["recipient"] == "Joshua Rayan"
+        assert res1["body"] == "the deck is finalized"
+
+        # Ping with typo
+        res2 = brain.execute_intent("ping ciril that PR is up")
+        assert res2["status"] == "success"
+        assert res2["recipient"] == "Cyril Rayan"
+
+        # Message on outlook override
+        res3 = brain.execute_intent("message josh on outlook")
+        assert res3["status"] == "success"
+        assert res3["client"] == "Microsoft Outlook"
+
+        # /onboard intent
+        res_onb = brain.execute_intent("/onboard")
+        assert res_onb["status"] == "success"
+        assert res_onb["action"] == "onboard"
+
+
 
 
 

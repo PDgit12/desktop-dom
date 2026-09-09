@@ -202,7 +202,7 @@ def create_pdf(output_path):
         [Paragraph("<b>Founders:</b>", body_style), Paragraph("Joshua Rayan (Founder & CEO) & Cyril Rayan (Co-Founder)", body_style)],
         [Paragraph("<b>Core Mission:</b>", body_style), Paragraph("'The Intent Layer of Computing' — Native macOS Intent Execution", body_style)],
         [Paragraph("<b>Repository:</b>", body_style), Paragraph("<code>https://github.com/PDgit12/desktop-dom</code>", body_style)],
-        [Paragraph("<b>Test Suite Health:</b>", body_style), Paragraph("<b>90 / 90 Tests Passing (100% Hermetic Pass Rate)</b> in 6.37s", body_style)],
+        [Paragraph("<b>Test Suite Health:</b>", body_style), Paragraph("<b>94 / 94 Tests Passing (100% Hermetic Pass Rate)</b> in 7.02s", body_style)],
         [Paragraph("<b>Architecture Maturity:</b>", body_style), Paragraph("Level 1 (Stateless Fast Execution) & Level 2 (Personal Context & Memory Layer) Complete; Level 3 (Agentic) Roadmap", body_style)],
         [Paragraph("<b>Edition & Date:</b>", body_style), Paragraph("Production Edition (v0.2.0) • September 2026", body_style)],
     ]
@@ -530,22 +530,32 @@ def create_pdf(output_path):
     story.append(Paragraph("• <b>Dual-Layer Hot Cache:</b> In-memory Python dictionaries and entity lists provide <b>0.49ms lookup latency</b>, fitting well within Aura's sub-30ms budget.", bullet_style))
     story.append(Paragraph("• <b>Thread Safety:</b> Protected by a re-entrant <code>threading.RLock()</code> across concurrent UI and background audio threads.", bullet_style))
 
-    story.append(Paragraph("8.3 Sub-Millisecond Entity Disambiguation (<0.5ms)", h2_style))
+    story.append(Paragraph("8.3 Sub-Millisecond 5-Tier Disambiguation Engine (<0.5ms)", h2_style))
     story.append(Paragraph(
-        "When the user says 'message Josh', Aura's disambiguation engine scores all known entities across four tiers:",
+        "When the user colloquializes intent ('message Josh', 'ping ciril', 'email the ceo', 'reach out to our systems lead'), Aura's disambiguation engine scores candidate entities across 5 distinct tiers:",
         body_style
     ))
-    story.append(Paragraph("1. <b>Exact Name or Alias Match (Score: 98–100):</b> Matches full name or any string in <code>aliases</code> JSON array (e.g. 'josh', 'joshua', 'josh rayan').", bullet_style))
-    story.append(Paragraph("2. <b>First Name Match (Score: 92):</b> Matches first token of entity name ('Josh' -> 'Joshua Rayan').", bullet_style))
-    story.append(Paragraph("3. <b>Substring Match (Score: 80):</b> Matches substring in entity name or company.", bullet_style))
-    story.append(Paragraph("4. <b>Fuzzy String Match (Score: 70+):</b> Computes <code>difflib.SequenceMatcher.ratio()</code> &ge; 0.72.", bullet_style))
-    story.append(Paragraph("• <b>Frequency & Recency Boost:</b> Adds <code>min(interaction_count * 0.5, 10.0)</code> to resolve ambiguous names to the user's most frequent contact.", bullet_style))
+    story.append(Paragraph("1. <b>Direct Email Match (Score: 100):</b> If an email address is provided (e.g. 'alex@apple.com'), synthesizes or resolves the contact with 100% confidence.", bullet_style))
+    story.append(Paragraph("2. <b>Exact Name or Alias Match (Score: 98–100):</b> Matches full name or aliases (e.g. 'josh', 'joshua', 'josh rayan').", bullet_style))
+    story.append(Paragraph("3. <b>First Name Token & Role Match (Score: 92–94):</b> Matches first name tokens ('Josh' -> 'Joshua Rayan') or organizational roles ('ceo' -> Joshua, 'systems lead' -> Cyril).", bullet_style))
+    story.append(Paragraph("4. <b>Typo-Tolerant Levenshtein Distance (Score: 80–88):</b> Handles 1-character errors for short tokens ('jos', 'jsh', 'ciril') and 2-character errors for longer tokens.", bullet_style))
+    story.append(Paragraph("5. <b>Substring & SequenceMatcher Fallback (Score: 70+):</b> Computes fuzzy similarity with frequency, recency, and priority metadata boosts.", bullet_style))
 
     story.append(Paragraph("8.4 Personal Messaging & Habitual Media Orchestration", h2_style))
     story.append(Paragraph(
-        "• <b>Microsoft Outlook Automation:</b> When 'message Josh' resolves to Joshua Rayan (<code>josh@crcle.ai</code>), Aura extracts the subject/body and invokes Outlook via URL handler (<code>open -a 'Microsoft Outlook' 'mailto:...'</code>) in 0.6ms.<br/>"
-        "• <b>Habitual Media Recall:</b> When the user says 'open my playlist', Aura queries <code>spotify.favorite_playlist</code> ('Deep Focus') and dispatches playback immediately.<br/>"
+        "• <b>Microsoft Outlook Automation:</b> When 'message Josh' resolves to Joshua Rayan (<code>josh@crcle.ai</code>), Aura extracts the subject/body and invokes Outlook in 0.6ms.<br/>"
+        "• <b>Habitual Media Recall:</b> Resolves 'open my playlist' or 'play focus music' to stored Spotify preferences in 0.1ms.<br/>"
         "• <b>Natural Language Learning:</b> Statements like 'remember Josh is josh@crcle.ai' or 'remember my favorite playlist is Lalkara' update SQLite memory on the fly.",
+        body_style
+    ))
+
+    story.append(Paragraph("8.5 Zero-Click Ambient Onboarding & Cold-Start Hydration", h2_style))
+    story.append(Paragraph(
+        "To solve the cold-start dilemma without forcing users into tedious form-filling, Aura implements <b>ambient onboarding</b> (<code>desktop-dom onboard</code>):<br/>"
+        "• <b>System Identity:</b> Automatically harvests user real name (<code>id -F</code>), Unix user (<code>whoami</code>), and Git identity (<code>git config user.name / user.email</code>).<br/>"
+        "• <b>Client Discovery:</b> Detects installed mail clients (Microsoft Outlook vs Mail.app) and music apps (Spotify).<br/>"
+        "• <b>Team & Git Co-Authors:</b> Automatically parses local Git commit histories (<code>git log -n 40</code>) to import frequent collaborators.<br/>"
+        "• <b>VIP Pre-Seeding:</b> Seeds company founders (Joshua Rayan & Cyril Rayan) with rich aliases, ensuring demo intent works on second one.",
         body_style
     ))
 
@@ -629,7 +639,7 @@ def create_pdf(output_path):
     story.append(Paragraph("Chapter 11: Packaging, Distribution, & Hermetic Testing", h1_style))
     story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#cbd5e1"), spaceBefore=2, spaceAfter=8))
 
-    story.append(Paragraph("11.1 Hermetic Testing Architecture (100% Pass Rate Across 90 Tests)", h2_style))
+    story.append(Paragraph("11.1 Hermetic Testing Architecture (100% Pass Rate Across 94 Tests)", h2_style))
     story.append(Paragraph(
         "A critical engineering requirement for production infrastructure is <b>hermetic CI</b>: tests must execute reliably in headless Linux containers "
         "without physical monitors, window servers, or hardware microphones.",
@@ -638,7 +648,7 @@ def create_pdf(output_path):
     story.append(Paragraph(
         "Desktop-DOM achieves this via <code>tests/conftest.py</code>, which implements an in-memory mock calculator tree adapter. "
         "The test suite covers schema validation, pruner algorithms, fuzzy recovery, reactive timeouts, multi-display negative coordinate calibration, "
-        "audio thread concurrency, Level 2 SQLite memory persistence, entity disambiguation, and packaging scripts across <b>90 tests passing in 6.37 seconds</b>.",
+        "audio thread concurrency, Level 2 SQLite memory persistence, 5-tier entity disambiguation, ambient onboarding, and packaging scripts across <b>94 tests passing in 7.02 seconds</b>.",
         body_style
     ))
 
@@ -710,11 +720,11 @@ def create_pdf(output_path):
         ("Q: How does Desktop-DOM solve the 'Cursor Hijack' problem?",
          "A: We built a 3-tier execution hierarchy. In Tier 1, we call AXUIElementPerformAction(kAXPressAction) on macOS or InvokePattern on Windows. This triggers the button's internal event handler with zero physical cursor movement and zero window focus theft. In Tier 2, if coordinate clicks are required, we record the cursor position, click, and warp back in <1ms via CGWarpMouseCursorPosition. In Tier 3, we set text fields directly in memory (kAXValueAttribute) so the user can type in another window simultaneously."),
         ("Q: How does your Level 2 Memory Engine resolve 'message Josh' in under 1 millisecond?",
-         "A: We built AuraMemory on SQLite in WAL mode with a dual-layer in-memory cache and indexed lookup tables. The disambiguation algorithm uses a 4-tier scoring pipeline: exact alias match (100), first-name token match (92), substring match (80), and SequenceMatcher fuzzy similarity (75 * ratio), boosted by interaction frequency and recency. Lookups execute in 0.49ms directly in memory, activating Outlook via LaunchServices without waiting for LLM tokens."),
+         "A: We built AuraMemory on SQLite in WAL mode with a dual-layer in-memory cache and indexed lookup tables. The disambiguation algorithm uses a 5-tier scoring pipeline: direct email resolution (100), exact alias match (100), first-name token and role match (92–94), typo-tolerant Levenshtein edit distance (80–88), and SequenceMatcher fuzzy similarity (88 * ratio), boosted by interaction frequency and recency. Lookups execute in 0.49ms directly in memory, activating Outlook via LaunchServices without waiting for LLM tokens."),
         ("Q: What is your roadmap to achieve Level 3 (fully autonomous agentic loop) within one week?",
-         "A: Level 1 (sub-25ms fast-path execution) and Level 2 (personal context & memory engine) are complete and tested (90/90 tests passing). For Level 3, we implement the ReAct + Reflection loop: before-and-after DOM diffing (capturing tree delta T1 - T0 to verify action completion), multi-app goal decomposition, and structured Pydantic tool-calling with local SLMs (Ministral-3:8b, Qwen2.5-Coder:7b)."),
+         "A: Level 1 (sub-25ms fast-path execution) and Level 2 (personal context & memory engine) are complete and tested (94/94 tests passing). For Level 3, we implement the ReAct + Reflection loop: before-and-after DOM diffing (capturing tree delta T1 - T0 to verify action completion), multi-app goal decomposition, and structured Pydantic tool-calling with local SLMs (Ministral-3:8b, Qwen2.5-Coder:7b)."),
         ("Q: Why should Crcle hire you as a Backend Developer Intern?",
-         "A: I don't just write scripts; I build robust, production-grade systems. Over the past week, I engineered Desktop-DOM from scratch: native macOS PyObjC bridges, O(N) AST pruners, SQLite WAL memory stores, multi-display coordinate calibrations, and comprehensive test suites passing 90/90 tests hermetically. I understand Crcle's thesis deeply and have already built the exact high-performance backend substrate Crcle needs to win.")
+         "A: I don't just write scripts; I build robust, production-grade systems. Over the past week, I engineered Desktop-DOM from scratch: native macOS PyObjC bridges, O(N) AST pruners, SQLite WAL memory stores, multi-display coordinate calibrations, ambient onboarding, and comprehensive test suites passing 94/94 tests hermetically. I understand Crcle's thesis deeply and have already built the exact high-performance backend substrate Crcle needs to win.")
     ]
 
     for q, a in qa_list:
