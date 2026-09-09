@@ -473,5 +473,49 @@ def package(
     if res.returncode == 0:
         console.print(f"[bold green]✓ Packaging complete in {out}[/bold green]")
 
+@app.command()
+def serve(
+    host: str = typer.Option("127.0.0.1", "--host", "-h", help="Daemon host address to bind"),
+    port: int = typer.Option(8484, "--port", "-p", help="Daemon port number"),
+):
+    """Starts the minimalist, high-speed Desktop-DOM headless server for Crcle integration."""
+    from desktop_dom.server import start_server
+    console.print(f"[bold cyan]Starting Desktop-DOM Headless Server on http://{host}:{port}...[/bold cyan]")
+    console.print("[dim]Endpoints: GET /health | POST /tree | POST /action | POST /diff | POST /intent | POST /agent/run[/dim]")
+    console.print("[dim green]Designed for Crcle.ai frontend integration & sub-millisecond local IPC.[/dim green]")
+    server = start_server(host=host, port=port)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Shutting down Desktop-DOM server...[/yellow]")
+        server.shutdown()
+        server.server_close()
+        console.print("[green]Server halted cleanly.[/green]")
+
+@app.command()
+def run(
+    goal: str = typer.Argument(..., help="High-level goal for the autonomous agent"),
+    target: str = typer.Option("Finder", "--app", "-a", help="Application name or PID to target"),
+    max_steps: int = typer.Option(10, "--max-steps", "-m", help="Maximum step budget"),
+):
+    """Executes a multi-step goal autonomously using Level 3 ReAct loop with DOM diff verification."""
+    from desktop_dom.agent import AutonomousDesktopAgent
+    console.print(f"[bold cyan]Executing Level 3 Autonomous Loop for goal:[/bold cyan] [bold yellow]{goal}[/bold yellow]")
+    try:
+        app_inst = DesktopApp.attach(target)
+        agent = AutonomousDesktopAgent(app=app_inst, max_steps=max_steps)
+        result = agent.run(goal)
+
+        status_color = "green" if result.is_successful else "red"
+        console.print(f"\n[bold {status_color}]Result: {result.status.upper()}[/bold {status_color}] - {result.summary}")
+        console.print(f"[dim]Total Duration: {result.total_elapsed_ms:.2f}ms | Steps: {len(result.steps)}[/dim]\n")
+
+        for step in result.steps:
+            console.print(f"  Step {step.step_number}: [cyan]{step.action.action_type}[/cyan] ({step.action.reasoning}) -> [dim]{step.result.diff.summary}[/dim]")
+    except Exception as e:
+        console.print(f"[bold red]Agent execution error:[/bold red] {e}")
+        sys.exit(1)
+
 if __name__ == "__main__":
     app()
+

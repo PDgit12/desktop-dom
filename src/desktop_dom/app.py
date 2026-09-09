@@ -10,6 +10,7 @@ from desktop_dom.adapters import get_platform_adapter
 from desktop_dom.adapters.base import BasePlatformAdapter
 from desktop_dom.schema import DesktopNode, BoundingBox, DisplayInfo, SubregionCapture
 from desktop_dom.pruner import TreePruner, FuzzyResolver
+from desktop_dom.diff import DOMDiff, compute_dom_diff, ActionResult, verify_expected_effect
 
 logger = logging.getLogger("desktop_dom.app")
 
@@ -360,3 +361,93 @@ class DesktopApp:
         """
         from desktop_dom.integrations.langchain import create_desktop_tools
         return create_desktop_tools(self)
+
+    def snapshot(self, prune: bool = True) -> DesktopNode:
+        """
+        Captures an instantaneous DOM snapshot as a DesktopNode object.
+        """
+        tree = self.get_tree(prune=prune, as_dict=False)
+        assert isinstance(tree, DesktopNode)
+        return tree
+
+    def diff(
+        self,
+        before: Optional[DesktopNode] = None,
+        after: Optional[DesktopNode] = None,
+    ) -> DOMDiff:
+        """
+        Computes an O(N) structural and state delta between two DOM snapshots.
+        If before is None, defaults to the last captured tree.
+        If after is None, captures a fresh snapshot.
+        """
+        t0 = before if before is not None else self._last_tree
+        t1 = after if after is not None else self.snapshot()
+        if t0 is None:
+            t0 = t1
+        return compute_dom_diff(t0, t1)
+
+    def execute_and_verify(
+        self,
+        action_fn: Callable[[], Any],
+        expected_effect: Optional[Dict[str, Any]] = None,
+        timeout: float = 2.0,
+        settle_delay: float = 0.05,
+    ) -> ActionResult:
+        """
+        Executes an action, captures T0 and T1 DOM snapshots, and verifies state mutations.
+        Eliminates blind action dispatching by confirming actual UI mutation (T1 - T0).
+        """
+        start_time = time.perf_counter()
+        t0 = self.snapshot()
+
+        action_res = None
+        error_msg = None
+        status = "success"
+
+        try:
+            action_res = action_fn()
+        except Exception as e:
+            status = "failed"
+            error_msg = str(e)
+            logger.error(f"Action execution error: {e}")
+
+        if settle_delay > 0:
+            time.sleep(settle_delay)
+
+        t1 = self.snapshot()
+        diff = compute_dom_diff(t0, t1)
+
+        verified = True
+        verif_msg = "Action executed without explicit verification criteria"
+
+        if expected_effect:
+            verified, verif_msg = verify_expected_effect(diff, expected_effect)
+            if not verified and timeout > settle_delay:
+                poll_interval = 0.1
+                deadline = start_time + timeout
+                while time.perf_counter() < deadline and not verified:
+                    time.sleep(poll_interval)
+                    t1 = self.snapshot()
+                    diff = compute_dom_diff(t0, t1)
+                    verified, verif_msg = verify_expected_effect(diff, expected_effect)
+
+        elapsed = (time.perf_counter() - start_time) * 1000.0
+
+        elem_id = None
+        action_name = "custom"
+        if isinstance(action_res, dict):
+            elem_id = action_res.get("element_id")
+            action_name = action_res.get("action", "custom")
+
+        return ActionResult(
+            action=action_name,
+            status=status,
+            element_id=elem_id,
+            diff=diff,
+            verified=verified,
+            verification_message=verif_msg,
+            elapsed_ms=elapsed,
+            error=error_msg,
+            details=action_res if isinstance(action_res, dict) else {"result": str(action_res)},
+        )
+

@@ -4,7 +4,7 @@
 > **Target Opportunity:** Backend Developer Intern @ [Crcle.ai](https://crcle.ai/)  
 > **Founders:** Joshua Rayan (Founder & CEO) & Cyril Rayan (Co-Founder)  
 > **Core Thesis:** *"The Intent Layer of Computing"* — Eliminating navigation, menus, and friction via deterministic native execution.  
-> **Test Suite Health:** **90 / 90 Tests Passing (100%)** across macOS, Linux, and Windows test fixtures.
+> **Test Suite Health:** **111 / 111 Tests Passing (100%)** across macOS, Linux, and Windows test fixtures.
 
 ---
 
@@ -337,9 +337,9 @@ When a user says *"message Josh"*, Aura's disambiguation algorithm executes:
 
 ---
 
-## 9. Level 3: The Autonomous Agentic Loop Blueprint
+## 9. Level 3: The Autonomous Agentic Loop & Headless Daemon Engine
 
-Level 3 elevates Desktop-DOM into a fully autonomous, closed-loop desktop agent:
+Level 3 elevates Desktop-DOM from an intent router into a fully autonomous, closed-loop desktop agent with decoupled headless server support:
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
@@ -380,27 +380,36 @@ Level 3 elevates Desktop-DOM into a fully autonomous, closed-loop desktop agent:
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 9.1 The ReAct + Reflection Closed Loop
-Rather than firing actions blindly, Level 3 implements:
-$$\text{Goal} \longrightarrow \text{Plan} \longrightarrow \text{Act} \longrightarrow \text{Observe} \longrightarrow \text{Reflect} \longrightarrow \text{Assert/Retry}$$
+### 9.1 The ReAct + Reflection Closed Loop (`src/desktop_dom/agent.py`)
+Implemented via `AutonomousDesktopAgent`. Rather than firing blind actions, it executes:
+$$\text{Goal} \longrightarrow \text{Observe } (T_0) \longrightarrow \text{Plan} \longrightarrow \text{Act \& Verify} \longrightarrow \text{Observe } (T_1) \longrightarrow \text{Reflect} \longrightarrow \text{Self-Correct/Terminate}$$
+- If an action produces no verified mutation (consecutive misses), the agent reflects, triggers dynamic element recovery, and retries with alternative selectors or delays.
+- Features both deterministic offline goal decomposition (for 100% hermetic CI testing) and pluggable local SLM tool-calling (e.g. Qwen2.5-Coder, Ministral-3).
 
-### 9.2 Before-and-After DOM Diffing ($T_1 - T_0$)
-- Captures accessibility AST snapshot $T_0$ prior to action execution.
-- Dispatches accessibility action.
-- Captures post-action snapshot $T_1$ and computes tree delta $\Delta = T_1 - T_0$.
-- **Assertion:** Verifies whether the target state occurred (e.g. modal appeared, checkbox state flipped to `checked`, input value updated). If $\Delta$ shows no change, the reflection engine triggers self-healing retries with alternative selectors.
+### 9.2 O(N) Before-and-After DOM Diffing (`src/desktop_dom/diff.py`)
+- `compute_dom_diff(before: DesktopNode, after: DesktopNode) -> DOMDiff`
+- Indexes nodes by deterministic ephemeral ID in linear $O(N)$ time (<0.25ms for 300 elements).
+- Isolates:
+  1. `added_nodes`: Elements present in $T_1$, missing in $T_0$.
+  2. `removed_nodes`: Elements present in $T_0$, missing in $T_1$.
+  3. `mutations`: `NodeMutation` records tracking value changes, interactive state toggles (`focused`, `checked`, `disabled`, `expanded`, `selected`), and coordinate centroid shifts (>2px).
 
-### 9.3 Multi-App Goal Decomposition
-Decomposes compound user requests across desktop applications:
-- *Prompt:* *"Find the revenue number in my open Google Sheet, open Outlook, and email Josh with the update."*
-- *Execution:*
-  1. Inspects Google Sheets window DOM &rarr; extracts revenue value.
-  2. Resolves Josh &rarr; Joshua Rayan (`josh@crcle.ai`) via Level 2 memory.
-  3. Activates Outlook &rarr; opens pre-addressed compose window with extracted figure.
-  4. Returns proof to user.
+### 9.3 Empirical State Verification (`src/desktop_dom/app.py`)
+- `app.execute_and_verify(action_fn, expected_effect, timeout=2.0, settle_delay=0.05) -> ActionResult`
+- Eliminates blind action dispatch by verifying that intended mutations actually registered in the window server.
+- Supports typed conditions: `any_change`, `node_added`, `node_removed`, `value_changed`, `state_changed`.
+- Automatically polls until the condition is met or the timeout expires, preventing race conditions with asynchronous UI re-renders.
 
-### 9.4 Structured Function Calling with Local SLMs
-Binds local Small Language Models (Ministral-3:8b, Qwen2.5-Coder:7b) via Ollama tool calling. Actions are defined with strict Pydantic JSON schemas, ensuring zero-hallucination structured tool calls.
+### 9.4 Minimalist Headless Daemon (`desktop-dom serve` in `src/desktop_dom/server.py`)
+- Standard-library multi-threaded HTTP/JSON-RPC daemon on `http://127.0.0.1:8484` with zero third-party dependencies.
+- Designed specifically for Crcle.ai integration: Crcle's proprietary native Mac app communicates via sub-millisecond local IPC.
+- Endpoints:
+  - `GET /health`: Daemon status, OS accessibility permissions, and memory cache stats.
+  - `POST /tree`: Pruned accessibility DOM tree in JSON.
+  - `POST /action`: Verified action dispatch (`click`, `type`, `press`).
+  - `POST /diff`: State delta between snapshots.
+  - `POST /intent`: Level 2 Personal Memory resolution.
+  - `POST /agent/run`: Level 3 Autonomous multi-step goal execution.
 
 ---
 

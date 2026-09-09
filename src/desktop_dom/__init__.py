@@ -7,6 +7,8 @@ from desktop_dom.schema import DesktopNode, BoundingBox, ElementStates
 from desktop_dom.pruner import TreePruner, FuzzyResolver
 from desktop_dom.app import DesktopApp
 from desktop_dom.adapters import get_platform_adapter
+from desktop_dom.diff import DOMDiff, NodeMutation, compute_dom_diff, ActionResult, verify_expected_effect
+from desktop_dom.agent import AutonomousDesktopAgent, AgentAction, AgentStep, AgentResult
 
 __version__ = "0.1.0"
 
@@ -18,4 +20,13 @@ __all__ = [
     "TreePruner",
     "FuzzyResolver",
     "get_platform_adapter",
+    "DOMDiff",
+    "NodeMutation",
+    "compute_dom_diff",
+    "ActionResult",
+    "verify_expected_effect",
+    "AutonomousDesktopAgent",
+    "AgentAction",
+    "AgentStep",
+    "AgentResult",
 ]
