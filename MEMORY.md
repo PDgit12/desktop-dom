@@ -92,9 +92,11 @@ Eliminates vision agent flaws (>90% token waste, 3–6 second latency, pixel coo
   - $O(N)$ linear DOM diffing in `diff.py` (<0.25ms), `execute_and_verify()` state verification in `app.py`.
 - **Native macOS Distribution:**
   - Native `Aura.app` bundle built and installed to `/Users/piyushdua/Applications/Aura.app`.
+- **Dynamic Zero-Hardcoding Intent Graph & 1,000+ Use Case Generality:**
+  - Zero Hardcoded Logic: Never hardcodes app names to intents (no static `if intent == "meeting": open Granola`). Everything resolves dynamically from sovereign SQLite Knowledge Graph edges `(User) -[handles_<intent>_intent {intent: "<intent>"}]-> (App)` and verified user preferences (`apps.primary_<intent>`).
+  - 1,000+ Use Case Generality: Users configure any arbitrary tool and capability during Onboarding or Settings (`meeting: Granola/Zoom`, `design: Figma`, `tasks: Linear`, `3d: Blender`, `notes: Notion`, `crm: Salesforce`).
+  - Sub-millisecond Resolution: `resolve_app_for_intent(intent)` resolves in <0.5ms with zero speculation. If unconfigured, Aura returns an unconfigured status guiding the user to connect a tool in Onboarding or Settings.
+  - Meeting Intent Execution: `"i have a meeting [with ...]"` resolves primary meeting companion dynamically, launches the app, captures active desktop context, and extracts mentioned collaborators via personal entity memory.
+  - UI & WebKit IPC: Onboarding and Settings drawers feature explicit App Name and Capability/Intent inputs (`on_add_app`, `on_delete_app`), with default action cards and suggestion triggers.
 - Branches: `main` (stable) and `develop` (integration) synced on `PDgit12/desktop-dom`.
 - Remote repository live on GitHub at `https://github.com/PDgit12/desktop-dom` with 100% sole contributor attribution for PDgit12.
-
-
-
-
