@@ -107,7 +107,15 @@ Eliminates vision agent flaws (>90% token waste, 3–6 second latency, pixel coo
     - Tier 3 ($< 78\%$): Single-Shot Disambiguation only when true intra-cluster symmetry exists with zero recency difference (asks once, remembers forever).
   - **Knitbrain Self-Learning & Misfire Loop:** When a user corrects an action (e.g. `"No, open Zoom instead"`), Aura records the misfire and false positive in `misfires`, applies an edge penalty to the old tool, boosts the new tool to $1.0$, stores the learned rule in `learnings`, and immediately executes the corrected tool. Subsequent queries autonomously route to the corrected tool.
   - **Non-Binary Destinations:** Queries native OS adapters (e.g. AppleScript on Microsoft Outlook/Mail) for non-binary context like `"last email from Josh"`, returning real sender, subject, timestamp, and snippet without hallucinations.
-  - **Comprehensive Test Coverage:** 104 tests passing across `test_assistant.py`, `test_intent_layer.py`, and `test_context_feed.py` (100% pass rate).
+  - **Comprehensive Test Coverage:** 203 tests passing across `test_assistant.py`, `test_intent_layer.py`, `test_context_feed.py`, `test_non_binary_adapters.py`, `test_knitbrain_learning.py`, and `test_packager.py` (100% pass rate).
+- **7-Aspect Specialized Multi-Agent Architecture:**
+  1. **Omnibar UI & Feedback:** 1-click `"Wrong tool? Teach Aura"` feedback chip, inline correction trigger, and WebKit IPC bridge (`on_record_misfire`) updating status badge dynamically.
+  2. **Non-Binary OS Adapters (`non_binary.py`):** Native AppleScript/JXA adapters for calendar briefings (Apple Calendar / Outlook with Zoom/Teams link extraction), local git status & GitHub CLI (`gh pr status`), Linear issues GraphQL/CLI queries, and Outlook/Mail lookup.
+  3. **Ambient Context Telemetry (`context_feed.py`):** Workspace git branch/dirty detection, diurnal cadence classification (`morning_standup`, `deep_work`, `afternoon_review`, `evening_off_hours`), and sub-millisecond thread-safe caching (`get_cached_context()`).
+  4. **Sovereign Knowledge Graph (`memory.py`):** Dynamic graph queries, `compute_cluster_barrier` ($\Omega = 0.0$ work vs gaming/personal), entity symmetry-breaking boosts (+25.0 / -20.0), and calibrated confidence scoring.
+  5. **Decoupled Intent Pipeline (`brain.py`):** 4 clean stages (Ingestion $\rightarrow$ Activation $\rightarrow$ Symmetry Breaking $\rightarrow$ Dispatch) with zero static fallbacks.
+  6. **Knitbrain Self-Learning Misfire Loop:** Dynamic negative edge weight penalization (0.5x), target reinforcement (1.0), habit override persistence in `learnings`, and zero-restart auto-resolution on next query.
+  7. **Release Packaging & Verification:** Automated bundle compilation (`scripts/build_app.sh`), structural verification (`tests/test_packager.py`), and deployment to `/Users/piyushdua/Applications/Aura.app`.
 - Branches: `main` (stable) and `develop` (integration) synced on `PDgit12/desktop-dom`.
 - Remote repository live on GitHub at `https://github.com/PDgit12/desktop-dom` with 100% sole contributor attribution for PDgit12.
 

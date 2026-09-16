@@ -1,3 +1,4 @@
+import os
 import sys
 import json
 import io
@@ -461,6 +462,10 @@ def test_build_macos_packager(tmp_path):
     assert (app_dir / "Contents" / "Info.plist").exists()
     assert (app_dir / "Contents" / "MacOS" / "Aura").exists()
     assert (tmp_path / "Aura-v0.2.0-macOS.zip").exists()
+
+    build_sh = scripts_dir / "build_app.sh"
+    assert build_sh.exists()
+    assert os.access(build_sh, os.X_OK)
 
 def test_audio_manager_stop_speaking_concurrency():
     audio = AudioManager()
@@ -1192,6 +1197,85 @@ def test_thousands_of_use_cases_dynamic_capability_binding(tmp_path):
         assert res_3d["action"] == "3d_intent"
         assert res_3d["tool"] == "Blender"
         mock_run.assert_any_call(["open", "-a", "Blender"], capture_output=True, text=True)
+
+
+def test_omnibar_misfire_feedback_ui_and_ipc(tmp_path):
+    """
+    Verifies Aspect 1: Omnibar 1-Click Misfire Feedback ('Wrong tool? Teach Aura')
+    and IPC self-correction pipeline.
+    """
+    from desktop_dom.assistant.omnibar import OMNIBAR_HTML, FloatingOmnibar, OmnibarScriptHandler
+    from desktop_dom.assistant.memory import AuraMemory
+
+    # 1. Verify HTML/CSS/JS template elements exist
+    assert "Wrong tool? Teach Aura" in OMNIBAR_HTML
+    assert "misfire-feedback-bar" in OMNIBAR_HTML
+    assert "misfire-chip" in OMNIBAR_HTML
+    assert "misfire-inline-form" in OMNIBAR_HTML
+    assert "misfire-tool-input" in OMNIBAR_HTML
+    assert "record_misfire" in OMNIBAR_HTML
+    assert "window.auraMisfireRecorded" in OMNIBAR_HTML
+    assert "Preference updated — Aura learned!" in OMNIBAR_HTML
+
+    # 2. Test FloatingOmnibar.on_record_misfire
+    db_file = tmp_path / "test_omnibar_misfire.db"
+    mem = AuraMemory(db_path=str(db_file))
+    mem.auto_hydrate_environment()
+
+    brain = MagicMock()
+    brain.memory = mem
+    bar = FloatingOmnibar(brain=brain)
+    bar._webview = MagicMock()
+
+    res = bar.on_record_misfire("i have a meeting", "Granola", "Zoom")
+    assert res is not None
+    assert res["status"] == "success"
+    assert res["false_positive"] == "Granola"
+    assert res["corrected_to"] == "Zoom"
+
+    # Verify evaluate_js updated UI status and invoked auraMisfireRecorded
+    assert bar._webview.evaluateJavaScript_completionHandler_.call_count == 1
+    eval_call_arg = bar._webview.evaluateJavaScript_completionHandler_.call_args[0][0]
+    assert "window.auraMisfireRecorded" in eval_call_arg
+    assert "Preference updated — Aura learned!" in eval_call_arg
+    assert "Learned preference" in eval_call_arg
+
+    # Verify misfire record in database
+    with mem._lock, mem._get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM misfires WHERE query = 'i have a meeting';")
+        row = cursor.fetchone()
+        assert row is not None
+        assert row["false_positive_target"] == "Granola"
+        assert row["corrected_target"] == "Zoom"
+        ctx = json.loads(row["context_snapshot"])
+        assert ctx.get("user_feedback") == "User clicked teach aura chip"
+
+    # 3. Test OmnibarScriptHandler bridge dispatch
+    handler = OmnibarScriptHandler(bar)
+    mock_msg = MagicMock()
+    mock_msg.body.return_value = json.dumps({
+        "action": "record_misfire",
+        "query": "open design workspace",
+        "wrong_app": "Illustrator",
+        "correct_app": "Figma"
+    })
+    bar._webview.reset_mock()
+    handler.userContentController_didReceiveScriptMessage_(None, mock_msg)
+
+    assert bar._webview.evaluateJavaScript_completionHandler_.call_count == 1
+    eval_arg2 = bar._webview.evaluateJavaScript_completionHandler_.call_args[0][0]
+    assert "window.auraMisfireRecorded" in eval_arg2
+    assert "Learned preference" in eval_arg2
+
+    with mem._lock, mem._get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM misfires WHERE query = 'open design workspace';")
+        row2 = cursor.fetchone()
+        assert row2 is not None
+        assert row2["false_positive_target"] == "Illustrator"
+        assert row2["corrected_target"] == "Figma"
+
 
 
 

@@ -267,7 +267,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     flex-direction: column;
     padding: 14px 18px;
     gap: 12px;
-    max-height: 260px;
+    max-height: 340px;
     overflow-y: auto;
     border-top: 1px solid rgba(255, 255, 255, 0.06);
   }
@@ -346,6 +346,129 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     font-size: 12px;
     color: #71717a;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  /* 1-Click Misfire Feedback Chip & Inline Teach Form */
+  .misfire-feedback-bar {
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    transition: all 0.2s ease;
+  }
+  .misfire-feedback-bar.visible {
+    display: flex;
+  }
+  .misfire-chip {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 11px;
+    font-weight: 500;
+    color: #71717a;
+    cursor: pointer;
+    transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    user-select: none;
+  }
+  .misfire-chip:hover {
+    background: rgba(56, 189, 248, 0.08);
+    border-color: rgba(56, 189, 248, 0.3);
+    color: #38bdf8;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(56, 189, 248, 0.12);
+  }
+  .misfire-chip svg {
+    color: inherit;
+    flex-shrink: 0;
+  }
+  .misfire-inline-form {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(56, 189, 248, 0.2);
+    border-radius: 8px;
+    padding: 8px 10px;
+    animation: misfireFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @keyframes misfireFadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .misfire-label {
+    font-size: 10px;
+    font-weight: 500;
+    color: #94a3b8;
+    letter-spacing: 0.2px;
+  }
+  .misfire-input-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .misfire-input {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 5px;
+    padding: 5px 8px;
+    font-size: 11.5px;
+    color: #f4f4f5;
+    outline: none;
+    transition: all 0.12s ease;
+  }
+  .misfire-input:focus {
+    border-color: #38bdf8;
+    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.15);
+    background: rgba(56, 189, 248, 0.05);
+  }
+  .misfire-submit-btn {
+    background: #0284c7;
+    color: #ffffff;
+    border: none;
+    border-radius: 5px;
+    padding: 5px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.12s ease;
+    white-space: nowrap;
+  }
+  .misfire-submit-btn:hover {
+    background: #0369a1;
+  }
+  .misfire-submit-btn:active {
+    transform: scale(0.97);
+  }
+  .misfire-cancel-btn {
+    background: transparent;
+    border: none;
+    color: #71717a;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 4px;
+    transition: all 0.1s ease;
+  }
+  .misfire-cancel-btn:hover {
+    color: #f4f4f5;
+    background: rgba(255, 255, 255, 0.08);
+  }
+  .misfire-feedback-msg {
+    font-size: 11px;
+    font-weight: 500;
+    color: #34d399;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    animation: misfireFadeIn 0.15s ease;
   }
 
   /* Minimalist Model Switcher */
@@ -810,6 +933,24 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         </div>
       </div>
       <div class="result-body" id="result-body"></div>
+      <div class="misfire-feedback-bar" id="misfire-feedback-bar" style="display: none;">
+        <div class="misfire-chip" id="misfire-chip" title="Wrong tool? Teach Aura your preference">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          <span>Wrong tool? Teach Aura</span>
+        </div>
+        <div class="misfire-inline-form" id="misfire-inline-form" style="display: none;">
+          <span class="misfire-label" id="misfire-label">What tool should have opened?</span>
+          <div class="misfire-input-row">
+            <input type="text" class="misfire-input" id="misfire-tool-input" placeholder="e.g. Zoom, Linear, Notes..." autocomplete="off" spellcheck="false" />
+            <button class="misfire-submit-btn" id="misfire-submit-btn">Teach Aura</button>
+            <button class="misfire-cancel-btn" id="misfire-cancel-btn" title="Cancel">✕</button>
+          </div>
+        </div>
+        <div class="misfire-feedback-msg" id="misfire-feedback-msg" style="display: none;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          <span id="misfire-feedback-text">Preference updated — Aura learned!</span>
+        </div>
+      </div>
     </div>
 
     <div class="model-drawer" id="model-drawer" style="display: none;">
@@ -1010,6 +1151,15 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     const settingsResetBtn = document.getElementById("settings-reset-btn");
     const settingsSaveBtn = document.getElementById("settings-save-btn");
     const settingsStatusBadge = document.getElementById("settings-status-badge");
+    const misfireFeedbackBar = document.getElementById("misfire-feedback-bar");
+    const misfireChip = document.getElementById("misfire-chip");
+    const misfireInlineForm = document.getElementById("misfire-inline-form");
+    const misfireToolInput = document.getElementById("misfire-tool-input");
+    const misfireSubmitBtn = document.getElementById("misfire-submit-btn");
+    const misfireCancelBtn = document.getElementById("misfire-cancel-btn");
+    const misfireFeedbackMsg = document.getElementById("misfire-feedback-msg");
+    const misfireFeedbackText = document.getElementById("misfire-feedback-text");
+    const misfireLabel = document.getElementById("misfire-label");
 
     // Pure Monochrome Vector SVGs (Zero Emojis)
     const ICONS = {
@@ -1029,6 +1179,9 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     let currentResultRaw = "";
     let autoCloseTimer = null;
     let isDrawerOpen = false;
+    let currentMisfireQuery = "";
+    let currentMisfireWrongApp = "";
+    let lastSubmittedQuery = "";
 
     const defaultActions = [
       { iconType: "app", title: "Top Apps & Brain Onboarding", subtitle: "Discovered apps & knowledge graph topology", query: "/onboard", badge: "Brain" },
@@ -1210,7 +1363,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       } else {
         contentHeight = 52 + 24 + (currentSuggestions.length * 38) + 32 + 12;
       }
-      const targetHeight = Math.min(480, Math.max(80, contentHeight));
+      const targetHeight = Math.min(520, Math.max(80, contentHeight));
       if (Math.abs(targetHeight - lastReportedHeight) < 4) {
         return;
       }
@@ -1232,6 +1385,16 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         settingsDrawer.classList.remove("visible");
         settingsDrawer.style.display = "none";
       }
+      if (misfireFeedbackBar) {
+        misfireFeedbackBar.classList.remove("visible");
+        misfireFeedbackBar.style.display = "none";
+      }
+      if (misfireChip) misfireChip.style.display = "inline-flex";
+      if (misfireInlineForm) misfireInlineForm.style.display = "none";
+      if (misfireFeedbackMsg) misfireFeedbackMsg.style.display = "none";
+      if (misfireToolInput) misfireToolInput.value = "";
+      currentMisfireQuery = "";
+      currentMisfireWrongApp = "";
       commandSection.style.display = "block";
       isDrawerOpen = false;
       badgeText.innerText = "Ready";
@@ -1282,7 +1445,11 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
           if (val) submitQuery(val);
         }
       } else if (e.key === "Escape") {
-        if (isDrawerOpen) {
+        if (misfireInlineForm && misfireInlineForm.style.display !== "none") {
+          misfireInlineForm.style.display = "none";
+          if (misfireChip) misfireChip.style.display = "inline-flex";
+          notifyResize();
+        } else if (isDrawerOpen) {
           closeDrawers();
         } else {
           window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({ action: "close" }));
@@ -1322,6 +1489,16 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         settingsDrawer.classList.remove("visible");
         settingsDrawer.style.display = "none";
       }
+      if (misfireFeedbackBar) {
+        misfireFeedbackBar.classList.remove("visible");
+        misfireFeedbackBar.style.display = "none";
+      }
+      if (misfireChip) misfireChip.style.display = "inline-flex";
+      if (misfireInlineForm) misfireInlineForm.style.display = "none";
+      if (misfireFeedbackMsg) misfireFeedbackMsg.style.display = "none";
+      if (misfireToolInput) misfireToolInput.value = "";
+      currentMisfireQuery = "";
+      currentMisfireWrongApp = "";
       commandSection.style.display = "block";
       isDrawerOpen = false;
       badgeText.innerText = "Ready";
@@ -1349,6 +1526,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
 
     function submitQuery(query) {
       if (autoCloseTimer) clearTimeout(autoCloseTimer);
+      lastSubmittedQuery = query;
       card.classList.add("executing");
       badgeText.innerText = "Running";
       statusDot.style.background = "#10b981";
@@ -1452,6 +1630,32 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
 
       badgeText.innerText = "Done";
       statusDot.style.background = "#10b981";
+
+      currentMisfireQuery = payload.query || lastSubmittedQuery || input.value.trim();
+      currentMisfireWrongApp = payload.tool || payload.target || payload.client || payload.app || "";
+      if (!currentMisfireWrongApp && action) {
+        if (action === "meeting_intent") currentMisfireWrongApp = "Meeting Companion";
+        else if (action === "spotify_playlist") currentMisfireWrongApp = "Spotify";
+        else if (action === "open_app") currentMisfireWrongApp = payload.target || "Application";
+        else if (action.endsWith("_intent")) currentMisfireWrongApp = action.replace("_intent", "");
+        else currentMisfireWrongApp = "Autonomous Action";
+      }
+
+      if (misfireFeedbackBar) {
+        misfireFeedbackBar.style.display = "flex";
+        misfireFeedbackBar.classList.add("visible");
+        if (misfireChip) misfireChip.style.display = "inline-flex";
+        if (misfireInlineForm) misfireInlineForm.style.display = "none";
+        if (misfireFeedbackMsg) misfireFeedbackMsg.style.display = "none";
+        if (misfireToolInput) misfireToolInput.value = "";
+        if (misfireLabel) {
+          if (currentMisfireWrongApp && currentMisfireWrongApp !== "Autonomous Action") {
+            misfireLabel.innerText = `What tool should open instead of ${currentMisfireWrongApp}?`;
+          } else {
+            misfireLabel.innerText = "What tool should have opened?";
+          }
+        }
+      }
 
       notifyResize();
     };
@@ -2031,11 +2235,101 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       }
     };
 
+    function submitMisfireFeedback() {
+      const corrected = misfireToolInput ? misfireToolInput.value.trim() : "";
+      if (!corrected) return;
+
+      window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({
+        action: "record_misfire",
+        query: currentMisfireQuery,
+        wrong_app: currentMisfireWrongApp,
+        correct_app: corrected
+      }));
+
+      if (misfireInlineForm) misfireInlineForm.style.display = "none";
+      if (misfireFeedbackMsg) {
+        misfireFeedbackMsg.style.display = "flex";
+        if (misfireFeedbackText) {
+          misfireFeedbackText.innerText = "Preference updated — Aura learned!";
+        }
+      }
+      badgeText.innerText = "Learned preference";
+      statusDot.style.background = "#10b981";
+      notifyResize();
+    }
+
+    if (misfireChip) {
+      misfireChip.addEventListener("click", (e) => {
+        e.stopPropagation();
+        misfireChip.style.display = "none";
+        if (misfireInlineForm) misfireInlineForm.style.display = "flex";
+        notifyResize();
+        setTimeout(() => {
+          if (misfireToolInput) {
+            misfireToolInput.focus();
+            misfireToolInput.select();
+          }
+        }, 30);
+      });
+    }
+
+    if (misfireSubmitBtn) {
+      misfireSubmitBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        submitMisfireFeedback();
+      });
+    }
+
+    if (misfireCancelBtn) {
+      misfireCancelBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (misfireInlineForm) misfireInlineForm.style.display = "none";
+        if (misfireChip) misfireChip.style.display = "inline-flex";
+        notifyResize();
+      });
+    }
+
+    if (misfireToolInput) {
+      misfireToolInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          e.stopPropagation();
+          submitMisfireFeedback();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          e.stopPropagation();
+          if (misfireInlineForm) misfireInlineForm.style.display = "none";
+          if (misfireChip) misfireChip.style.display = "inline-flex";
+          notifyResize();
+        }
+      });
+    }
+
+    window.auraMisfireRecorded = function(result, message, badge) {
+      if (misfireInlineForm) misfireInlineForm.style.display = "none";
+      if (misfireFeedbackMsg) {
+        misfireFeedbackMsg.style.display = "flex";
+        if (misfireFeedbackText) {
+          misfireFeedbackText.innerText = message || "Preference updated — Aura learned!";
+        }
+      }
+      badgeText.innerText = badge || "Learned preference";
+      statusDot.style.background = "#10b981";
+      notifyResize();
+    };
+
     updateSuggestions();
     input.focus();
 
     card.addEventListener("click", (e) => {
-      if (!e.target.closest("#mic-btn") && !e.target.closest(".action-btn") && !e.target.closest("#footer-model-tag") && !e.target.closest("#model-pill") && !e.target.closest(".model-card")) {
+      if (!e.target.closest("#mic-btn") &&
+          !e.target.closest(".action-btn") &&
+          !e.target.closest("#footer-model-tag") &&
+          !e.target.closest("#model-pill") &&
+          !e.target.closest(".model-card") &&
+          !e.target.closest("#misfire-feedback-bar") &&
+          !e.target.closest("#onboarding-drawer") &&
+          !e.target.closest("#settings-drawer")) {
         input.focus();
       }
     });
@@ -2118,6 +2412,12 @@ class OmnibarScriptHandler:
             elif action == "copy_to_clipboard":
                 text = payload.get("text", "")
                 self.controller.copy_text(text)
+            elif action == "record_misfire":
+                self.controller.on_record_misfire(
+                    payload.get("query", ""),
+                    payload.get("wrong_app", ""),
+                    payload.get("correct_app", "")
+                )
         except Exception as e:
             logger.warning(f"Error handling script message: {e}")
 
@@ -2319,6 +2619,12 @@ class FloatingOmnibar:
                             self.ctrl.on_reset_onboarding()
                         elif act == "copy_to_clipboard":
                             self.ctrl.copy_text(payload.get("text", ""))
+                        elif act == "record_misfire":
+                            self.ctrl.on_record_misfire(
+                                payload.get("query", ""),
+                                payload.get("wrong_app", ""),
+                                payload.get("correct_app", "")
+                            )
                     except Exception as e:
                         logger.warning(f"Bridge dispatch error: {e}")
 
@@ -2643,6 +2949,44 @@ class FloatingOmnibar:
         except Exception as e:
             logger.warning(f"Error resetting onboarding: {e}")
 
+    def on_record_misfire(self, query: str, wrong_app: str, correct_app: str):
+        """Records misfire feedback, applies graph corrections, and updates Omnibar status."""
+        logger.info(f"Misfire feedback received: query='{query}', wrong_app='{wrong_app}', correct_app='{correct_app}'")
+        if not self.brain or not getattr(self.brain, "memory", None):
+            return None
+        try:
+            try:
+                res = self.brain.memory.record_misfire(
+                    query,
+                    wrong_app,
+                    correct_app,
+                    user_feedback="User clicked teach aura chip",
+                )
+            except TypeError:
+                res = self.brain.memory.record_misfire(
+                    query,
+                    wrong_app,
+                    correct_app,
+                )
+
+            badge = "Learned preference"
+            msg = "Preference updated — Aura learned!"
+            js = f"""
+            if (window.auraMisfireRecorded) {{
+                window.auraMisfireRecorded({json.dumps(res, ensure_ascii=False)}, {json.dumps(msg, ensure_ascii=False)}, {json.dumps(badge, ensure_ascii=False)});
+            }} else {{
+                const b = document.getElementById('badge-text');
+                if (b) b.innerText = {json.dumps(badge, ensure_ascii=False)};
+                const d = document.getElementById('status-dot');
+                if (d) d.style.background = '#10b981';
+            }}
+            """
+            self.evaluate_js(js)
+            return res
+        except Exception as e:
+            logger.warning(f"Error recording misfire in Omnibar: {e}")
+            return None
+
     def on_query_submitted(self, query: str):
         """Processes submitted query with zero flicker and expands Result Drawer."""
         logger.info(f"Omnibar query submitted: '{query}'")
@@ -2659,6 +3003,8 @@ class FloatingOmnibar:
                 return
 
             res = self.brain.execute_intent(query)
+            if isinstance(res, dict) and "query" not in res:
+                res["query"] = query
             # Dispatch result payload to webview
             self.evaluate_js(f"window.displayResult({json.dumps(res)});")
 

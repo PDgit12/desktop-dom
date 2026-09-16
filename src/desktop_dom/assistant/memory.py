@@ -4,6 +4,7 @@ import re
 import sys
 import time
 import json
+import math
 import sqlite3
 import logging
 import difflib
@@ -96,6 +97,9 @@ class AuraMemory:
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_entities_name ON entities(name);")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_entities_email ON entities(email);")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_entities_rank ON entities(interaction_count DESC, last_interaction DESC);")
+
+            # Sovereign Knowledge Graph Nodes View
+            cursor.execute("CREATE VIEW IF NOT EXISTS graph_nodes AS SELECT * FROM entities;")
 
             # 2. Preferences & Habits Table (Key-Value)
             cursor.execute("""
@@ -375,7 +379,7 @@ class AuraMemory:
         with self._lock, self._get_connection() as conn:
             cursor = conn.cursor()
             
-            cursor.execute("SELECT * FROM entities ORDER BY interaction_count DESC, last_interaction DESC;")
+            cursor.execute("SELECT * FROM graph_nodes ORDER BY interaction_count DESC, last_interaction DESC;")
             entities = []
             for r in cursor.fetchall():
                 ent = dict(r)
@@ -399,8 +403,8 @@ class AuraMemory:
                    s.name as source_name, s.category as source_category, s.role as source_role, s.company as source_company,
                    t.name as target_name, t.category as target_category, t.role as target_role, t.company as target_company
             FROM graph_edges ge
-            JOIN entities s ON ge.source_id = s.id
-            JOIN entities t ON ge.target_id = t.id
+            JOIN graph_nodes s ON ge.source_id = s.id
+            JOIN graph_nodes t ON ge.target_id = t.id
             ORDER BY ge.weight DESC, ge.updated_at DESC;
             """)
             graph_edges = []
@@ -581,25 +585,53 @@ class AuraMemory:
                     if isinstance(meta, dict) and meta.get("priority"):
                         score += float(meta["priority"]) * 0.3
 
-                    # Cluster & Context Affinity Boosting (Symmetry Breaking)
-                    user_co = self.get_preference("user.company", "Crcle.ai").lower()
-                    is_work_ent = ent.get("category") in {"colleague", "founder", "work"} or (ent.get("company", "").lower() == user_co and user_co)
+                    # Cluster & Context Affinity Boosting (Entity Symmetry Breaking)
+                    user_co = (self.get_preference("user.company", "Crcle.ai") or "").lower()
+                    ent_cluster = (meta.get("cluster") or ent.get("category") or "").lower()
+                    is_work_ent = (
+                        ent.get("category") in {"colleague", "founder", "work"}
+                        or (ent.get("company", "").lower() == user_co and user_co)
+                        or any(w in ent_cluster for w in ["work", "engineering", "dev", "crcle"])
+                    )
+                    is_personal_ent = (
+                        ent.get("category") in {"personal", "family", "friend"}
+                        or any(p in ent_cluster for p in ["personal", "family", "friend", "gaming", "media"])
+                    )
+
+                    # Determine work hours: Mon-Fri 9am-6pm local time
+                    now_struct = time.localtime()
+                    is_work_hours = (9 <= now_struct.tm_hour < 18 and now_struct.tm_wday < 5)
+
                     if context:
+                        if "is_work_hours" in context:
+                            is_work_hours = bool(context["is_work_hours"])
                         front = (context.get("frontmost_app") or "") if isinstance(context.get("frontmost_app"), str) else ""
                         act_cat = (context.get("activity_category") or "") if isinstance(context.get("activity_category"), str) else ""
-                        is_work_ctx = any(w in front.lower() for w in ["code", "zed", "terminal", "slack", "outlook", "chrome", "calendar"]) or act_cat == "work"
+                        is_work_ctx = (
+                            any(w in front.lower() for w in ["code", "zed", "terminal", "slack", "outlook", "chrome", "calendar", "linear", "jira", "figma", "github", "granola", "zoom"])
+                            or act_cat.lower() in ["work", "engineering", "development", "coding"]
+                            or is_work_hours
+                        )
                         if is_work_ctx:
                             if is_work_ent:
+                                score += 25.0  # Active cluster affinity boost
+                            elif is_personal_ent:
+                                score -= 20.0  # Cross-cluster penalty
+                        else:
+                            if is_personal_ent:
+                                score += 20.0
+                            elif is_work_ent:
+                                score -= 10.0
+                    else:
+                        # Baseline affinity during work hours / dev machine
+                        if is_work_hours:
+                            if is_work_ent:
                                 score += 25.0
-                            elif ent.get("category") in {"personal", "family", "friend"}:
+                            elif is_personal_ent:
                                 score -= 20.0
                         else:
-                            if ent.get("category") in {"personal", "family", "friend"}:
-                                score += 20.0
-                    else:
-                        # Baseline affinity for primary work colleagues on dev machine
-                        if is_work_ent:
-                            score += 15.0
+                            if is_work_ent:
+                                score += 15.0
 
                     if score > best_score:
                         best_score = score
@@ -2803,8 +2835,56 @@ class AuraMemory:
         return {"status": "success", "action": action_type, "entity": entity_name}
 
     # -------------------------------------------------------------------------
-    # Spreading Activation & Dynamic Node Ignition Engine (<1.0ms)
-    # -------------------------------------------------------------------------
+    def compute_cluster_barrier(
+        self,
+        source_cluster: str,
+        target_cluster: str,
+        edge_cluster: str = "work",
+        is_work_context: bool = True,
+    ) -> float:
+        """
+        Computes strict cluster barrier multiplier (Omega).
+        Enforces strict barrier Omega = 0.0 between work clusters (e.g. Crcle.ai, engineering, work)
+        and personal media/gaming clusters to prevent personal nodes from contaminating deep work queries.
+        """
+        s_low = (source_cluster or "work").lower().strip()
+        t_low = (target_cluster or "work").lower().strip()
+        e_low = (edge_cluster or "work").lower().strip()
+
+        def _is_work(c: str) -> bool:
+            return any(w in c for w in ["work", "engineering", "dev", "crcle", "production", "colleague", "founder", "office"])
+
+        def _is_personal(c: str) -> bool:
+            return any(p in c for p in ["personal", "media", "gaming", "entertainment", "music", "game", "spotify", "family", "friend"])
+
+        is_s_work = _is_work(s_low)
+        is_t_work = _is_work(t_low)
+        is_e_work = _is_work(e_low)
+
+        is_s_personal = _is_personal(s_low)
+        is_t_personal = _is_personal(t_low)
+        is_e_personal = _is_personal(e_low)
+
+        # 1. Strict Barrier: Work vs Personal/Media/Gaming is strictly Omega = 0.0
+        if (is_s_work or is_e_work) and (is_t_personal or is_e_personal):
+            return 0.0
+        if (is_t_work or is_e_work) and (is_s_personal or is_e_personal):
+            return 0.0
+        if is_s_work and is_t_personal:
+            return 0.0
+        if is_s_personal and is_t_work:
+            return 0.0
+
+        # 2. In active work context, block any personal/gaming/media transitions completely
+        if is_work_context and (is_e_personal or is_t_personal or is_s_personal):
+            return 0.0
+
+        # 3. Same cluster has full transmission
+        if s_low == t_low:
+            return 1.0
+
+        # 4. Cross-cluster penalty for disjoint non-conflicting clusters (e.g. apps -> work)
+        return 0.30
 
     def ignite_graph(
         self,
@@ -3149,6 +3229,8 @@ class AuraMemory:
         intended_intent: Optional[str] = None,
         actual_intent: Optional[str] = None,
         context_snapshot: Optional[Dict[str, Any]] = None,
+        user_feedback: Optional[str] = None,
+        **kwargs: Any,
     ) -> Dict[str, Any]:
         """
         Records a misfire / false positive and automatically executes self-correction:
@@ -3158,7 +3240,10 @@ class AuraMemory:
         4. Ingests a new high-confidence learning so the misfire never repeats.
         """
         now = time.time()
-        ctx_json = json.dumps(context_snapshot or {})
+        ctx = dict(context_snapshot or {})
+        if user_feedback:
+            ctx["user_feedback"] = user_feedback
+        ctx_json = json.dumps(ctx)
         with self._lock, self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
@@ -3259,6 +3344,21 @@ class AuraMemory:
                 """, (cor_name, json.dumps([cor_name.lower()]), f"{intent_slug or 'Tool'} Capability",
                       now, json.dumps({"intent": intent_slug or "utility", "cluster": "work"}), now, now))
                 cor_id = cursor.lastrowid
+
+            # In case intent wasn't explicitly passed, infer from preferences or false positive metadata
+            if not intent_slug:
+                for k, v in self.list_preferences().items():
+                    if v.lower() == fp_name.lower() and k.startswith("apps.primary_"):
+                        intent_slug = k.replace("apps.primary_", "")
+                        break
+                if not intent_slug and fp_row:
+                    try:
+                        raw_m = fp_row["metadata"]
+                        fp_meta = json.loads(raw_m) if isinstance(raw_m, str) else (raw_m or {})
+                        if fp_meta.get("intent"):
+                            intent_slug = fp_meta["intent"]
+                    except Exception:
+                        pass
 
             # Boost or insert edge to corrected entity
             rel = f"handles_{intent_slug}_intent" if intent_slug else "uses"

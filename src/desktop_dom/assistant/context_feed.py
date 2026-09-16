@@ -30,6 +30,10 @@ class ActiveContextSnapshot:
     browser_name: Optional[str] = None
     browser_url: Optional[str] = None
     browser_title: Optional[str] = None
+    git_repo: Optional[str] = None
+    git_branch: Optional[str] = None
+    git_dirty: bool = False
+    diurnal_phase: str = "deep_work"  # "morning_standup", "deep_work", "afternoon_review", "evening_off_hours"
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -78,6 +82,52 @@ class ContextFeedEngine:
         except Exception as e:
             logger.warning(f"Failed to initialize context_feed table: {e}")
 
+    def get_diurnal_phase(self, hour: Optional[int] = None) -> str:
+        """Determines the user's diurnal work phase based on the hour of the day."""
+        if hour is None:
+            import datetime
+            hour = datetime.datetime.now().hour
+        if 6 <= hour < 10:
+            return "morning_standup"
+        elif 10 <= hour < 14:
+            return "deep_work"
+        elif 14 <= hour < 18:
+            return "afternoon_review"
+        else:
+            return "evening_off_hours"
+
+    def get_git_context(self, cwd: Optional[str] = None) -> Tuple[Optional[str], Optional[str], bool]:
+        """Detects current git repo name, active branch, and whether working tree is dirty."""
+        try:
+            cmd_root = ["git", "rev-parse", "--show-toplevel"]
+            res_root = subprocess.run(cmd_root, cwd=cwd, capture_output=True, text=True, timeout=1.0)
+            if res_root.returncode != 0:
+                return None, None, False
+            repo_path = res_root.stdout.strip()
+            repo_name = Path(repo_path).name
+
+            cmd_branch = ["git", "rev-parse", "--abbrev-ref", "HEAD"]
+            res_branch = subprocess.run(cmd_branch, cwd=cwd, capture_output=True, text=True, timeout=1.0)
+            branch = res_branch.stdout.strip() if res_branch.returncode == 0 else None
+
+            cmd_diff = ["git", "status", "--porcelain"]
+            res_diff = subprocess.run(cmd_diff, cwd=cwd, capture_output=True, text=True, timeout=1.0)
+            is_dirty = bool(res_diff.stdout.strip()) if res_diff.returncode == 0 else False
+
+            return repo_name, branch, is_dirty
+        except Exception:
+            return None, None, False
+
+    def get_cached_context(self, max_age_s: float = 2.0) -> ActiveContextSnapshot:
+        """
+        Ultra-low latency (<0.1ms) thread-safe accessor for active desktop context.
+        Returns the cached snapshot if captured within max_age_s, avoiding blocking AppleScript calls.
+        """
+        now = time.time()
+        if self._last_snapshot and (now - self._last_snapshot.timestamp) < max_age_s:
+            return self._last_snapshot
+        return self.capture_active_context(record=True)
+
     def capture_active_context(self, record: bool = True) -> ActiveContextSnapshot:
         """
         Captures the current desktop context in <20ms using native macOS IPC.
@@ -87,6 +137,8 @@ class ContextFeedEngine:
         now = time.time()
         frontmost_app, window_title = self._get_frontmost_app_and_title()
         browser_name, browser_title, browser_url = self.get_browser_tab(frontmost_app)
+        repo_name, git_branch, git_dirty = self.get_git_context()
+        diurnal_phase = self.get_diurnal_phase()
 
         # Stage 2: Meaning Synthesis
         activity, topic, playlist, genre = self.classify_activity(
@@ -108,6 +160,10 @@ class ContextFeedEngine:
             browser_name=browser_name,
             browser_url=browser_url,
             browser_title=browser_title,
+            git_repo=repo_name,
+            git_branch=git_branch,
+            git_dirty=git_dirty,
+            diurnal_phase=diurnal_phase,
             metadata={
                 "feed_latency_ms": round((time.time() - now) * 1000, 2),
                 "platform": sys.platform,

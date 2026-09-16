@@ -18,6 +18,13 @@ from desktop_dom.schema import DesktopNode
 from desktop_dom.adapters import get_platform_adapter
 from desktop_dom.assistant.memory import AuraMemory
 from desktop_dom.assistant.context_feed import ContextFeedEngine, ActiveContextSnapshot
+from desktop_dom.assistant.non_binary import (
+    route_non_binary_intent,
+    get_calendar_briefing,
+    get_git_pr_status,
+    get_linear_issues,
+    get_last_email,
+)
 
 logger = logging.getLogger("desktop_dom.assistant.brain")
 
@@ -577,6 +584,13 @@ end tell'''
                 "tier": "autonomous",
                 "response": resp,
             }
+
+        # 0c. Non-Binary Desktop & OS Adapters (Calendar Briefing, Git PR Status, Linear Issues)
+        if not any(w in prompt.lower() for w in ["email from", "mail from", "last email", "last mail"]):
+            non_binary_res = route_non_binary_intent(prompt)
+            if non_binary_res:
+                self._notify_action("completed", non_binary_res.get("response", "Completed"))
+                return non_binary_res
 
         # 0c. Misfire Feedback & Self-Correction Engine:
         # e.g. "no open zoom instead", "wrong use zoom", "actually use zoom", "open zoom instead", "not granola, use zoom"
