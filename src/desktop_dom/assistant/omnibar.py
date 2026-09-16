@@ -486,11 +486,11 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         </svg>
       </div>
       <div class="input-wrap">
-        <input id="query-input" type="text" placeholder="Search commands or ask Aura..." autocomplete="off" spellcheck="false" autofocus />
+        <input id="query-input" type="text" placeholder="Type an intent or command..." autocomplete="off" spellcheck="false" autofocus />
       </div>
       <div class="header-tools">
-        <div class="model-pill-btn" id="model-pill" title="Active Engine / Switch Models">
-          <span id="header-model-name">Fast-Path</span>
+        <div class="model-pill-btn" id="model-pill" title="Standard Mistral Engine" style="display: none;">
+          <span id="header-model-name">Mistral</span>
           <span class="chevron">▾</span>
         </div>
         <div class="mic-btn" id="mic-btn" title="Toggle Voice Microphone">
@@ -530,7 +530,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       <div class="result-body" id="result-body"></div>
     </div>
 
-    <div class="model-drawer" id="model-drawer">
+    <div class="model-drawer" id="model-drawer" style="display: none;">
       <div class="model-drawer-title">
         <span>Active Engine & Local Models</span>
         <span id="model-conn-status">Checking...</span>
@@ -547,9 +547,9 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         <span class="kbd-pill"><span class="kbd">Tab</span> Fill</span>
         <span class="kbd-pill"><span class="kbd">Esc</span> Dismiss</span>
       </div>
-      <div class="local-tag" id="footer-model-tag" title="Switch local AI engines">
+      <div class="local-tag" id="footer-model-tag" style="display: none;">
         <div class="dot-green" id="model-dot"></div>
-        <span id="footer-model-name">Loading...</span>
+        <span id="footer-model-name">Mistral</span>
       </div>
     </div>
   </div>
@@ -603,7 +603,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       { iconType: "volume", title: "Adjust Volume", subtitle: "Set volume to 80%", query: "Set volume to 80", badge: "System" },
       { iconType: "app", title: "Activate Application", subtitle: "Open Calculator", query: "Open Calculator", badge: "App" },
       { iconType: "screen", title: "Inspect Screen", subtitle: "What is on my screen?", query: "what is on my screen", badge: "DOM" },
-      { iconType: "model", title: "Switch AI Engine", subtitle: "View local neural weights", query: "/model", badge: "Engine" }
+      { iconType: "app", title: "Open Downloads", subtitle: "Open Downloads folder in Finder", query: "open downloads", badge: "Finder" }
     ];
 
     function updateSuggestions() {

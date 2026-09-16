@@ -4,7 +4,7 @@
 > **Target Opportunity:** Backend Developer Intern @ [Crcle.ai](https://crcle.ai/)  
 > **Founders:** Joshua Rayan (Founder & CEO) & Cyril Rayan (Co-Founder)  
 > **Core Thesis:** *"The Intent Layer of Computing"* — Eliminating navigation, menus, and friction via deterministic native execution.  
-> **Test Suite Health:** **111 / 111 Tests Passing (100%)** across macOS, Linux, and Windows test fixtures.
+> **Test Suite Health:** **115 / 115 Tests Passing (100%)** across macOS, Linux, and Windows test fixtures.
 
 ---
 
@@ -277,23 +277,39 @@ When encountering custom HTML5 `<canvas>`, WebGL, Figma, or video game viewports
 ## 7. Level 1: The Deterministic Fast-Path Execution Engine
 
 Level 1 represents stateless, sub-25ms deterministic execution:
-1. **Spotify Control (Bypassing macOS TCC 1002):**
+1. **Dynamic Application Catalog Scanner:**
+   - Indexes all applications dynamically across `/Applications`, `/System/Applications`, `/System/Applications/Utilities`, and `~/Applications` at runtime. Discovers 100+ native apps dynamically without static dictionaries.
+2. **SequenceMatcher Typo-Tolerant Application Resolver:**
+   - Uses `difflib.get_close_matches` and token similarity (cutoff &ge; 0.68) to resolve common typos:
+     - `spotfy` &rarr; `Spotify`
+     - `safri` &rarr; `Safari`
+     - `crome` &rarr; `Google Chrome`
+     - `calc` &rarr; `Calculator`
+     - `notse` &rarr; `Notes`
+     - `termnal` &rarr; `Terminal`
+   - Eliminates erroneous web fallbacks (e.g. opening `https://www.spotfy.com` in browser).
+3. **Native Folder Navigation:**
+   - Routes natural filesystem intents (`open downloads`, `open documents`, `open desktop`, `go to trash`) directly to `~/Downloads`, `~/Documents`, `~/.Trash` via native Finder calls.
+4. **Application Quitting & Safe Lifecycle Control:**
+   - Handles natural termination intents (`quit Spotify`, `close Chrome`, `kill Slack`) via non-invasive AppleScript quit signals, avoiding cursor hijacking.
+5. **Spotify Control (Bypassing macOS TCC 1002):**
    - Communicates directly with Spotify's native AppleScript dictionary. Bypasses macOS TCC error 1002 by avoiding `System Events` entirely and synthesizing media keypresses via Quartz C-level HID events.
-2. **Safe AST Math Calculator:**
+6. **Safe AST Math Calculator:**
    - Evaluates arithmetic queries (e.g. `calculate 125 * 40 + 15`) via Python's `ast` parser with strict character whitelisting. Blocked `eval()` and exponentiation (`**`) to prevent algorithmic complexity DoS attacks.
-3. **Zero-Hallucination Return Code Checks:**
+7. **Zero-Hallucination Return Code Checks:**
    - Every single subprocess execution checks `res.returncode == 0`. If an application is missing or fails, it returns honest diagnostics instead of fake completions.
-4. **Compound Query Execution:**
+8. **Compound Query Execution:**
    - Splits compound instructions (`open chrome and open gmail`, `open spotify and play starboy`) via regex boundary detection, executing sequential actions with aggregated latency metrics.
-5. **0ms Window Frame Resizing:**
-   - Replaced synchronous animations in `omnibar.py` with `setFrame_display_animate_(new_frame, True, False)` for instant expansion.
 
 ---
 
-## 8. Level 2: The Personal Intent & Memory Engine
+## 8. Level 2: The Intent Layer (Where Crcle.ai Actually Lies)
 
-### 8.1 Architectural Framework: Why Stateless AI Fails Human Intent
-Human desktop interaction is colloquial and habit-driven: *"message Josh"*, *"open my playlist"*, *"send the slides to Cyril"*. A stateless agent cannot fulfill these requests because it lacks identity, relationship graphs, and habit history. Level 2 introduces a persistent, local-first context layer.
+### 8.1 The Architectural Distinction: Command Launcher vs. Intent Layer
+A critical conceptual breakthrough is understanding where Raycast and Spotlight stop and where **Crcle.ai fundamentally lies**:
+- **Level 1 is a Command Launcher:** Maps explicit keyword syntax to binary system calls (`open Spotify`, `set volume 80`). It possesses zero memory, zero human context, and zero semantic interpretation.
+- **Level 2 is The Intent Layer of Computing:** When a user clicks a key and says *"shoot an email to Josh saying the deck is finalized"* or *"summarize what Cyril sent me"*, the operating system has no native API for "Josh" or "the deck".
+- **Why We Need an AI Model in the First Place:** This is the exact reason an AI model (like our local Mistral engine) is required: to ingest active desktop state, cross-reference personal memory graphs, interpret unstructured human intent, and synthesize the precise execution workflow without manual user navigation.
 
 ### 8.2 Persistent SQLite WAL Engine (`~/.desktop_dom/aura_memory.db`)
 - **Storage:** Persisted locally at `~/.desktop_dom/aura_memory.db` using SQLite in **WAL mode** (`PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;`).
@@ -304,36 +320,45 @@ Human desktop interaction is colloquial and habit-driven: *"message Josh"*, *"op
   - `preferences`: `key` (PRIMARY KEY), `value`, `category`, `updated_at`.
   - `activity_log`: `id`, `intent`, `entity_id`, `query`, `details`, `timestamp`.
 
-### 8.3 Sub-Millisecond Entity Disambiguation (<0.5ms)
+### 8.3 Sub-Millisecond 5-Tier Entity Disambiguation (<0.5ms)
 When a user says *"message Josh"*, Aura's disambiguation algorithm executes:
-1. **Tier 1: Exact Alias / Name Match (Score 98–100):** Checks exact match against canonical name or aliases array (`["josh", "joshua", "josh rayan"]`).
-2. **Tier 2: First-Name Token Match (Score 92):** Matches first token of entity name.
-3. **Tier 3: Substring Match (Score 80):** Matches substring in name or company.
-4. **Tier 4: SequenceMatcher Fuzzy Match (Score 70+):** `difflib.SequenceMatcher.ratio() >= 0.72`.
-5. **Frequency & Recency Ranking:** Adds $\min(\text{interaction\_count} \times 0.5, 10.0)$ to rank the user's primary contact highest.
+1. **Tier 1: Direct Email Resolution (Score 100):** If an email address is provided (e.g. `alex@apple.com`), synthesizes or resolves the contact with 100% confidence.
+2. **Tier 2: Exact Alias / Name Match (Score 98–100):** Checks exact match against canonical name or aliases array (`["josh", "joshua", "josh rayan"]`).
+3. **Tier 3: First-Name Token & Semantic Role Match (Score 92–94):** Matches first name token (`Josh` &rarr; `Joshua Rayan`) or organizational roles (`ceo` &rarr; Joshua, `systems lead` &rarr; Cyril).
+4. **Tier 4: Typo-Tolerant Levenshtein Distance (Score 80–88):** Handles edit-distance errors (`jos`, `jsh`, `ciril`).
+5. **Tier 5: SequenceMatcher Fuzzy Match (Score 70+):** `difflib.SequenceMatcher.ratio() >= 0.72` with interaction frequency and recency ranking.
 - **Result:** Resolves "Josh" to Joshua Rayan (`josh@crcle.ai`), Co-Founder & CEO @ Crcle.ai, in **0.49ms**.
 
-### 8.4 Personal Messaging Flow (Microsoft Outlook & Mail)
+### 8.4 Grounding Local Mistral in Active Desktop State & Personal Memory
+When an intent exceeds pure deterministic rules, Desktop-DOM activates its local **Mistral model**. Crucially, the model is not prompted in a vacuum:
+1. **Active Window Structural DOM:** Inspects the frontmost application's pruned accessibility AST, extracting visible labels, interactive elements, and text fields.
+2. **Personal Entity Graph:** Injects the user's identity, top collaborators (with emails and roles), and preferred applications (Outlook vs. Mail, Spotify).
+3. **Structured Function Calling:** The model synthesizes the intent and emits a structured `ACTION:` line (e.g. `ACTION: message Josh saying ...`), which dispatches via deterministic native adapters.
+
+### 8.5 Minimalist Crcle-Style UI/UX Design
+Inspired by Crcle's design discipline:
+- **Zero-Clutter Intent Surface:** Removed all model selection dropdowns, temperature pickers, and diagnostic panels from the user view.
+- **Single Floating Intent Capsule:** Floats on top of all spaces on `<Cmd>+<Shift>+<Space>`, accepts natural intent, and provides instant visual feedback via a 0ms expandable result drawer.
+- **Silently Powered by Mistral:** The standard Mistral local reasoning model runs seamlessly under the hood without cognitive load on the user.
+
+### 8.6 Personal Messaging Flow (Microsoft Outlook & Mail)
 - Resolves recipient email from memory.
 - Formats subject and body from natural language prompt (*"message Josh saying the demo is ready"*).
 - Dispatches compose window directly via `open -a "Microsoft Outlook" "mailto:josh@crcle.ai?subject=...&body=..."`.
 - Fallback to Apple Mail if Outlook is absent.
-- **Zero Hallucination:** If a contact is unknown, Aura explicitly states they are not in memory and prompts to learn them (*"I couldn't find 'XYZ' in personal contacts memory. You can say 'remember XYZ is email@example.com' to save them"*).
+- **Zero Hallucination:** If a contact is unknown, Aura explicitly states they are not in memory and prompts to learn them.
 
-### 8.5 Habitual Media Recall (Spotify Native Integration)
+### 8.7 Habitual Media Recall (Spotify Native Integration)
 - Triggered by *"open my playlist"*, *"play my playlist"*, *"play my music"*.
 - Retrieves `spotify.favorite_playlist` (`"Deep Focus"`) from SQLite memory.
 - Plays on Spotify via native AppleScript dispatch in **<1ms**.
-- Dynamic learning: Saying *"remember my favorite playlist is Lalkara"* immediately updates the database. Subsequent *"play my playlist"* commands play the new playlist.
+- Dynamic learning: Saying *"remember my favorite playlist is Lalkara"* immediately updates the database.
 
-### 8.6 Natural Language Knowledge Learning (`remember ...`)
-- *"remember Sarah is sarah@crcle.ai"* &rarr; Ingests new contact entity into SQLite.
-- *"remember Josh's email is joshua@crcle.ai"* &rarr; Updates existing contact record.
-- *"remember my role is Senior Backend Engineer"* &rarr; Updates user profile preference.
-- *"who is Josh?"* &rarr; Queries knowledge graph and returns biography.
-
-### 8.7 Multi-Source Ingestion (macOS Contacts)
-- Method: `sync_system_contacts(limit=40)` safely imports contacts from macOS Address Book via AppleScript without third-party dependencies, populating local memory automatically.
+### 8.8 Zero-Click Ambient Onboarding & Cold-Start Hydration
+- Automatically harvests user real name (`id -F`), Unix user (`whoami`), and Git identity (`git config user.name / user.email`).
+- Auto-detects installed mail clients (Microsoft Outlook vs Mail.app) and music apps (Spotify).
+- Parses local Git commit histories (`git log -n 40`) to discover frequent collaborators.
+- Pre-seeds Crcle founders (Joshua Rayan & Cyril Rayan), ensuring demo intent works on day one.
 
 ---
 

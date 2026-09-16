@@ -731,6 +731,79 @@ def test_assistant_broadened_messaging_phrasing(tmp_path):
         assert res_onb["status"] == "success"
         assert res_onb["action"] == "onboard"
 
+def test_assistant_fast_path_fuzzy_app_resolution(brain):
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value.returncode = 0
+        
+        # Typo: spotfy -> Spotify
+        res_spot = brain.execute_intent("open spotfy")
+        assert res_spot["status"] == "success"
+        assert res_spot["action"] == "open_app"
+        assert res_spot["target"] == "Spotify"
+
+        # Typo: safri -> Safari
+        res_saf = brain.execute_intent("open safri")
+        assert res_saf["status"] == "success"
+        assert res_saf["target"] == "Safari"
+
+        # Typo: crome -> Google Chrome
+        res_crome = brain.execute_intent("launch crome")
+        assert res_crome["status"] == "success"
+        assert res_crome["target"] == "Google Chrome"
+
+        # Abbreviation: calc -> Calculator
+        res_calc = brain.execute_intent("open calc")
+        assert res_calc["status"] == "success"
+        assert res_calc["target"] == "Calculator"
+
+        # Typo: notse -> Notes
+        res_notes = brain.execute_intent("switch to notse")
+        assert res_notes["status"] == "success"
+        assert res_notes["target"] == "Notes"
+
+def test_assistant_fast_path_folder_navigation(brain):
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value.returncode = 0
+
+        # Open downloads
+        res_down = brain.execute_intent("open downloads")
+        assert res_down["status"] == "success"
+        assert res_down["action"] == "open_folder"
+        assert res_down["folder"] == "downloads"
+        assert "Downloads" in res_down["path"]
+
+        # Open documents
+        res_docs = brain.execute_intent("go to documents")
+        assert res_docs["status"] == "success"
+        assert res_docs["action"] == "open_folder"
+        assert res_docs["folder"] == "documents"
+
+        # Open desktop
+        res_desk = brain.execute_intent("open desktop folder")
+        assert res_desk["status"] == "success"
+        assert res_desk["action"] == "open_folder"
+        assert res_desk["folder"] == "desktop"
+
+def test_assistant_fast_path_quit_app(brain):
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value.returncode = 0
+
+        # Quit Spotify
+        res_quit = brain.execute_intent("quit Spotify")
+        assert res_quit["status"] == "success"
+        assert res_quit["action"] == "quit_app"
+        assert res_quit["target"] == "Spotify"
+
+        # Close Chrome with typo
+        res_close = brain.execute_intent("close crome")
+        assert res_close["status"] == "success"
+        assert res_close["target"] == "Google Chrome"
+
+def test_assistant_mistral_standard_model_priority():
+    b_def = AssistantBrain()
+    assert "mistral" in b_def.preferred_model.lower()
+
+
 
 
 

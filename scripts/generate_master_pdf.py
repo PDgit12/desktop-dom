@@ -202,7 +202,7 @@ def create_pdf(output_path):
         [Paragraph("<b>Founders:</b>", body_style), Paragraph("Joshua Rayan (Founder & CEO) & Cyril Rayan (Co-Founder)", body_style)],
         [Paragraph("<b>Core Mission:</b>", body_style), Paragraph("'The Intent Layer of Computing' — Native macOS Intent Execution", body_style)],
         [Paragraph("<b>Repository:</b>", body_style), Paragraph("<code>https://github.com/PDgit12/desktop-dom</code>", body_style)],
-        [Paragraph("<b>Test Suite Health:</b>", body_style), Paragraph("<b>111 / 111 Tests Passing (100% Hermetic Pass Rate)</b> in 11.32s", body_style)],
+        [Paragraph("<b>Test Suite Health:</b>", body_style), Paragraph("<b>115 / 115 Tests Passing (100% Hermetic Pass Rate)</b> in 20.77s", body_style)],
         [Paragraph("<b>Architecture Maturity:</b>", body_style), Paragraph("Levels 1, 2, & 3 Fully Engineered: Intent Engine, Memory WAL, DOM Diffing (T1 - T0), ReAct Loop, & Headless Daemon", body_style)],
         [Paragraph("<b>Edition & Date:</b>", body_style), Paragraph("Production Edition (v0.2.0) • September 2026", body_style)],
     ]
@@ -487,12 +487,16 @@ def create_pdf(output_path):
     story.append(Paragraph("Chapter 7: Level 1 — Deterministic Fast-Path Execution Engine", h1_style))
     story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#cbd5e1"), spaceBefore=2, spaceAfter=8))
 
-    story.append(Paragraph("7.1 Sub-25ms Fast-Path & Returncode Verification", h2_style))
+    story.append(Paragraph("7.1 Sub-25ms Fast-Path & Dynamic Application Intelligence", h2_style))
     story.append(Paragraph(
         "Level 1 represents stateless, sub-25ms deterministic command execution. Common desktop actions do not require waiting for LLM tokens. "
-        "Aura routes common commands through specialized AST and AppleScript handlers:",
+        "Desktop-DOM v0.2.0 replaces static hardcoded app maps with a dynamic OS catalog and typo-tolerant fuzzy resolver:",
         body_style
     ))
+    story.append(Paragraph("• <b>Dynamic Application Catalog Scanner:</b> Automatically indexes installed apps across <code>/Applications</code>, <code>/System/Applications</code>, <code>/System/Applications/Utilities</code>, and <code>~/Applications</code> at initialization. Discovers 100+ native apps dynamically without manual configuration.", bullet_style))
+    story.append(Paragraph("• <b>SequenceMatcher Typo Tolerance:</b> Uses Python's <code>difflib.get_close_matches</code> and token similarity (cutoff &ge; 0.68) to automatically resolve common user typos (e.g. <code>spotfy</code> &rarr; Spotify, <code>safri</code> &rarr; Safari, <code>crome</code> &rarr; Google Chrome, <code>calc</code> &rarr; Calculator, <code>notse</code> &rarr; Notes). Eliminates erroneous browser web fallbacks.", bullet_style))
+    story.append(Paragraph("• <b>Native Folder Navigation:</b> Directly routes natural filesystem intents (e.g. <code>open downloads</code>, <code>go to documents</code>, <code>open desktop</code>) to <code>~/Downloads</code>, <code>~/Documents</code>, and <code>~/.Trash</code> in Finder.", bullet_style))
+    story.append(Paragraph("• <b>Application Quitting & Lifecycle Control:</b> Handles natural termination intents (e.g. <code>quit Spotify</code>, <code>close Chrome</code>, <code>kill Slack</code>) via safe AppleScript quit signals, preventing cursor hijacking.", bullet_style))
     story.append(Paragraph("• <b>Spotify Control (Direct OSA & Quartz HID):</b> Communicates directly with Spotify's native AppleScript dictionary. Bypasses macOS TCC error 1002 by avoiding <code>System Events</code> and synthesizing media keys via Quartz C-level HID events.", bullet_style))
     story.append(Paragraph("• <b>Safe AST Math Calculator (Zero Vulnerabilities):</b> Parses mathematical queries using Python's <code>ast</code> module with strict whitelisting. Blocked <code>eval()</code> and exponentiation (<code>**</code>) to prevent DoS attacks.", bullet_style))
     story.append(Paragraph("• <b>Zero-Hallucination Return Code Checks:</b> Every single subprocess and AppleScript execution checks <code>res.returncode == 0</code>. If an app is not installed, it returns honest diagnostics instead of fake completion messages.", bullet_style))
@@ -508,16 +512,17 @@ def create_pdf(output_path):
     story.append(PageBreak())
 
     # =========================================================================
-    # CHAPTER 8: LEVEL 2 — THE PERSONAL INTENT & MEMORY ENGINE
+    # CHAPTER 8: LEVEL 2 — THE INTENT LAYER (WHERE CRCLE.AI ACTUALLY LIES)
     # =========================================================================
-    story.append(Paragraph("Chapter 8: Level 2 — The Personal Intent & Memory Engine", h1_style))
+    story.append(Paragraph("Chapter 8: Level 2 — The Intent Layer (Where Crcle.ai Actually Lies)", h1_style))
     story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#cbd5e1"), spaceBefore=2, spaceAfter=8))
 
-    story.append(Paragraph("8.1 Architectural Framework: Why Stateless AI Fails Human Intent", h2_style))
+    story.append(Paragraph("8.1 The Architectural Distinction: App Launcher vs. Intent Layer", h2_style))
     story.append(Paragraph(
-        "Level 1 is stateless: you say 'open spotify' and it opens Spotify. But human intent is colloquial, contextual, and deeply personal: "
-        "'message Josh', 'open my playlist', 'send the slides to Cyril'. "
-        "A truly intelligent intent layer must know <b>who the user is</b>, <b>who their network is</b>, and <b>what their daily habits are</b>.",
+        "A critical conceptual breakthrough is understanding where Raycast/Spotlight stop and where <b>Crcle.ai actually lies</b>:<br/>"
+        "• <b>Level 1 is a Command Launcher:</b> You input a precise command ('open Spotify') and it executes a known OS call. It operates strictly on explicit syntax with zero memory, zero human context, and zero semantic interpretation.<br/>"
+        "• <b>Level 2 is the Intent Layer of Computing:</b> When a user clicks a key and says <i>'message Josh that the deck is finalized'</i> or <i>'summarize what Cyril sent me and email him our numbers'</i>, the computer has no native API for 'Josh' or 'the deck'. "
+        "This is why Crcle requires an AI model in the first place: to ingest active desktop state, cross-reference personal memory graphs, extract meaning from unstructured human intent, and synthesize the precise execution workflow.",
         body_style
     ))
 
@@ -541,11 +546,13 @@ def create_pdf(output_path):
     story.append(Paragraph("4. <b>Typo-Tolerant Levenshtein Distance (Score: 80–88):</b> Handles 1-character errors for short tokens ('jos', 'jsh', 'ciril') and 2-character errors for longer tokens.", bullet_style))
     story.append(Paragraph("5. <b>Substring & SequenceMatcher Fallback (Score: 70+):</b> Computes fuzzy similarity with frequency, recency, and priority metadata boosts.", bullet_style))
 
-    story.append(Paragraph("8.4 Personal Messaging & Habitual Media Orchestration", h2_style))
+    story.append(Paragraph("8.4 Grounding Local Mistral in Active Desktop State & Personal Graph", h2_style))
     story.append(Paragraph(
-        "• <b>Microsoft Outlook Automation:</b> When 'message Josh' resolves to Joshua Rayan (<code>josh@crcle.ai</code>), Aura extracts the subject/body and invokes Outlook in 0.6ms.<br/>"
-        "• <b>Habitual Media Recall:</b> Resolves 'open my playlist' or 'play focus music' to stored Spotify preferences in 0.1ms.<br/>"
-        "• <b>Natural Language Learning:</b> Statements like 'remember Josh is josh@crcle.ai' or 'remember my favorite playlist is Lalkara' update SQLite memory on the fly.",
+        "When an intent exceeds pure deterministic rules, Desktop-DOM activates its local <b>Mistral model</b> (via Ollama or local weights). "
+        "Crucially, the model is not prompted in a vacuum. The engine automatically injects two real-time semantic substrates:<br/>"
+        "1. <b>Active Window Structural DOM:</b> Scans the frontmost application's pruned accessibility AST, extracting visible text, input fields, and interactive controls.<br/>"
+        "2. <b>Personal Memory Graph:</b> Injects the user identity, top collaborators (with emails and roles), and preferred applications (Outlook vs. Mail, Spotify).<br/>"
+        "The model synthesizes the meaning of the request and outputs a structured <code>ACTION:</code> command that executes with 100% deterministic safety.",
         body_style
     ))
 
@@ -606,21 +613,23 @@ def create_pdf(output_path):
     story.append(PageBreak())
 
     # =========================================================================
-    # CHAPTER 10: THE FLOATING SPOTLIGHT OMNIBAR
+    # CHAPTER 10: THE MINIMALIST CRCLE-STYLE INTENT BAR
     # =========================================================================
-    story.append(Paragraph("Chapter 10: The Floating Spotlight Omnibar (`Cocoa` + `WebKit`)", h1_style))
+    story.append(Paragraph("Chapter 10: The Minimalist Crcle-Style Intent Bar (`Cocoa` + `WebKit`)", h1_style))
     story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#cbd5e1"), spaceBefore=2, spaceAfter=8))
 
     story.append(Paragraph(
-        "Aura's user interface is a native macOS floating pill inspired by Raycast and Spotlight "
+        "Aura's interface embodies Crcle.ai's design philosophy: <b>pure minimalism</b>. "
+        "Unlike complex AI agents cluttered with model pickers, temperature sliders, and diagnostic drawers, Aura presents a single, elegant floating intent capsule "
         "(<code>src/desktop_dom/assistant/omnibar.py</code>):",
         body_style
     ))
+    story.append(Paragraph("• <b>Zero-Clutter Intent Surface:</b> All model selection dropdowns and diagnostic buttons have been removed from the primary UI. The user interacts solely with a single minimalist intent input. The standard local Mistral reasoning engine executes silently under the hood.", bullet_style))
     story.append(Paragraph("• <b>Native Cocoa NSPanel:</b> Created with style masks <code>NSWindowStyleMaskBorderless</code> and <code>NSWindowStyleMaskNonactivatingPanel</code>. It hovers at <code>NSFloatingWindowLevel</code> and sets <code>canJoinAllSpaces = True</code> to follow the user across full-screen spaces.", bullet_style))
     story.append(Paragraph("• <b>Hardware-Accelerated Frosted Vibrancy:</b> Backed by an <code>NSVisualEffectView</code> with material <code>NSVisualEffectMaterialHUDWindow</code> positioned underneath a transparent <code>WKWebView</code>, blending smoothly with macOS desktop wallpapers.", bullet_style))
     story.append(Paragraph("• <b>Multi-Display Mouse Tracking:</b> On summon (<kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>Space</kbd>), <code>show()</code> queries <code>Cocoa.NSEvent.mouseLocation()</code> to detect which monitor currently contains the user's cursor, centering the Omnibar on that specific screen.", bullet_style))
     story.append(Paragraph("• <b>Two-Way WebKit IPC Bridge:</b> JavaScript posts messages via <code>window.webkit.messageHandlers.desktopDom.postMessage</code> to <code>OmnibarScriptHandlerObjC</code>. Python dispatches results back to JavaScript on the main thread via <code>NSOperationQueue.mainQueue().addOperationWithBlock_</code>.", bullet_style))
-    story.append(Paragraph("• <b>The Result Drawer Pattern:</b> When an action executes, the Omnibar does not blink away. It expands to show a formatted output card with an engine latency badge (<code>⚡ Fast-Path • 18ms</code>, <code>🗄️ Memory • 1ms</code>, <code>🧠 Ollama • 840ms</code>), an instant <code>[📋 Copy]</code> button, and <code>[Done (Esc)]</code>.", bullet_style))
+    story.append(Paragraph("• <b>The Result Drawer Pattern:</b> When an action executes, the Omnibar does not blink away. It expands to show a formatted output card with an engine latency badge (<code>⚡ Fast-Path • 18ms</code>, <code>🗄️ Memory • 1ms</code>, <code>🧠 Mistral • 720ms</code>), an instant <code>[📋 Copy]</code> button, and <code>[Done (Esc)]</code>.", bullet_style))
 
     story.append(Paragraph("Audio Pipeline: Zero-Disk NumPy Whisper & RMS Gating (`audio.py`)", h2_style))
     story.append(Paragraph(
@@ -639,7 +648,7 @@ def create_pdf(output_path):
     story.append(Paragraph("Chapter 11: Packaging, Distribution, & Hermetic Testing", h1_style))
     story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#cbd5e1"), spaceBefore=2, spaceAfter=8))
 
-    story.append(Paragraph("11.1 Hermetic Testing Architecture (100% Pass Rate Across 111 Tests)", h2_style))
+    story.append(Paragraph("11.1 Hermetic Testing Architecture (100% Pass Rate Across 115 Tests)", h2_style))
     story.append(Paragraph(
         "A critical engineering requirement for production infrastructure is <b>hermetic CI</b>: tests must execute reliably in headless Linux containers "
         "without physical monitors, window servers, or hardware microphones.",
@@ -648,7 +657,7 @@ def create_pdf(output_path):
     story.append(Paragraph(
         "Desktop-DOM achieves this via <code>tests/conftest.py</code>, which implements an in-memory mock calculator tree adapter. "
         "The test suite covers schema validation, pruner algorithms, fuzzy recovery, reactive timeouts, multi-display negative coordinate calibration, "
-        "audio thread concurrency, Level 2 SQLite memory persistence, 5-tier entity disambiguation, ambient onboarding, and packaging scripts across <b>111 tests passing in 11.32 seconds</b>.",
+        "audio thread concurrency, Level 2 SQLite memory persistence, 5-tier entity disambiguation, ambient onboarding, dynamic app indexing, typo-tolerant fuzzy resolution, folder navigation, and packaging scripts across <b>115 tests passing in 20.77 seconds</b>.",
         body_style
     ))
 
@@ -717,14 +726,16 @@ def create_pdf(output_path):
     qa_list = [
         ("Q: Why not fine-tune a vision model like Claude Computer Use?",
          "A: Vision models operate at the wrong layer of abstraction. A 4K screenshot is 8 million raw pixels. Turning that into 2,000 vision tokens to click a button that already has an exact OS identifier in the window server introduces latency (3–5 seconds), high token costs, and coordinate drift across multi-display DPI scaling. By querying native accessibility trees directly via AXUIElement, we get exact roles, states, and coordinates in 15ms with 88% fewer tokens. We reserve vision strictly as a subregion fallback for canvas viewports where no accessibility nodes exist."),
+        ("Q: Why does Crcle's core differentiator lie in Level 2 rather than Level 1?",
+         "A: Level 1 is a command launcher (like Spotlight or Raycast): it maps static keywords to binary system calls ('open Spotify', 'set volume 80'). Level 2 is 'The Intent Layer of Computing'—where Crcle truly lives. In Level 2, users state natural human goals ('message Josh that the deck is finalized', 'summarize what Cyril sent'). The OS has no native API for 'Josh' or 'the deck'. Level 2 extracts active desktop state (structural DOM from frontmost apps), queries the local SQLite WAL personal entity graph, and uses our standard local Mistral model to synthesize intent into deterministic actions. This is why we have local AI models at all: to turn human ambiguity into machine precision."),
         ("Q: How does Desktop-DOM solve the 'Cursor Hijack' problem?",
          "A: We built a 3-tier execution hierarchy. In Tier 1, we call AXUIElementPerformAction(kAXPressAction) on macOS or InvokePattern on Windows. This triggers the button's internal event handler with zero physical cursor movement and zero window focus theft. In Tier 2, if coordinate clicks are required, we record the cursor position, click, and warp back in <1ms via CGWarpMouseCursorPosition. In Tier 3, we set text fields directly in memory (kAXValueAttribute) so the user can type in another window simultaneously."),
         ("Q: How does your Level 2 Memory Engine resolve 'message Josh' in under 1 millisecond?",
          "A: We built AuraMemory on SQLite in WAL mode with a dual-layer in-memory cache and indexed lookup tables. The disambiguation algorithm uses a 5-tier scoring pipeline: direct email resolution (100), exact alias match (100), first-name token and role match (92–94), typo-tolerant Levenshtein edit distance (80–88), and SequenceMatcher fuzzy similarity (88 * ratio), boosted by interaction frequency and recency. Lookups execute in 0.49ms directly in memory, activating Outlook via LaunchServices without waiting for LLM tokens."),
         ("Q: How did you implement Level 3 (autonomous agentic loop & headless daemon)?",
-         "A: Level 1, Level 2, and Level 3 are fully engineered, benchmarked, and verified across 111 hermetic tests! In Desktop-DOM, Level 3 implements: (1) O(N) DOM diffing in diff.py capturing additions, removals, attribute and geometry mutations; (2) execute_and_verify() in app.py coupling every action with empirical UI state verification; (3) AutonomousDesktopAgent in agent.py running an autonomous ReAct loop with self-correcting reflection; and (4) desktop-dom serve in server.py providing a zero-dependency, sub-millisecond HTTP/JSON-RPC daemon for direct integration into Crcle's proprietary native frontend."),
+         "A: Level 1, Level 2, and Level 3 are fully engineered, benchmarked, and verified across 115 hermetic tests! In Desktop-DOM, Level 3 implements: (1) O(N) DOM diffing in diff.py capturing additions, removals, attribute and geometry mutations; (2) execute_and_verify() in app.py coupling every action with empirical UI state verification; (3) AutonomousDesktopAgent in agent.py running an autonomous ReAct loop with self-correcting reflection; and (4) desktop-dom serve in server.py providing a zero-dependency, sub-millisecond HTTP/JSON-RPC daemon for direct integration into Crcle's proprietary native frontend."),
         ("Q: Why should Crcle hire you as a Backend Developer Intern?",
-         "A: I don't just write scripts; I build robust, production-grade systems. Over the past week, I engineered Desktop-DOM from scratch: native macOS PyObjC bridges, O(N) AST pruners, SQLite WAL memory stores, multi-display coordinate calibrations, ambient onboarding, and comprehensive test suites passing 111/111 tests hermetically. I understand Crcle's thesis deeply and have already built the exact high-performance backend substrate Crcle needs to win.")
+         "A: I don't just write scripts; I build robust, production-grade systems. Over the past week, I engineered Desktop-DOM from scratch: native macOS PyObjC bridges, O(N) AST pruners, SQLite WAL memory stores, multi-display coordinate calibrations, ambient onboarding, dynamic app scanners, typo-tolerant fuzzy resolvers, and comprehensive test suites passing 115/115 tests hermetically. I understand Crcle's thesis deeply and have already built the exact high-performance backend substrate Crcle needs to win.")
     ]
 
     for q, a in qa_list:

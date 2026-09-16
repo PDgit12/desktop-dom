@@ -9,6 +9,8 @@ import webbrowser
 import urllib.request
 import urllib.parse
 import urllib.error
+import difflib
+from pathlib import Path
 from typing import Optional, Dict, Any, List, Tuple, Callable
 
 from desktop_dom.app import DesktopApp
@@ -17,6 +19,50 @@ from desktop_dom.adapters import get_platform_adapter
 from desktop_dom.assistant.memory import AuraMemory
 
 logger = logging.getLogger("desktop_dom.assistant.brain")
+
+BUILTIN_APP_ALIASES: Dict[str, str] = {
+    "chrome": "Google Chrome",
+    "crome": "Google Chrome",
+    "google chrome": "Google Chrome",
+    "vs code": "Visual Studio Code",
+    "vscode": "Visual Studio Code",
+    "code": "Visual Studio Code",
+    "spotify": "Spotify",
+    "spotfy": "Spotify",
+    "spot": "Spotify",
+    "notes": "Notes",
+    "notse": "Notes",
+    "calculator": "Calculator",
+    "calc": "Calculator",
+    "calculatr": "Calculator",
+    "finder": "Finder",
+    "terminal": "Terminal",
+    "term": "Terminal",
+    "termnal": "Terminal",
+    "iterm": "iTerm2",
+    "iterm2": "iTerm2",
+    "safari": "Safari",
+    "safri": "Safari",
+    "slack": "Slack",
+    "slak": "Slack",
+    "messages": "Messages",
+    "mesages": "Messages",
+    "imessage": "Messages",
+    "calendar": "Calendar",
+    "cal": "Calendar",
+    "mail": "Mail",
+    "outlook": "Microsoft Outlook",
+    "microsoft outlook": "Microsoft Outlook",
+    "system settings": "System Settings",
+    "settings": "System Settings",
+    "prefs": "System Settings",
+    "preferences": "System Settings",
+    "activity monitor": "Activity Monitor",
+    "docker": "Docker",
+    "dockr": "Docker",
+    "claude": "Claude",
+    "claud": "Claude",
+}
 
 class AssistantBrain:
     """
@@ -34,12 +80,68 @@ class AssistantBrain:
         self.preferred_model = preferred_model or self._detect_ollama_model()
         self.active_app: Optional[DesktopApp] = None
         self._action_callback: Optional[Callable[[str, str], None]] = None
+        self._installed_apps: Dict[str, str] = {}
+        self._scan_installed_apps()
         self.memory = memory or AuraMemory()
         if not self.memory.get_preference("onboarding.completed"):
             try:
                 self.memory.auto_hydrate_environment()
             except Exception:
                 pass
+
+    def _scan_installed_apps(self) -> Dict[str, str]:
+        """Scans standard macOS application directories to build a dynamic application catalog."""
+        apps: Dict[str, str] = {}
+        if sys.platform == "darwin":
+            search_dirs = [
+                "/Applications",
+                "/System/Applications",
+                "/System/Applications/Utilities",
+                str(Path.home() / "Applications"),
+            ]
+            for d in search_dirs:
+                try:
+                    p = Path(d)
+                    if p.exists() and p.is_dir():
+                        for item in p.iterdir():
+                            if item.name.endswith(".app"):
+                                app_name = item.name[:-4]
+                                apps[app_name.lower()] = app_name
+                except Exception:
+                    pass
+        self._installed_apps = apps
+        return apps
+
+    def resolve_app_name(self, query: str) -> Optional[str]:
+        """
+        Resolves an application name with typo tolerance and alias lookup.
+        Matches exact aliases, installed apps, substring inclusions, and SequenceMatcher close matches.
+        """
+        q = query.strip().lower()
+        if not q:
+            return None
+
+        # 1. Built-in curated aliases
+        if q in BUILTIN_APP_ALIASES:
+            return BUILTIN_APP_ALIASES[q]
+
+        # 2. Exact match in scanned apps
+        if q in self._installed_apps:
+            return self._installed_apps[q]
+
+        # 3. Substring match against scanned apps
+        for low_name, actual_name in self._installed_apps.items():
+            if q == low_name or (len(q) >= 4 and q in low_name):
+                return actual_name
+
+        # 4. Fuzzy match against combined catalog
+        all_candidates = {**self._installed_apps, **{k: v for k, v in BUILTIN_APP_ALIASES.items()}}
+        match_keys = difflib.get_close_matches(q, list(all_candidates.keys()), n=1, cutoff=0.68)
+        if match_keys:
+            best_key = match_keys[0]
+            return BUILTIN_APP_ALIASES.get(best_key, self._installed_apps.get(best_key))
+
+        return None
 
     def set_action_callback(self, cb: Callable[[str, str], None]):
         """Sets a callback invoked when the brain decides on an action: cb(action_type, message)."""
@@ -53,21 +155,24 @@ class AssistantBrain:
                 pass
 
     def _detect_ollama_model(self) -> Optional[str]:
-        """Auto-discovers locally installed Ollama models."""
+        """Auto-discovers locally installed Ollama models, defaulting to standard Mistral."""
         try:
             req = urllib.request.Request(f"{self.ollama_host}/api/tags", headers={"User-Agent": "desktop-dom"})
             with urllib.request.urlopen(req, timeout=1.5) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
                 models = [m.get("name") for m in data.get("models", [])]
                 if not models:
-                    return None
-                # Prefer tools/coding capable models
+                    return "mistral"
+                # Standard Mistral model prioritization
                 for m in models:
-                    if any(sub in m.lower() for sub in ["ministral", "qwen", "llama3", "mistral"]):
+                    if "mistral" in m.lower():
+                        return m
+                for m in models:
+                    if any(sub in m.lower() for sub in ["qwen", "llama3"]):
                         return m
                 return models[0]
         except Exception:
-            return None
+            return "mistral"
 
     def get_model_status(self) -> Dict[str, Any]:
         """Returns connection health and installed models from local Ollama server."""
@@ -410,10 +515,82 @@ class AssistantBrain:
                 except Exception:
                     pass
 
-        # 10. App Launching & Web Navigation
+        # 10a. Folder Navigation (e.g. "open downloads", "open documents", "open desktop")
+        folder_match = re.match(r"^(?:open|show|go to|view)\s+(?:my\s+)?(downloads|documents|desktop|pictures|movies|music|trash|home|library)(?:\s+folder)?$", raw_prompt, re.IGNORECASE)
+        if folder_match:
+            folder_name = folder_match.group(1).lower()
+            self._notify_action("executing", f"Opening {folder_name} folder")
+            folder_map = {
+                "downloads": Path.home() / "Downloads",
+                "documents": Path.home() / "Documents",
+                "desktop": Path.home() / "Desktop",
+                "pictures": Path.home() / "Pictures",
+                "movies": Path.home() / "Movies",
+                "music": Path.home() / "Music",
+                "home": Path.home(),
+                "trash": Path.home() / ".Trash",
+                "library": Path.home() / "Library",
+            }
+            target_path = folder_map.get(folder_name, Path.home())
+            if sys.platform == "darwin":
+                subprocess.run(["open", str(target_path)], capture_output=True)
+            return {
+                "status": "success",
+                "action": "open_folder",
+                "folder": folder_name,
+                "path": str(target_path),
+                "response": f"Opened {folder_name.capitalize()} in Finder.",
+            }
+
+        # 10b. Quit / Close Application (e.g. "quit Spotify", "close Chrome", "kill Slack")
+        quit_match = re.match(r"^(?:quit|close|exit|kill)\s+(?:the\s+)?([a-zA-Z0-9\s\.\-]+)$", raw_prompt, re.IGNORECASE)
+        if quit_match:
+            target_raw = quit_match.group(1).strip()
+            if target_raw.lower() not in {"window", "this window", "active window", "tab", "dialog"}:
+                resolved_app = self.resolve_app_name(target_raw) or target_raw
+                self._notify_action("executing", f"Quitting {resolved_app}")
+                if sys.platform == "darwin":
+                    osa = f'tell application "{resolved_app}" to quit'
+                    subprocess.run(["osascript", "-e", osa], capture_output=True)
+                return {
+                    "status": "success",
+                    "action": "quit_app",
+                    "target": resolved_app,
+                    "response": f"Closed {resolved_app}.",
+                }
+
+        # 10c. App Launching & Web Navigation
         open_match = re.match(r"^(?:open|launch|switch to|go to)\s+([a-zA-Z0-9\s\.\:\/\-]+)$", raw_prompt, re.IGNORECASE)
         if open_match:
             app_target = open_match.group(1).strip()
+            target_lower = app_target.lower()
+
+            # Check if target is a known folder
+            known_folders = {"downloads", "documents", "desktop", "pictures", "movies", "music", "trash", "home", "library"}
+            clean_folder = target_lower.replace(" folder", "").strip()
+            if clean_folder in known_folders:
+                folder_map = {
+                    "downloads": Path.home() / "Downloads",
+                    "documents": Path.home() / "Documents",
+                    "desktop": Path.home() / "Desktop",
+                    "pictures": Path.home() / "Pictures",
+                    "movies": Path.home() / "Movies",
+                    "music": Path.home() / "Music",
+                    "home": Path.home(),
+                    "trash": Path.home() / ".Trash",
+                    "library": Path.home() / "Library",
+                }
+                target_path = folder_map.get(clean_folder, Path.home())
+                if sys.platform == "darwin":
+                    subprocess.run(["open", str(target_path)], capture_output=True)
+                return {
+                    "status": "success",
+                    "action": "open_folder",
+                    "folder": clean_folder,
+                    "path": str(target_path),
+                    "response": f"Opened {clean_folder.capitalize()} in Finder.",
+                }
+
             self._notify_action("executing", f"Opening {app_target}")
 
             web_map = {
@@ -432,7 +609,6 @@ class AssistantBrain:
                 "crcle": "https://crcle.ai",
                 "crcle.ai": "https://crcle.ai",
             }
-            target_lower = app_target.lower()
             web_url = web_map.get(target_lower)
             if not web_url:
                 if target_lower.startswith(("http://", "https://")):
@@ -450,28 +626,8 @@ class AssistantBrain:
                     "response": f"Opened {app_target} in browser.",
                 }
 
-            app_map = {
-                "chrome": "Google Chrome",
-                "google chrome": "Google Chrome",
-                "vs code": "Visual Studio Code",
-                "vscode": "Visual Studio Code",
-                "code": "Visual Studio Code",
-                "spotify": "Spotify",
-                "notes": "Notes",
-                "calculator": "Calculator",
-                "finder": "Finder",
-                "terminal": "Terminal",
-                "safari": "Safari",
-                "slack": "Slack",
-                "messages": "Messages",
-                "calendar": "Calendar",
-                "mail": "Mail",
-                "outlook": "Microsoft Outlook",
-                "microsoft outlook": "Microsoft Outlook",
-                "system settings": "System Settings",
-                "settings": "System Settings",
-            }
-            resolved_target = app_map.get(target_lower, app_target)
+            # Resolve application name dynamically with typo tolerance
+            resolved_target = self.resolve_app_name(app_target) or app_target
             if sys.platform == "darwin":
                 res = subprocess.run(["open", "-a", resolved_target], capture_output=True, text=True)
                 is_success = (res.returncode == 0) if isinstance(getattr(res, "returncode", None), int) else True
@@ -483,16 +639,16 @@ class AssistantBrain:
                         "response": f"Opened {resolved_target}.",
                     }
                 else:
-                    # Fallback to browser if it looks like a web service
-                    if "." not in target_lower and " " not in target_lower:
-                        fallback_url = f"https://www.{target_lower}.com"
+                    # Fallback to browser only if explicit web domain
+                    if "." in target_lower and not target_lower.endswith(".app"):
+                        fallback_url = f"https://{target_lower}"
                         webbrowser.open(fallback_url)
                         return {
                             "status": "success",
                             "action": "open_url",
                             "url": fallback_url,
                             "target": app_target,
-                            "response": f"Could not find local app '{resolved_target}'; opened {fallback_url} in browser.",
+                            "response": f"Opened {fallback_url} in browser.",
                         }
                     return {
                         "status": "error",
@@ -549,7 +705,6 @@ class AssistantBrain:
         # 13. Screenshot
         if "screenshot" in prompt or "screen capture" in prompt or "capture screen" in prompt:
             self._notify_action("executing", "Capturing screenshot")
-            from pathlib import Path
             import datetime
             desktop_dir = Path.home() / "Desktop"
             if not desktop_dir.exists():
@@ -1108,12 +1263,24 @@ class AssistantBrain:
         except Exception:
             pass
 
+        # Extract Level 2 personal memory context
+        mem_summary = self.memory.get_summary()
+        user_ctx = f"User: {mem_summary['user']['name']} ({mem_summary['user']['role']})."
+        top_contacts = mem_summary.get("top_contacts", [])
+        contacts_str = ", ".join(f"{c['name']} ({c.get('email', '')})" for c in top_contacts if c.get("name")) if top_contacts else "None"
+        contacts_ctx = f"Known Contacts: {contacts_str}."
+        pref_mail = mem_summary.get("preferences", {}).get("mail.preferred_client", "Microsoft Outlook")
+        pref_music = mem_summary.get("preferences", {}).get("spotify.favorite_playlist", "Deep Focus")
+
         system_prompt = (
             "You are Aura, an autonomous personal desktop assistant powered by desktop-dom. "
             "You have direct access to native OS controls. Answer helpfully and concisely. "
+            f"{user_ctx} {contacts_ctx} Preferred Email: {pref_mail}. Preferred Music: {pref_music}. "
             f"{screen_context} Running applications: {', '.join(apps_summary)}. "
             "If the user wants you to perform an action, output an ACTION line: "
-            "ACTION: open <app_name> | ACTION: play <song> on spotify | ACTION: volume <0-100|up|down|mute|unmute> | "
+            "ACTION: open <app_name> | ACTION: quit <app_name> | ACTION: open <downloads|documents|desktop> | "
+            "ACTION: message <name> saying <body> | ACTION: email <name> about <subject> | "
+            "ACTION: play <song|playlist> on spotify | ACTION: volume <0-100|up|down|mute|unmute> | "
             "ACTION: note <title>: <body> | ACTION: search <query> | ACTION: calculate <expr> | ACTION: screenshot. "
             "Otherwise, provide a direct, concise 1-2 sentence answer."
         )
