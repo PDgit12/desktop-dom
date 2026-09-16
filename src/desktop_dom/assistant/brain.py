@@ -246,6 +246,8 @@ class AssistantBrain:
         if fast_result is not None:
             fast_result["latency_ms"] = round((time.time() - start_t) * 1000, 1)
             fast_result["engine"] = "fast_path"
+            if "level" not in fast_result:
+                fast_result["level"] = "1.0"
             return fast_result
 
         # 2. General Local LLM ReAct Planning
@@ -253,6 +255,8 @@ class AssistantBrain:
             llm_result = self._execute_with_local_llm(prompt)
             llm_result["latency_ms"] = round((time.time() - start_t) * 1000, 1)
             llm_result["engine"] = "ollama"
+            if "level" not in llm_result:
+                llm_result["level"] = "2.0"
             return llm_result
 
         elapsed_ms = round((time.time() - start_t) * 1000, 1)
@@ -937,6 +941,7 @@ end tell'''
                     return {
                         "status": "success",
                         "action": "send_message",
+                        "level": "2.5",
                         "recipient": name,
                         "email": email,
                         "company": entity.get("company", ""),
@@ -965,6 +970,7 @@ end tell'''
                     return {
                         "status": "success",
                         "action": "send_message",
+                        "level": "2.5",
                         "recipient": name,
                         "email": email,
                         "company": entity.get("company", ""),
@@ -981,6 +987,7 @@ end tell'''
                 return {
                     "status": "success",
                     "action": "send_message",
+                    "level": "2.5",
                     "recipient": name,
                     "email": email,
                     "company": entity.get("company", ""),
