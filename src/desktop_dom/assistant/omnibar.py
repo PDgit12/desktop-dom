@@ -486,7 +486,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         </svg>
       </div>
       <div class="input-wrap">
-        <input id="query-input" type="text" placeholder="Type an intent or command..." autocomplete="off" spellcheck="false" autofocus />
+        <input id="query-input" type="text" placeholder="Ask anything or express an intent..." autocomplete="off" spellcheck="false" autofocus />
       </div>
       <div class="header-tools">
         <div class="model-pill-btn" id="model-pill" title="Standard Mistral Engine" style="display: none;">
@@ -598,12 +598,12 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     let isDrawerOpen = false;
 
     const defaultActions = [
-      { iconType: "media", title: "Play Spotify", subtitle: "Play Starboy on Spotify", query: "Play Starboy on Spotify", badge: "Fast-Path" },
-      { iconType: "math", title: "Calculate Expression", subtitle: "Calculate 125 * 40 + 15", query: "Calculate 125 * 40 + 15", badge: "AST" },
-      { iconType: "volume", title: "Adjust Volume", subtitle: "Set volume to 80%", query: "Set volume to 80", badge: "System" },
-      { iconType: "app", title: "Activate Application", subtitle: "Open Calculator", query: "Open Calculator", badge: "App" },
-      { iconType: "screen", title: "Inspect Screen", subtitle: "What is on my screen?", query: "what is on my screen", badge: "DOM" },
-      { iconType: "app", title: "Open Downloads", subtitle: "Open Downloads folder in Finder", query: "open downloads", badge: "Finder" }
+      { iconType: "app", title: "Message Josh", subtitle: "Draft update to Josh about Crcle", query: "message Josh the deck is ready", badge: "Intent" },
+      { iconType: "screen", title: "What was I doing?", subtitle: "Summarize active desktop context & focus", query: "what was I doing?", badge: "Context" },
+      { iconType: "media", title: "Open YouTube", subtitle: "Contextual stream based on active task", query: "open youtube", badge: "Media" },
+      { iconType: "app", title: "Open My Repo", subtitle: "Active GitHub workspace & pull requests", query: "open my repo", badge: "Dev" },
+      { iconType: "media", title: "Play Music", subtitle: "Play contextual focus or gaming playlist", query: "play playlist", badge: "Music" },
+      { iconType: "math", title: "Quick Calculation", subtitle: "Evaluate arithmetic expression", query: "125 * 40 + 15", badge: "Math" }
     ];
 
     function updateSuggestions() {
@@ -617,8 +617,8 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         if (q.startsWith("/model") || q === "models" || q === "status") {
           currentSuggestions.push({
             iconType: "model",
-            title: "Manage AI Models",
-            subtitle: "View local Ollama neural weights & zero-model fast path",
+            title: "Active Intelligence Engine",
+            subtitle: "Local neural weights & fast-path intent router",
             query: "/model",
             badge: "Engine"
           });
@@ -644,9 +644,9 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
           currentSuggestions.push({
             iconType: "media",
             title: `Play "${q.replace(/play/i, "").replace(/on spotify/i, "").trim()}"`,
-            subtitle: "Spotify Media Controller (<120ms)",
+            subtitle: "Play in Spotify",
             query: q,
-            badge: "Spotify"
+            badge: "Music"
           });
         }
 
@@ -654,7 +654,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
           currentSuggestions.push({
             iconType: "volume",
             title: q,
-            subtitle: "System Audio Hardware Bus (<30ms)",
+            subtitle: "System audio control",
             query: q,
             badge: "System"
           });
@@ -664,8 +664,8 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
           const appName = q.replace(/^(open|launch)\s+/i, "").trim();
           currentSuggestions.push({
             iconType: "app",
-            title: `Activate ${appName}`,
-            subtitle: "DesktopApp Window Attachment (<80ms)",
+            title: `Open ${appName}`,
+            subtitle: "Launch or focus application",
             query: q,
             badge: "App"
           });
@@ -674,19 +674,19 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         if (q.toLowerCase().includes("screen") || q.toLowerCase().includes("window")) {
           currentSuggestions.push({
             iconType: "screen",
-            title: "Inspect Active Screen & Hierarchy",
-            subtitle: "Sub-50ms deterministic accessibility tree extraction",
+            title: "Inspect Active Screen",
+            subtitle: "Extract semantic UI hierarchy",
             query: q,
-            badge: "DOM"
+            badge: "Screen"
           });
         }
 
         currentSuggestions.push({
           iconType: "search",
-          title: `Ask Aura: "${q}"`,
-          subtitle: "Local Ollama ReAct Planning Loop",
+          title: q,
+          subtitle: "Execute intent via local intelligence",
           query: q,
-          badge: "Ollama"
+          badge: "Intent"
         });
       }
 
