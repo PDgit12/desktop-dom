@@ -280,7 +280,7 @@ def build_one_pager(output_path: str):
             Paragraph("<b>Founder Alignment</b>", cell_bold),
         ],
         [
-            Paragraph("<b>134 / 134 Passing (100%)</b><br/>Zero flaky tests in ~15s. Hermetic: schema, pruners, memory, context feed, daily routines, YouTube/GitHub, agent.", cell_body),
+            Paragraph("<b>135 / 135 Passing (100%)</b><br/>Zero flaky tests in ~16s. Hermetic: schema, pruners, memory, Chrome/macOS ingest, daily routines, agent.", cell_body),
             Paragraph("<b>SQLite in WAL Mode</b><br/>Dual-layer in-memory hot cache. 5-tier disambiguation executes in <b>0.49ms</b> with zero cloud lock.", cell_body),
             Paragraph("<b>Sub-ms Headless Daemon</b><br/><code>desktop-dom serve</code> on port 8484 exposes tree, intent, diff, and agent endpoints for Crcle.", cell_body),
             Paragraph("<b>Joshua & Cyril Rayan</b><br/>Delivers the exact high-velocity backend engine solving Crcle's core intent layer bottlenecks.", cell_body),

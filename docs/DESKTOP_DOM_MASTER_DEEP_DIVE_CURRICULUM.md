@@ -771,9 +771,10 @@ Before every action, Desktop-DOM captures DOM snapshot $T_0$. After execution, i
 
 ### 15.6 Certified System Metrics (Post-Implementation Audit)
 
-- **Total Hermetic Tests Passing:** **134 / 134 Tests (100% Pass Rate)**
-- **Test Suite Duration:** ~15.4 seconds in headless test environment.
+- **Total Hermetic Tests Passing:** **135 / 135 Tests (100% Pass Rate)**
+- **Test Suite Duration:** ~16.5 seconds in headless test environment.
 - **Telemetry Ingestion Latency:** $<20\text{ms}$ (OS Process + Chrome Active Tab).
+- **Local Persona Ingestion:** Real Chrome SQLite history, top visited web apps (`bloom.diy`, `luna.amazon.com`), YouTube topics, and Git identity (`PDgit12 <piyushdua01@gmail.com>`).
 - **Entity Disambiguation Latency:** $0.49\text{ms}$ (SQLite WAL + In-Memory Cache).
 - **DOM Diff Execution Latency:** $<0.25\text{ms}$ ($O(N)$ Tree Differ).
 - **Ghost Cursor Snapback:** $<0.8\text{ms}$ (`CGWarpMouseCursorPosition`).
@@ -781,5 +782,5 @@ Before every action, Desktop-DOM captures DOM snapshot $T_0$. After execution, i
 
 ---
 
-*Curriculum certified: 134/134 tests passing, production DMG/ZIP bundles ready, Git tree synchronized with PDgit12/desktop-dom.*
+*Curriculum certified: 135/135 tests passing, production DMG/ZIP bundles ready, Git tree synchronized with PDgit12/desktop-dom.*
 

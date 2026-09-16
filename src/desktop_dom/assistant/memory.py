@@ -894,6 +894,17 @@ class AuraMemory:
             logger.warning(f"macOS Contacts sync exception: {e}")
             return 0
 
+    def sync_local_persona(self) -> Dict[str, Any]:
+        """
+        Synchronizes real machine telemetry (Chrome history, top visited sites,
+        real YouTube channels, Git identity) into SQLite memory.
+        """
+        from desktop_dom.assistant.local_ingest import LocalMachineIngest
+        ingest = LocalMachineIngest(self)
+        res = ingest.sync_to_memory()
+        self._reload_cache()
+        return res
+
     # -------------------------------------------------------------------------
     # Zero-Click Ambient Onboarding & Environment Hydration
     # -------------------------------------------------------------------------

@@ -333,3 +333,20 @@ def test_remember_daily_routine(mock_memory):
     assert "open VS Code" in mock_memory.get_preference("routine.morning.desc")
 
 
+def test_sync_local_persona(mock_memory):
+    brain = AssistantBrain(memory=mock_memory)
+    with patch.object(mock_memory, "sync_local_persona") as mock_sync:
+        mock_sync.return_value = {
+            "status": "success",
+            "git_identity": {"name": "PDgit12", "email": "piyushdua01@gmail.com"},
+            "youtube_entries_ingested": 15,
+            "top_sites_ingested": 10,
+            "contacts_synced": 5,
+        }
+        res = brain.execute_intent("sync my data")
+        assert res.get("status") == "success"
+        assert res.get("action") == "sync_local_persona"
+        assert "15 YouTube items" in res.get("response", "")
+
+
+

@@ -626,7 +626,21 @@ class AssistantBrain:
                 "response": f"Executed your {r_name.capitalize()} routine: {summary_steps}.",
             }
 
-        # 9. Screen Introspection & Active Window Reading
+        # 9. Local Machine Ingestion & Personal History Sync ("sync my data", "sync my history", "learn my habits", "import my history")
+        if any(p in prompt for p in ["sync my data", "sync my history", "learn my habits", "import my history", "sync my machine"]):
+            self._notify_action("executing", "Ingesting Local Machine History & Telemetry")
+            res = self.memory.sync_local_persona()
+            yt_count = res.get("youtube_entries_ingested", 0)
+            sites_count = res.get("top_sites_ingested", 0)
+            return {
+                "status": "success",
+                "action": "sync_local_persona",
+                "level": "2.0",
+                "details": res,
+                "response": f"Ingested your real machine data: {yt_count} YouTube items, {sites_count} top web applications, and local Git identity.",
+            }
+
+        # 10. Screen Introspection & Active Window Reading
         if any(p in prompt for p in ["what is on my screen", "what's on my screen", "inspect screen", "read screen", "inspect active window", "read active window", "summarize screen", "what is on screen"]):
             return self._control_inspect_screen(prompt)
 
