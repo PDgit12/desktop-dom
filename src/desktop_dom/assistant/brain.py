@@ -61,8 +61,13 @@ BUILTIN_APP_ALIASES: Dict[str, str] = {
     "activity monitor": "Activity Monitor",
     "docker": "Docker",
     "dockr": "Docker",
+    "docker desktop": "Docker",
     "claude": "Claude",
     "claud": "Claude",
+    "chatgpt": "ChatGPT",
+    "gpt": "ChatGPT",
+    "granola": "Granola",
+    "zed": "Zed",
 }
 
 class AssistantBrain:
@@ -123,6 +128,19 @@ class AssistantBrain:
         q = query.strip().lower()
         if not q:
             return None
+
+        # 0. Check memory-configured primary apps & functional categories
+        if hasattr(self, "memory") and self.memory:
+            if q in {"browser", "web browser", "internet"}:
+                return self.memory.get_preference("apps.primary_browser", "Google Chrome")
+            if q in {"mail", "email", "email client", "mail client"}:
+                return self.memory.get_preference("mail.preferred_client", "Microsoft Outlook")
+            if q in {"music", "songs", "player", "music player"}:
+                return self.memory.get_preference("music.preferred_player", "Spotify")
+            if q in {"terminal", "console", "shell", "command line"}:
+                return self.memory.get_preference("apps.primary_terminal", "Terminal")
+            if q in {"ai", "assistant", "ai assistant"}:
+                return self.memory.get_preference("apps.primary_ai", "ChatGPT")
 
         # 1. Built-in curated aliases
         if q in BUILTIN_APP_ALIASES:
@@ -222,7 +240,7 @@ class AssistantBrain:
         self._notify_action("thinking", f"Processing: '{prompt}'")
 
         # 0. Multi-Action Compound Query Support (e.g. "open chrome and open gmail", "open outlook and message josh")
-        if (" and " in clean_prompt or " then " in clean_prompt) and not any(clean_prompt.startswith(p) for p in ["what", "who", "where", "why", "how", "tell", "explain", "describe", "search", "google", "calculate", "type", "note", "remember"]):
+        if (" and " in clean_prompt or " then " in clean_prompt) and not any(clean_prompt.startswith(p) for p in ["what", "who", "where", "why", "how", "tell", "explain", "describe", "search", "google", "calculate", "type", "note", "remember", "shared", "connect", "link"]):
             parts = [s.strip() for s in re.split(r"\s+(?:and|then)\s+", prompt, flags=re.IGNORECASE) if s.strip()]
             if len(parts) > 1 and all(len(p) > 2 for p in parts):
                 normalized = []
@@ -310,25 +328,85 @@ class AssistantBrain:
             }
 
         # 1. Personal Context & Memory Status / Sync / Onboarding
-        if prompt in {"/onboard", "onboard", "setup", "run onboarding"}:
+        if prompt in {"/onboard", "onboard", "setup", "run onboarding", "onboarding", "ambient onboarding"}:
             summary = self.memory.auto_hydrate_environment()
             user_str = f"{summary.get('user_name', 'User')} ({summary.get('user_email', '')})"
             mail_str = summary.get("mail_client", "Mail")
             music_str = f"{summary.get('music_player', 'Spotify')} ('{self.memory.get_preference('spotify.favorite_playlist', 'Deep Focus')}')"
             
-            resp = (
-                f"✓ Ambient Onboarding Complete ({summary.get('elapsed_ms', 0)}ms)\n"
-                f"• Identity: {user_str}\n"
-                f"• Preferred Mail: {mail_str}\n"
-                f"• Habitual Music: {music_str}\n"
-                f"• Contacts Hydrated: {len(self.memory._entity_cache)} records in SQLite WAL\n"
-                f"• Personal Intent Engine: Level 2 Active (<0.5ms resolution)"
-            )
+            top_apps = self.memory.get_most_used_apps(limit=10)
+            app_lines = []
+            if top_apps:
+                by_cat: Dict[str, List[str]] = {}
+                for a in top_apps:
+                    cat = a.get("category", "utility").replace("_", " ").title()
+                    status = "Active" if a.get("is_running") else "Dock" if a.get("is_dock_pinned") else "Installed"
+                    by_cat.setdefault(cat, []).append(f"{a['name']} ({status})")
+                for cat, app_list in by_cat.items():
+                    icon = {"Browser": "🌐", "Communication": "💬", "Developer": "💻", "Ai Assistant": "🤖", "Media": "🎵", "Productivity": "📊"}.get(cat, "📦")
+                    app_lines.append(f"  {icon} {cat}: {', '.join(app_list)}")
+
+            graph_summary = self.memory.get_graph_summary()
+            graph_str = f"{graph_summary.get('nodes_count', len(self.memory._entity_cache))} nodes, {graph_summary.get('edges_count', len(self.memory._graph_edges))} edges ({len(graph_summary.get('clusters', []))} clusters)"
+
+            lines = [
+                f"✓ Ambient Onboarding Complete ({summary.get('elapsed_ms', 0)}ms)",
+                f"• Identity: {user_str}",
+                f"• Preferred Mail: {mail_str}",
+                f"• Habitual Music: {music_str}",
+            ]
+            if app_lines:
+                lines.append("• Top Detected Applications (Knowledge Graph Ingested):")
+                lines.extend(app_lines)
+            lines.append(f"• Knowledge Graph: {graph_str}")
+            lines.append("• Personal Intent Engine: Level 2 Active (<0.5ms resolution)")
+
+            resp = "\n".join(lines)
             self._notify_action("completed", "Onboarding completed")
             return {
                 "status": "success",
                 "action": "onboard",
                 "summary": summary,
+                "top_apps": top_apps,
+                "response": resp,
+            }
+
+        # 1b. Most-Used Applications Telemetry & Graph Intent
+        if prompt in {
+            "most used apps", "my top apps", "top apps", "favorite apps",
+            "show apps", "my apps", "what are my most used apps", "list apps",
+            "show most used apps", "check top apps", "app graph"
+        }:
+            apps = self.memory.get_most_used_apps(limit=12)
+            if not apps:
+                self.memory.auto_hydrate_environment()
+                apps = self.memory.get_most_used_apps(limit=12)
+
+            lines = ["Your Most-Used Applications (Live Telemetry & Graph Indexed):"]
+            for idx, a in enumerate(apps, 1):
+                flags = []
+                if a.get("is_running"):
+                    flags.append("Running")
+                if a.get("is_dock_pinned"):
+                    flags.append("Dock Pinned")
+                if a.get("is_installed"):
+                    flags.append("Installed")
+                flag_str = f" | {', '.join(flags)}" if flags else ""
+                lines.append(f"{idx}. {a['name']} ({a.get('role', 'App')} | score: {a.get('score', 0)}{flag_str})")
+
+            pref_browser = self.memory.get_preference("apps.primary_browser", "Google Chrome")
+            pref_mail = self.memory.get_preference("mail.preferred_client", "Microsoft Outlook")
+            pref_music = self.memory.get_preference("music.preferred_player", "Spotify")
+            pref_term = self.memory.get_preference("apps.primary_terminal", "Terminal")
+            pref_ai = self.memory.get_preference("apps.primary_ai", "ChatGPT")
+
+            lines.append(f"\nDefaults: Browser: {pref_browser} | Mail: {pref_mail} | Music: {pref_music} | Terminal: {pref_term} | AI: {pref_ai}")
+            resp = "\n".join(lines)
+            self._notify_action("completed", "Most-used apps retrieved")
+            return {
+                "status": "success",
+                "action": "most_used_apps",
+                "apps": apps,
                 "response": resp,
             }
 
@@ -338,13 +416,16 @@ class AssistantBrain:
             user_info = f"{summary['user']['name']} ({summary['user']['role']})"
             fav_playlist = summary["preferences"].get("spotify.favorite_playlist", "Deep Focus")
             pref_client = summary["preferences"].get("mail.preferred_client", "Microsoft Outlook")
+            graph_info = summary.get("graph", {})
+            graph_line = f"\n• Knowledge Graph: {graph_info.get('nodes_count', 0)} nodes, {graph_info.get('edges_count', 0)} edges ({len(graph_info.get('clusters', []))} clusters)" if graph_info else ""
             
             resp = (
                 f"Personal Memory Engine Active ({summary['contacts_count']} contacts stored).\n"
                 f"• User: {user_info}\n"
                 f"• Top Contacts: {contacts_list}\n"
                 f"• Favorite Playlist: '{fav_playlist}' (Spotify)\n"
-                f"• Preferred Mail: {pref_client}\n"
+                f"• Preferred Mail: {pref_client}"
+                f"{graph_line}\n"
                 f"• Memory DB: {summary['db_path']}"
             )
             self._notify_action("completed", "Memory summary retrieved")
@@ -365,8 +446,8 @@ class AssistantBrain:
                 "response": f"Synced {count} new contacts from macOS Address Book into local memory.",
             }
 
-        # Natural Language Knowledge & Memory Learning ("remember ...")
-        if prompt.startswith("remember ") or prompt.startswith("learn "):
+        # Natural Language Knowledge & Memory Learning ("remember ...", "connect ...", "link ...")
+        if prompt.startswith("remember ") or prompt.startswith("learn ") or prompt.startswith("connect ") or prompt.startswith("link "):
             mem_res = self.memory.remember(raw_prompt)
             self._notify_action("completed", mem_res.get("response", "Remembered."))
             return mem_res
@@ -411,8 +492,89 @@ class AssistantBrain:
                 "response": f"You have {len(habits)} stabilized habits recorded in local SQLite memory with anti-drift protection.",
             }
 
+        # Knowledge Graph Topology & Visualization ("show graph", "view graph", "knowledge graph", "graph topology", "graph summary")
+        if clean_p in {
+            "show graph", "view graph", "show knowledge graph", "view knowledge graph",
+            "knowledge graph", "graph summary", "graph topology", "show graph topology",
+            "show my graph", "what is in my graph", "graph", "show connections"
+        }:
+            ascii_graph = self.memory.format_graph_ascii()
+            summary = self.memory.get_graph_summary()
+            self._notify_action("completed", f"Graph: {summary['nodes_count']} nodes, {summary['edges_count']} edges")
+            return {
+                "status": "success",
+                "action": "knowledge_graph",
+                "level": "2.5",
+                "summary": summary,
+                "response": ascii_graph,
+            }
+
+        # Knowledge Graph Connection Query ("who is connected to ...", "connections for ...", "graph connections for ...")
+        graph_conn_match = re.match(
+            r"^(?:who\s+is\s+connected\s+to|what\s+is\s+connected\s+to|connections\s+(?:for|of)|graph\s+connections\s+(?:for|of))\s+([a-zA-Z0-9\s]+?)\??$",
+            raw_prompt,
+            re.IGNORECASE
+        )
+        if graph_conn_match:
+            tgt_name = graph_conn_match.group(1).strip()
+            ent = self.memory.resolve_entity(tgt_name)
+            if not ent:
+                return {
+                    "status": "not_found",
+                    "action": "graph_connections",
+                    "target": tgt_name,
+                    "response": f"I couldn't find '{tgt_name}' in the knowledge graph.",
+                }
+            conns = self.memory.get_connected_nodes(ent["id"])
+            self._notify_action("completed", f"Found {len(conns)} graph connections for {ent['name']}")
+            lines = [f"Connections for {ent['name']} ({len(conns)} total):"]
+            for c in conns:
+                arrow = "──>" if c["direction"] == "outgoing" else "<──"
+                lines.append(f"  • {ent['name']} {arrow} [{c['relation']}] {arrow} {c['node_name']} ({c['node_role'] or c['node_category']}) [{c['cluster']}]")
+            return {
+                "status": "success",
+                "action": "graph_connections",
+                "level": "2.5",
+                "target": ent["name"],
+                "connections": conns,
+                "response": "\n".join(lines),
+            }
+
+        # Knowledge Graph Shared Context Query ("shared context between X and Y")
+        shared_ctx_match = re.match(
+            r"^shared\s+context\s+between\s+([a-zA-Z0-9\s]+?)\s+and\s+([a-zA-Z0-9\s]+?)\??$",
+            raw_prompt,
+            re.IGNORECASE
+        )
+        if shared_ctx_match:
+            s_name = shared_ctx_match.group(1).strip()
+            t_name = shared_ctx_match.group(2).strip()
+            shared = self.memory.find_shared_context(s_name, t_name)
+            if shared["status"] == "not_found":
+                return {
+                    "status": "not_found",
+                    "action": "shared_context",
+                    "response": f"Could not find entities for '{s_name}' or '{t_name}'.",
+                }
+            if shared["status"] == "connected":
+                resp_text = (
+                    f"Shared Context: {shared['source']} & {shared['target']} (Graph Distance: {shared['distance']})\n"
+                    f"• Primary Topic: {shared['primary_topic']}\n"
+                    f"• Shared Entities: {', '.join([e['name'] for e in shared['shared_entities']]) or 'None'}\n"
+                    f"• Direct Relations: {', '.join([r['relation'] for r in shared['direct_relations']]) or 'None'}"
+                )
+            else:
+                resp_text = f"{shared['source']} and {shared['target']} belong to disjoint clusters in the knowledge graph (zero shared work context)."
+            return {
+                "status": "success",
+                "action": "shared_context",
+                "level": "2.5",
+                "shared": shared,
+                "response": resp_text,
+            }
+
         # Contact Biography & Knowledge Query ("who is ...", "tell me about ...")
-        who_match = re.match(r"^(?:who\s+is|tell\s+me\s+about)\s+([a-zA-Z0-9\s]+?)\??$", raw_prompt, re.IGNORECASE)
+        who_match = re.match(r"^(?:who\s+is|tell\s+me\s+about)\s+(?!connected\s+to)([a-zA-Z0-9\s]+?)\??$", raw_prompt, re.IGNORECASE)
         if who_match:
             target = who_match.group(1).strip()
             bio = self.memory.who_is(target)
@@ -543,8 +705,8 @@ class AssistantBrain:
             }
 
         # 5. YouTube & Video Streaming Intent Flow ("open youtube", "watch youtube", "watch something", "watch fireship", "watch primeagen")
-        yt_direct_match = re.match(r"^(?:open|watch|play|go\s+to)\s+(?:my\s+)?(?:youtube|videos?)(?:\s+(?:video|channel))?$", raw_prompt.strip(), re.IGNORECASE)
-        yt_watch_match = re.match(r"^(?:watch|open\s+youtube\s+for)\s+(.+)$", raw_prompt.strip(), re.IGNORECASE)
+        yt_direct_match = re.match(r"^(?:open|launch|go\s+to)\s+(?:my\s+)?(?:youtube|yt)(?:\s+(?:video|channel|home))?$", raw_prompt.strip(), re.IGNORECASE)
+        yt_watch_match = re.match(r"^(?:watch|open\s+youtube\s+for)\s*(.*)$", raw_prompt.strip(), re.IGNORECASE)
         if yt_direct_match or (yt_watch_match and not any(w in prompt for w in ["netflix", "movie", "tv", "song", "track", "spotify"])):
             channel_query = None
             if yt_watch_match:
@@ -554,11 +716,20 @@ class AssistantBrain:
             snapshot = self.context_feed.capture_active_context(record=True)
             self._current_context_snapshot = snapshot
 
-            rec = self.memory.get_youtube_recommendation(context_category=snapshot.activity_category, channel_query=channel_query)
-            dest_url = rec["url"]
-            channel_name = rec["channel"]
-            topic_name = rec["topic"]
-            cat_name = rec["category"]
+            if yt_direct_match and not channel_query:
+                # Direct, clean navigation to YouTube Home feed — never force arbitrary third-party creators!
+                dest_url = "https://www.youtube.com"
+                channel_name = "YouTube"
+                topic_name = "Home Feed"
+                cat_name = "General"
+                resp_text = "Opening YouTube Home in browser."
+            else:
+                rec = self.memory.get_youtube_recommendation(context_category=snapshot.activity_category, channel_query=channel_query)
+                dest_url = rec["url"]
+                channel_name = rec["channel"]
+                topic_name = rec["topic"]
+                cat_name = rec["category"]
+                resp_text = f"Opening {channel_name} ({topic_name}) on YouTube based on your active {cat_name} context and viewing history."
 
             self._notify_action("executing", f"Opening YouTube: {channel_name} ({topic_name})")
 
@@ -603,7 +774,7 @@ class AssistantBrain:
                 "topic": topic_name,
                 "category": cat_name,
                 "url": dest_url,
-                "response": f"Opening {channel_name} ({topic_name}) on YouTube based on your active {cat_name} context and viewing history.",
+                "response": resp_text,
             }
 
         # 6. GitHub & Developer Workspace Intent Flow ("open my repo", "open github", "open pull requests", "open prs")
@@ -860,6 +1031,33 @@ class AssistantBrain:
 
             self._notify_action("executing", f"Opening {app_target}")
 
+            # 1. Explicit URLs or web domains
+            is_explicit_url = target_lower.startswith(("http://", "https://")) or any(target_lower.endswith(tld) for tld in [".com", ".ai", ".io", ".org", ".net", ".app", ".dev", ".co", ".edu"])
+            if is_explicit_url and not target_lower.endswith(".app"):
+                web_url = target_lower if target_lower.startswith(("http://", "https://")) else f"https://{app_target}"
+                webbrowser.open(web_url)
+                return {
+                    "status": "success",
+                    "action": "open_url",
+                    "url": web_url,
+                    "target": app_target,
+                    "response": f"Opened {app_target} in browser.",
+                }
+
+            # 2. Native Desktop Application Launch (with Category & Habit Resolution)
+            resolved_target = self.resolve_app_name(app_target) or app_target
+            if sys.platform == "darwin":
+                res = subprocess.run(["open", "-a", resolved_target], capture_output=True, text=True)
+                is_success = (res.returncode == 0) if isinstance(getattr(res, "returncode", None), int) else True
+                if is_success:
+                    return {
+                        "status": "success",
+                        "action": "open_app",
+                        "target": resolved_target,
+                        "response": f"Opened {resolved_target}.",
+                    }
+
+            # 3. Web Service Fallback (if native app is not installed or platform fallback)
             web_map = {
                 "gmail": "https://mail.google.com",
                 "google mail": "https://mail.google.com",
@@ -875,12 +1073,6 @@ class AssistantBrain:
                 "crcle.ai": "https://crcle.ai",
             }
             web_url = web_map.get(target_lower)
-            if not web_url:
-                if target_lower.startswith(("http://", "https://")):
-                    web_url = app_target
-                elif any(target_lower.endswith(tld) for tld in [".com", ".ai", ".io", ".org", ".net", ".app", ".dev", ".co", ".edu"]):
-                    web_url = f"https://{app_target}"
-
             if web_url:
                 webbrowser.open(web_url)
                 return {
@@ -891,36 +1083,25 @@ class AssistantBrain:
                     "response": f"Opened {app_target} in browser.",
                 }
 
-            # Resolve application name dynamically with typo tolerance
-            resolved_target = self.resolve_app_name(app_target) or app_target
             if sys.platform == "darwin":
-                res = subprocess.run(["open", "-a", resolved_target], capture_output=True, text=True)
-                is_success = (res.returncode == 0) if isinstance(getattr(res, "returncode", None), int) else True
-                if is_success:
+                # Fallback to browser only if domain-like
+                if "." in target_lower and not target_lower.endswith(".app"):
+                    fallback_url = f"https://{target_lower}"
+                    webbrowser.open(fallback_url)
                     return {
                         "status": "success",
-                        "action": "open_app",
-                        "target": resolved_target,
-                        "response": f"Opened {resolved_target}.",
+                        "action": "open_url",
+                        "url": fallback_url,
+                        "target": app_target,
+                        "response": f"Opened {fallback_url} in browser.",
                     }
-                else:
-                    # Fallback to browser only if explicit web domain
-                    if "." in target_lower and not target_lower.endswith(".app"):
-                        fallback_url = f"https://{target_lower}"
-                        webbrowser.open(fallback_url)
-                        return {
-                            "status": "success",
-                            "action": "open_url",
-                            "url": fallback_url,
-                            "target": app_target,
-                            "response": f"Opened {fallback_url} in browser.",
-                        }
-                    return {
-                        "status": "error",
-                        "action": "open_app",
-                        "target": resolved_target,
-                        "response": f"Could not find application '{resolved_target}'.",
-                    }
+                return {
+                    "status": "error",
+                    "action": "open_app",
+                    "target": resolved_target,
+                    "response": f"Could not find application '{resolved_target}'.",
+                }
+
             return {"status": "success", "action": "open_app", "target": resolved_target, "response": f"Opened {resolved_target}."}
 
         # 11. Web Search / Browser
@@ -1211,14 +1392,44 @@ class AssistantBrain:
                 snap = self.context_feed.capture_active_context(record=False)
             except Exception:
                 pass
-            if snap and snap.focused_topic and snap.focused_topic not in ["Desktop", "General", "Main Window"]:
-                subject = f"Update: {snap.focused_topic}"
-                body = f"Working on {snap.focused_topic}"
-                draft_body = f"Hi {first_name},\n\nSharing a quick update on {snap.focused_topic}. Let me know if you have a few minutes to connect on this today.\n\n{signature}"
+            work_topic = None
+            if snap and snap.focused_topic:
+                raw_top = snap.focused_topic.strip()
+                # Clean notification badges (e.g. '(6) ') and domain suffixes
+                clean_top = re.sub(r"^\(\d+\)\s*", "", raw_top)
+                clean_top = re.sub(r"\s*-\s*(?:YouTube|Google Chrome|Google Search|Reddit|Twitter|X|Wikipedia)$", "", clean_top, flags=re.IGNORECASE).strip()
+
+                # Filter out personal media/entertainment/gaming from work emails!
+                is_non_work = (
+                    snap.activity_category in ["Media", "Entertainment", "Gaming"]
+                    or any(noise in clean_top.lower() for noise in [
+                        "youtube", "spotify", "netflix", "twitch", "game", "fifa",
+                        "desktop", "general", "main window", "new tab", "media:", "untitled", "reddit", "twitter"
+                    ])
+                )
+                if not is_non_work and len(clean_top) > 3:
+                    work_topic = clean_top
+
+            # Resolve work topic via Knowledge Graph if active window is personal media or ambiguous
+            if not work_topic:
+                shared_ctx = self.memory.find_shared_context(user_name, name, cluster="work")
+                default_repo = self.memory.get_preference("github.default_repo", "")
+                company = user_company or "Crcle.ai"
+                if shared_ctx.get("primary_topic"):
+                    work_topic = shared_ctx["primary_topic"]
+                elif "desktop-dom" in default_repo:
+                    work_topic = "desktop-dom"
+                elif company:
+                    work_topic = company
+
+            if work_topic and work_topic not in ["Desktop", "General"]:
+                subject = f"Update: {work_topic}"
+                body = f"Working on {work_topic}"
+                draft_body = f"Hi {first_name},\n\nSharing a quick update on our progress with {work_topic}. Let me know if you have a few minutes to connect today.\n\n{signature}"
             else:
                 subject = "Quick Sync"
                 body = ""
-                draft_body = f"Hi {first_name},\n\nHope you are having a productive week! Wanted to connect briefly regarding our progress.\n\n{signature}"
+                draft_body = f"Hi {first_name},\n\nWanted to connect briefly regarding our progress. Let me know when you have a few minutes to sync today.\n\n{signature}"
 
         encoded_subject = urllib.parse.quote(subject)
         encoded_body = urllib.parse.quote(draft_body)

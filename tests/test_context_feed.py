@@ -1,4 +1,5 @@
 import time
+import json
 import pytest
 from unittest.mock import patch, MagicMock
 from desktop_dom.assistant.context_feed import ContextFeedEngine, ActiveContextSnapshot
@@ -212,7 +213,7 @@ def test_youtube_recommendation_engineering_context(mock_memory):
             browser_title=None,
         )
         with patch("webbrowser.open") as mock_open:
-            res = brain.execute_intent("open youtube")
+            res = brain.execute_intent("watch youtube")
             assert res.get("status") == "success"
             assert res.get("action") == "youtube_intent"
             assert res.get("level") == "2.0"
@@ -276,7 +277,7 @@ def test_youtube_remember_favorite_channel(mock_memory):
             browser_title=None,
         )
         with patch("webbrowser.open") as mock_open:
-            res = brain.execute_intent("open youtube")
+            res = brain.execute_intent("watch youtube")
             assert res.get("channel") == "Fireship"
 
 
@@ -509,6 +510,272 @@ def test_habits_and_preferences_inspection(mock_memory):
     assert res.get("level") == "2.0"
     assert isinstance(res.get("habits"), list)
     assert "anti-drift protection" in res.get("response", "")
+
+
+def test_email_draft_filters_personal_media_leakage(mock_memory):
+    brain = AssistantBrain(memory=mock_memory)
+    # Simulate user having YouTube active in Chrome with Diljit Dosanjh
+    with patch.object(brain.context_feed, "capture_active_context") as mock_cap, patch("subprocess.run") as mock_run:
+        mock_run.return_value.returncode = 0
+        mock_cap.return_value = ActiveContextSnapshot(
+            timestamp=time.time(),
+            frontmost_app="Google Chrome",
+            window_title="(6) Diljit Dosanjh latest - YouTube",
+            activity_category="Media",
+            focused_topic="(6) Diljit Dosanjh latest - YouTube",
+            suggested_playlist=None,
+            suggested_genre=None,
+            browser_name="Google Chrome",
+            browser_url="https://www.youtube.com/watch?v=xyz",
+            browser_title="(6) Diljit Dosanjh latest - YouTube",
+        )
+        res = brain.execute_intent("message Josh")
+        assert res.get("status") == "success"
+        assert res.get("level") == "2.5"
+        draft_body = res.get("draft_body", "")
+
+        # CRITICAL INTENT RULE: Never leak personal media or YouTube titles into work emails!
+        assert "Diljit" not in draft_body
+        assert "YouTube" not in draft_body
+        assert "(6)" not in draft_body
+        assert "Diljit" not in res.get("subject", "")
+
+        # Must sign with real human name "Piyush Dua", NEVER git handle "PDgit12"!
+        assert "Piyush Dua" in draft_body
+        assert "PDgit12" not in draft_body
+        assert "Backend Engineer | Crcle.ai" in draft_body
+
+
+def test_signature_uses_human_name_not_git_handle(mock_memory):
+    # Even if git handle is stored in preferences as PDgit12
+    mock_memory.set_preference("user.name", "PDgit12")
+    profile = mock_memory.get_user_profile()
+    assert profile["name"] == "Piyush Dua"
+    assert "Piyush Dua" in profile["signature"]
+    assert "PDgit12" not in profile["signature"]
+
+
+def test_knowledge_graph_bootstrap_and_topology(mock_memory):
+    summary = mock_memory.get_graph_summary()
+    assert summary["nodes_count"] >= 10
+    assert summary["edges_count"] >= 15
+    assert "work" in summary["clusters"]
+    assert "personal_media" in summary["clusters"]
+    assert "gaming" in summary["clusters"]
+
+    ascii_view = mock_memory.format_graph_ascii()
+    assert "AURA SEMANTIC KNOWLEDGE GRAPH" in ascii_view
+    assert "Work Cluster" in ascii_view
+    assert "Personal Media Cluster" in ascii_view
+    assert "Gaming Cluster" in ascii_view
+
+
+def test_knowledge_graph_edge_crud(mock_memory):
+    # Add new dynamic relation
+    ok = mock_memory.add_edge("Piyush Dua", "Anthropic", "researches", cluster="research", weight=0.92)
+    assert ok is True
+
+    # Verify connected nodes
+    conns = mock_memory.get_connected_nodes("Piyush Dua", relation="researches")
+    assert len(conns) >= 1
+    assert conns[0]["node_name"] == "Anthropic"
+    assert conns[0]["cluster"] == "research"
+
+    # Query triplet
+    triplets = mock_memory.query_graph(subject="Piyush", relation="researches")
+    assert len(triplets) >= 1
+    assert triplets[0]["target_name"] == "Anthropic"
+
+    # Remove relation
+    removed = mock_memory.remove_edge("Piyush Dua", "Anthropic", "researches")
+    assert removed is True
+    assert len(mock_memory.get_connected_nodes("Piyush Dua", relation="researches")) == 0
+
+
+def test_knowledge_graph_shared_context_and_disjoint_isolation(mock_memory):
+    # Work context: Piyush Dua <-> Joshua Rayan
+    work_shared = mock_memory.find_shared_context("Piyush Dua", "Joshua Rayan")
+    assert work_shared["status"] == "connected"
+    assert work_shared["primary_topic"] == "desktop-dom"
+    assert work_shared["distance"] == 1
+    shared_names = [e["name"] for e in work_shared["shared_entities"]]
+    assert "Crcle.ai" in shared_names or "Microsoft Outlook" in shared_names
+
+    # Personal media context: Diljit Dosanjh <-> Joshua Rayan
+    # Mathematical Guarantee: Personal media is strictly disjoint from work contacts!
+    media_disjoint = mock_memory.find_shared_context("Diljit Dosanjh", "Joshua Rayan")
+    assert media_disjoint["status"] == "disjoint"
+    assert media_disjoint["primary_topic"] is None
+    assert media_disjoint["distance"] == float("inf")
+    assert len(media_disjoint["direct_relations"]) == 0
+    assert len(media_disjoint["shared_entities"]) == 0
+
+    # Gaming context: FIFA 23 <-> Joshua Rayan
+    gaming_disjoint = mock_memory.find_shared_context("FIFA 23", "Joshua Rayan")
+    assert gaming_disjoint["status"] == "disjoint"
+    assert gaming_disjoint["primary_topic"] is None
+    assert gaming_disjoint["distance"] == float("inf")
+
+
+def test_knowledge_graph_natural_language_queries(mock_memory):
+    brain = AssistantBrain(memory=mock_memory)
+
+    # 1. Show graph
+    res_graph = brain.execute_intent("show graph")
+    assert res_graph["status"] == "success"
+    assert res_graph["action"] == "knowledge_graph"
+    assert res_graph["level"] == "2.5"
+    assert "AURA SEMANTIC KNOWLEDGE GRAPH" in res_graph["response"]
+
+    # 2. Connections for Josh
+    res_conns = brain.execute_intent("who is connected to Josh?")
+    assert res_conns["status"] == "success"
+    assert res_conns["action"] == "graph_connections"
+    assert "Joshua Rayan" in res_conns["target"]
+    assert len(res_conns["connections"]) > 0
+
+    # 3. Shared context query
+    res_shared = brain.execute_intent("shared context between Piyush and Josh")
+    assert res_shared["status"] == "success"
+    assert res_shared["action"] == "shared_context"
+    assert "desktop-dom" in res_shared["response"]
+
+    # 4. Connect command
+    res_link = brain.execute_intent("connect Cyril to Stanford as alumni")
+    assert res_link["status"] == "success"
+    assert res_link["action"] == "remember_graph_edge"
+    assert "Connected" in res_link["response"]
+
+
+def test_email_draft_grounds_in_knowledge_graph_topic(mock_memory):
+    brain = AssistantBrain(memory=mock_memory)
+    # Simulate active Spotify playing Diljit Dosanjh
+    with patch.object(brain.context_feed, "capture_active_context") as mock_cap, patch("subprocess.run") as mock_run:
+        mock_run.return_value.returncode = 0
+        mock_cap.return_value = ActiveContextSnapshot(
+            timestamp=time.time(),
+            frontmost_app="Spotify",
+            window_title="Diljit Dosanjh - Lalkara",
+            activity_category="Media",
+            focused_topic="Diljit Dosanjh - Lalkara",
+            suggested_playlist="Deep Focus",
+            suggested_genre="Personal",
+            browser_name=None,
+            browser_url=None,
+            browser_title=None,
+        )
+        res = brain.execute_intent("email Josh")
+        assert res.get("status") == "success"
+        draft_body = res.get("draft_body", "")
+
+        # Knowledge Graph ground truth: drafts update on shared project desktop-dom
+        assert "desktop-dom" in draft_body
+        assert "desktop-dom" in res.get("subject", "")
+        assert "Diljit" not in draft_body
+        assert "Lalkara" not in draft_body
+        assert "Piyush Dua" in draft_body
+
+
+def test_ingest_most_used_apps_scoring_and_categorization(mock_memory):
+    from desktop_dom.assistant.local_ingest import LocalMachineIngest
+    ingest = LocalMachineIngest(memory=mock_memory)
+    apps = ingest.ingest_most_used_apps(limit=10)
+    assert len(apps) > 0
+    # Must have name, category, role, relation, score
+    for a in apps:
+        assert "name" in a
+        assert "category" in a
+        assert "score" in a
+        assert "role" in a
+        assert "relation" in a
+        assert a["score"] >= 5
+
+
+def test_auto_hydrate_environment_ingests_top_apps_into_graph(mock_memory):
+    summary = mock_memory.auto_hydrate_environment()
+    assert summary["status"] == "success"
+    assert "top_apps" in summary
+    assert summary["top_apps_count"] > 0
+
+    # Verify Knowledge Graph has app edges
+    graph_edges = mock_memory._graph_edges
+    app_edges = [e for e in graph_edges if e["cluster"] == "apps"]
+    assert len(app_edges) > 0
+
+    # Verify preferences set
+    stored_apps = mock_memory.get_preference("apps.most_used")
+    assert stored_apps is not None
+    apps_list = json.loads(stored_apps)
+    assert len(apps_list) > 0
+
+    # Verify primary defaults
+    assert mock_memory.get_preference("apps.primary_browser") in ["Google Chrome", "Safari"]
+    assert mock_memory.get_preference("mail.preferred_client") == "Microsoft Outlook"
+
+
+def test_brain_onboard_and_most_used_apps_intents(mock_memory):
+    brain = AssistantBrain(memory=mock_memory)
+
+    # 1. Onboarding command
+    res_onboard = brain.execute_intent("/onboard")
+    assert res_onboard["status"] == "success"
+    assert res_onboard["action"] == "onboard"
+    assert "Ambient Onboarding Complete" in res_onboard["response"]
+    assert "Piyush Dua" in res_onboard["response"]
+    assert "Knowledge Graph" in res_onboard["response"]
+    assert len(res_onboard.get("top_apps", [])) > 0
+
+    # 2. Most-used apps query
+    res_apps = brain.execute_intent("most used apps")
+    assert res_apps["status"] == "success"
+    assert res_apps["action"] == "most_used_apps"
+    assert "Your Most-Used Applications" in res_apps["response"]
+    assert "Defaults: Browser:" in res_apps["response"]
+    assert len(res_apps["apps"]) > 0
+
+
+def test_intent_guard_youtube_clean_home_feed(mock_memory):
+    brain = AssistantBrain(memory=mock_memory)
+    with patch("webbrowser.open") as mock_open:
+        # Generic open youtube must NOT hijack with arbitrary channels
+        res = brain.execute_intent("open youtube")
+        assert res["status"] == "success"
+        assert res["action"] == "youtube_intent"
+        assert res["url"] == "https://www.youtube.com"
+        assert res["channel"] == "YouTube"
+        assert "Opening YouTube Home" in res["response"]
+
+        # Explicit creator watch query must route to requested creator
+        res_creator = brain.execute_intent("watch Fireship")
+        assert res_creator["status"] == "success"
+        assert res_creator["channel"] == "Fireship"
+        assert "Fireship" in res_creator["url"]
+
+
+def test_intent_guard_native_app_over_web_and_category_aliases(mock_memory):
+    brain = AssistantBrain(memory=mock_memory)
+
+    # Category alias resolution
+    assert brain.resolve_app_name("browser") in ["Google Chrome", "Safari"]
+    assert brain.resolve_app_name("mail") == "Microsoft Outlook"
+    assert brain.resolve_app_name("music") == "Spotify"
+    assert brain.resolve_app_name("terminal") == "Terminal"
+    assert brain.resolve_app_name("ai") == "ChatGPT"
+
+    # Native app priority in open_match
+    with patch("subprocess.run") as mock_sub, patch("webbrowser.open") as mock_open:
+        mock_sub.return_value.returncode = 0
+        res = brain.execute_intent("open browser")
+        assert res["status"] == "success"
+        assert res["action"] == "open_app"
+        assert res["target"] in ["Google Chrome", "Safari"]
+
+        res_mail = brain.execute_intent("open mail")
+        assert res_mail["status"] == "success"
+        assert res_mail["action"] == "open_app"
+        assert res_mail["target"] == "Microsoft Outlook"
+
+
 
 
 

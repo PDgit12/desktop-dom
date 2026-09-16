@@ -44,7 +44,7 @@ class SinglePageCanvas(canvas.Canvas):
         self.setFont("Helvetica", 7)
         self.setFillColor(colors.HexColor("#64748b"))
         self.drawString(32, 13, "Desktop-DOM v0.2.0 • Systems Architecture Blueprint • Author: Piyush Dua (PDgit12)")
-        self.drawRightString(580, 13, "Prepared for Crcle.ai • 142/142 Tests Passing (100% Hermetic) • Exactly 1 Page")
+        self.drawRightString(580, 13, "Prepared for Crcle.ai • 149/149 Tests Passing (100% Hermetic) • Exactly 1 Page")
         self.restoreState()
 
 def build_one_pager(output_path: str):
@@ -189,9 +189,9 @@ def build_one_pager(output_path: str):
         ],
         [
             Paragraph("<b>Layer 2<br/>Intent Core</b>", badge_accent_style),
-            Paragraph("<b>Feeding ⟶ Meaning ⟶ Intent</b><br/>Chrome Ingest + Context Feed", cell_bold),
-            Paragraph("<b>Where Crcle.ai fundamentally lies:</b> Continuous intent cycle: Ingests OS telemetry + Chrome active tab + SQLite WAL memory. Anti-drift hysteresis state machine filters transient feeds from real habits. Resolves exact Spotify order & entities (<i>'message Josh'</i>) in &lt;0.5ms.", cell_body),
-            Paragraph("<b>0.49 ms</b> (Mem)<br/><b>&lt;15 ms</b> (Ingest)", cell_bold),
+            Paragraph("<b>Feeding ⟶ Meaning ⟶ Intent</b><br/>Top Apps + Semantic Graph", cell_bold),
+            Paragraph("<b>Where Crcle.ai fundamentally lies:</b> Ambient app onboarding harvests running GUI apps, Dock plists, and persona telemetry into a semantic SQLite Knowledge Graph (work, apps, media). Anti-drift hysteresis isolates work from personal feeds (Diljit vs Josh). Zero misdirection guard ensures clean, intended navigation.", cell_body),
+            Paragraph("<b>0.49 ms</b> (Mem)<br/><b>&lt;25 ms</b> (Ingest)", cell_bold),
         ],
         [
             Paragraph("<b>Layer 2.5<br/>Exec Zone</b>", badge_accent_style),
@@ -235,11 +235,11 @@ def build_one_pager(output_path: str):
             cell_body
         ),
         Spacer(1, 2),
-        Paragraph("<b>Memory Hierarchy & Token Compression:</b>", cell_bold),
+        Paragraph("<b>Memory & Semantic Knowledge Graph:</b>", cell_bold),
         Paragraph(
-            "• <b>Personal Entity Graph:</b> SQLite in WAL mode with dual-layer memory cache (<code>~/.aura/memory.db</code>). 5-tier fuzzy ranking resolves in <b>0.49ms</b>.<br/>"
-            "• <b>Zero-Disk Audio Pipeline:</b> 16kHz float32 circular NumPy buffer feeds local Whisper directly from RAM with zero disk I/O.<br/>"
-            "• <b>AST Token Pruning:</b> $O(N)$ cycle-safe DFS eliminates non-semantic nodes, shrinking 2,000 raw nodes to ~220 actionable tokens (<b>88% compression</b>).",
+            "• <b>Semantic Knowledge Graph:</b> Weighted graph topology (<code>graph_edges</code>) stores work, app, and media clusters. Disjoint topology prevents personal media leaks in work drafts.<br/>"
+            "• <b>Ambient App Onboarding:</b> Multi-factor scoring (Running +15, Dock +10, Installed +5) discovers top apps and hydrates default handlers in &lt;50ms.<br/>"
+            "• <b>Anti-Drift Habit Engine:</b> Hysteresis confidence gating protects explicit user choices against transient telemetry drift.",
             cell_body
         ),
     ]

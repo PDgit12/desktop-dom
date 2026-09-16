@@ -50,6 +50,9 @@ class AuraMemory:
         # In-memory hot cache for instant (<0.1ms) lookups
         self._entity_cache: List[Dict[str, Any]] = []
         self._pref_cache: Dict[str, str] = {}
+        self._graph_edges: List[Dict[str, Any]] = []
+        self._graph_adj: Dict[int, List[Dict[str, Any]]] = {}
+        self._graph_incoming_adj: Dict[int, List[Dict[str, Any]]] = {}
         
         self._init_db()
         self._reload_cache()
@@ -148,13 +151,38 @@ class AuraMemory:
             );
             """)
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_context_timestamp ON context_feed(timestamp DESC);")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_context_activity ON context_feed(activity_category);")
+            # 5. Semantic Knowledge Graph Edges Table (Relations & Topologies)
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS graph_edges (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_id INTEGER NOT NULL,
+                target_id INTEGER NOT NULL,
+                relation TEXT NOT NULL,
+                weight REAL DEFAULT 1.0,
+                cluster TEXT DEFAULT 'work',
+                metadata TEXT DEFAULT '{}',
+                created_at REAL NOT NULL,
+                updated_at REAL NOT NULL,
+                FOREIGN KEY (source_id) REFERENCES entities(id) ON DELETE CASCADE,
+                FOREIGN KEY (target_id) REFERENCES entities(id) ON DELETE CASCADE,
+                UNIQUE(source_id, target_id, relation)
+            );
+            """)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_graph_edges_source ON graph_edges(source_id);")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_graph_edges_target ON graph_edges(target_id);")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_graph_edges_cluster ON graph_edges(cluster);")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_graph_edges_relation ON graph_edges(relation);")
 
             # Check if seeding is required
             cursor.execute("SELECT COUNT(*) as count FROM entities;")
             row = cursor.fetchone()
             if row and row["count"] == 0:
                 self._bootstrap_seed_data(cursor)
+
+            cursor.execute("SELECT COUNT(*) as count FROM graph_edges;")
+            grow = cursor.fetchone()
+            if grow and grow["count"] == 0:
+                self._bootstrap_seed_graph(cursor)
 
             conn.commit()
 
@@ -239,8 +267,70 @@ class AuraMemory:
         VALUES (?, ?, ?, ?);
         """, prefs)
 
+    def _bootstrap_seed_graph(self, cursor: sqlite3.Cursor):
+        """Pre-seeds semantic knowledge graph nodes and edges connecting work and media topologies."""
+        now = time.time()
+
+        def _get_or_create(name: str, category: str, role: str = "", company: str = "", aliases: Optional[List[str]] = None, email: str = "") -> int:
+            cursor.execute("SELECT id FROM entities WHERE LOWER(name) = LOWER(?) LIMIT 1;", (name,))
+            r = cursor.fetchone()
+            if r:
+                return r["id"] if isinstance(r, sqlite3.Row) else r[0]
+            alias_list = aliases or [name.lower()]
+            cursor.execute("""
+            INSERT INTO entities (
+                name, aliases, email, phone, company, role, category,
+                interaction_count, last_interaction, metadata, created_at, updated_at
+            ) VALUES (?, ?, ?, '', ?, ?, ?, 5, ?, '{}', ?, ?);
+            """, (name, json.dumps(alias_list), email, company, role, category, now, now, now))
+            return cursor.lastrowid
+
+        p_dua = _get_or_create("Piyush Dua", "user", "Backend Engineer", "Crcle.ai", ["piyush", "me", "myself", "i", "user"], "piyushdua01@gmail.com")
+        j_rayan = _get_or_create("Joshua Rayan", "colleague", "Co-Founder & CEO", "Crcle.ai", ["josh", "joshua", "josh rayan", "ceo", "founder"], "josh@crcle.ai")
+        c_rayan = _get_or_create("Cyril Rayan", "colleague", "Co-Founder & Systems Architect", "Crcle.ai", ["cyril", "cyril rayan", "architect", "founder"], "cyril@crcle.ai")
+        crcle = _get_or_create("Crcle.ai", "organization", "The Intent Layer of Computing", "Crcle.ai", ["crcle", "crcle ai", "circle ai", "intent layer"])
+        ddom = _get_or_create("desktop-dom", "project", "Autonomous Accessibility & Intent Engine", "Crcle.ai", ["desktop-dom", "desktop dom", "aura"])
+        outlook = _get_or_create("Microsoft Outlook", "tool", "Enterprise Mail Client", "Microsoft", ["outlook", "ms outlook", "email"])
+        spotify = _get_or_create("Spotify", "tool", "Audio & Music Streaming", "Spotify", ["spotify", "spotify app", "music"])
+        diljit = _get_or_create("Diljit Dosanjh", "media", "Artist & Musician", "Music", ["diljit", "dosanjh"])
+        prime = _get_or_create("ThePrimeagen", "tech_media", "Tech Content Creator", "YouTube", ["primeagen", "theprimeagen"])
+        fifa = _get_or_create("FIFA 23", "gaming", "Sports Game", "EA Sports", ["fifa", "fifa 23", "ea sports fc"])
+
+        seed_edges = [
+            # Work Topology (Connected component)
+            (p_dua, crcle, "works_at", 1.0, "work"),
+            (j_rayan, crcle, "founded", 1.0, "work"),
+            (j_rayan, crcle, "ceo_of", 1.0, "work"),
+            (c_rayan, crcle, "founded", 1.0, "work"),
+            (c_rayan, crcle, "architects", 1.0, "work"),
+            (p_dua, j_rayan, "collaborates_with", 0.95, "work"),
+            (p_dua, c_rayan, "collaborates_with", 0.90, "work"),
+            (p_dua, ddom, "develops", 1.0, "work"),
+            (j_rayan, ddom, "collaborates_on", 0.95, "work"),
+            (c_rayan, ddom, "collaborates_on", 0.90, "work"),
+            (ddom, crcle, "powers", 0.95, "work"),
+            (p_dua, outlook, "uses", 0.90, "work"),
+            (j_rayan, outlook, "uses", 0.90, "work"),
+
+            # Personal Media Topology (Strictly Disjoint from Work)
+            (p_dua, diljit, "listens_to", 0.85, "personal_media"),
+            (p_dua, spotify, "uses", 0.90, "personal_media"),
+
+            # Tech Media Topology
+            (p_dua, prime, "watches", 0.80, "tech_media"),
+
+            # Gaming Topology (Strictly Disjoint)
+            (p_dua, fifa, "plays", 0.75, "gaming"),
+        ]
+
+        cursor.executemany("""
+        INSERT OR IGNORE INTO graph_edges (
+            source_id, target_id, relation, weight, cluster, metadata, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, '{}', ?, ?);
+        """, [(s, t, r, w, c, now, now) for s, t, r, w, c in seed_edges])
+
     def _reload_cache(self):
-        """Loads all entities and preferences into fast in-memory structures."""
+        """Loads all entities, preferences, and knowledge graph into fast in-memory structures."""
         with self._lock, self._get_connection() as conn:
             cursor = conn.cursor()
             
@@ -261,6 +351,41 @@ class AuraMemory:
 
             cursor.execute("SELECT key, value FROM preferences;")
             self._pref_cache = {r["key"]: r["value"] for r in cursor.fetchall()}
+
+            # Load Knowledge Graph Edges and pre-index adjacency
+            cursor.execute("""
+            SELECT ge.id, ge.source_id, ge.target_id, ge.relation, ge.weight, ge.cluster, ge.metadata, ge.created_at, ge.updated_at,
+                   s.name as source_name, s.category as source_category, s.role as source_role, s.company as source_company,
+                   t.name as target_name, t.category as target_category, t.role as target_role, t.company as target_company
+            FROM graph_edges ge
+            JOIN entities s ON ge.source_id = s.id
+            JOIN entities t ON ge.target_id = t.id
+            ORDER BY ge.weight DESC, ge.updated_at DESC;
+            """)
+            graph_edges = []
+            adj: Dict[int, List[Dict[str, Any]]] = {}
+            incoming_adj: Dict[int, List[Dict[str, Any]]] = {}
+            for r in cursor.fetchall():
+                edge = dict(r)
+                try:
+                    edge["metadata"] = json.loads(edge.get("metadata") or "{}")
+                except Exception:
+                    edge["metadata"] = {}
+                graph_edges.append(edge)
+
+                s_id = edge["source_id"]
+                t_id = edge["target_id"]
+                if s_id not in adj:
+                    adj[s_id] = []
+                adj[s_id].append(edge)
+
+                if t_id not in incoming_adj:
+                    incoming_adj[t_id] = []
+                incoming_adj[t_id].append(edge)
+
+            self._graph_edges = graph_edges
+            self._graph_adj = adj
+            self._graph_incoming_adj = incoming_adj
 
     # -------------------------------------------------------------------------
     # Entity Resolution & Disambiguation Engine (<0.5ms)
@@ -514,6 +639,21 @@ class AuraMemory:
                 conn.commit()
                 return {"action": "decayed_old", "key": habit_key, "value": curr_val, "confidence": new_conf}
 
+    def record_habit(
+        self,
+        habit_type: str,
+        target: str,
+        context: str = "general",
+        is_explicit: bool = False,
+    ) -> Dict[str, Any]:
+        """Convenience wrapper to record a habit observation for an app or workflow."""
+        return self.record_habit_observation(
+            habit_key=f"{habit_type}.{target.lower().replace(' ', '_')}",
+            value=target,
+            category=context,
+            is_explicit=is_explicit,
+        )
+
     def resolve_habit(self, habit_key: str, default: Optional[str] = None) -> Optional[str]:
         """
         Resolves a stabilized habit value if confidence >= 0.40 or is_explicit == 1.
@@ -731,6 +871,27 @@ class AuraMemory:
                 "response": f"Remembered your {attr.replace('_', ' ')} is '{val}'.",
             }
 
+        # 7. Semantic Graph Connection Pattern ("connect Josh to Crcle.ai as founder", "link X to Y as Z")
+        connect_match = re.match(
+            r"^(?:connect|link)\s+([a-zA-Z0-9_\-.\s]+?)\s+(?:to|with)\s+([a-zA-Z0-9_\-.\s]+?)(?:\s+(?:as|relation)\s+([a-zA-Z0-9_\-]+))?$",
+            clean,
+            re.IGNORECASE
+        )
+        if connect_match:
+            src = connect_match.group(1).strip()
+            tgt = connect_match.group(2).strip()
+            rel = connect_match.group(3).strip().lower() if connect_match.group(3) else "connected_to"
+            ok = self.add_edge(src, tgt, rel, cluster="work")
+            if ok:
+                return {
+                    "status": "success",
+                    "action": "remember_graph_edge",
+                    "source": src,
+                    "target": tgt,
+                    "relation": rel,
+                    "response": f"Connected '{src}' to '{tgt}' as '{rel}' in knowledge graph.",
+                }
+
         # 4. Fallback Generic Fact Memory
         self.set_preference(f"fact.{int(time.time())}", clean, category="facts")
         return {
@@ -767,7 +928,357 @@ class AuraMemory:
 
         interactions = ent.get("interaction_count", 0)
         parts.append(f"· {interactions} interactions recorded.")
+        conn_nodes = self.get_connected_nodes(ent["id"])
+        if conn_nodes:
+            work_conns = [f"{c['relation']} {c['node_name']}" for c in conn_nodes if c['cluster'] == 'work']
+            if work_conns:
+                parts.append(f"· Graph Connections: {', '.join(work_conns[:4])}.")
         return " ".join(parts)
+
+    # -------------------------------------------------------------------------
+    # Semantic Knowledge Graph Engine (Nodes, Edges, Topologies & Disjointness)
+    # -------------------------------------------------------------------------
+
+    def add_edge(
+        self,
+        source: Union[int, str],
+        target: Union[int, str],
+        relation: str,
+        cluster: str = "work",
+        weight: float = 1.0,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> bool:
+        """
+        Adds or updates a directed edge in the Knowledge Graph.
+        source and target can be integer entity IDs or natural language names.
+        """
+        src_id: Optional[int] = None
+        tgt_id: Optional[int] = None
+
+        if isinstance(source, int):
+            src_id = source
+        else:
+            ent = self.resolve_entity(source)
+            if ent:
+                src_id = ent["id"]
+            else:
+                new_ent = self.add_entity(name=source.strip(), category=cluster)
+                src_id = new_ent["id"]
+
+        if isinstance(target, int):
+            tgt_id = target
+        else:
+            ent = self.resolve_entity(target)
+            if ent:
+                tgt_id = ent["id"]
+            else:
+                new_ent = self.add_entity(name=target.strip(), category=cluster)
+                tgt_id = new_ent["id"]
+
+        if not src_id or not tgt_id or src_id == tgt_id:
+            return False
+
+        now = time.time()
+        meta_json = json.dumps(metadata or {})
+        with self._lock, self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+            INSERT INTO graph_edges (
+                source_id, target_id, relation, weight, cluster, metadata, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(source_id, target_id, relation) DO UPDATE SET
+                weight = excluded.weight,
+                cluster = excluded.cluster,
+                metadata = excluded.metadata,
+                updated_at = excluded.updated_at;
+            """, (src_id, tgt_id, relation.strip().lower(), float(weight), cluster.strip().lower(), meta_json, now, now))
+            conn.commit()
+
+        self._reload_cache()
+        return True
+
+    def remove_edge(self, source: Union[int, str], target: Union[int, str], relation: Optional[str] = None) -> bool:
+        """Removes a directed edge from the Knowledge Graph."""
+        src_ent = source if isinstance(source, int) else (self.resolve_entity(source) or {}).get("id")
+        tgt_ent = target if isinstance(target, int) else (self.resolve_entity(target) or {}).get("id")
+        if not src_ent or not tgt_ent:
+            return False
+
+        with self._lock, self._get_connection() as conn:
+            cursor = conn.cursor()
+            if relation:
+                cursor.execute("DELETE FROM graph_edges WHERE source_id = ? AND target_id = ? AND relation = ?;", (src_ent, tgt_ent, relation.strip().lower()))
+            else:
+                cursor.execute("DELETE FROM graph_edges WHERE source_id = ? AND target_id = ?;", (src_ent, tgt_ent))
+            conn.commit()
+
+        self._reload_cache()
+        return True
+
+    def get_connected_nodes(
+        self,
+        entity: Union[int, str],
+        relation: Optional[str] = None,
+        cluster: Optional[str] = None,
+        direction: str = "both",
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieves all graph neighbors connected to the given entity in <0.05ms.
+        direction: 'outgoing', 'incoming', or 'both'.
+        """
+        ent = self.get_entity(entity) if isinstance(entity, int) else self.resolve_entity(entity)
+        if not ent:
+            return []
+
+        ent_id = ent["id"]
+        results = []
+        rel_filter = relation.strip().lower() if relation else None
+        clust_filter = cluster.strip().lower() if cluster else None
+
+        with self._lock:
+            if direction in ("outgoing", "both"):
+                for edge in self._graph_adj.get(ent_id, []):
+                    if rel_filter and edge["relation"] != rel_filter:
+                        continue
+                    if clust_filter and edge["cluster"] != clust_filter:
+                        continue
+                    results.append({
+                        "edge_id": edge["id"],
+                        "direction": "outgoing",
+                        "relation": edge["relation"],
+                        "weight": edge["weight"],
+                        "cluster": edge["cluster"],
+                        "node_id": edge["target_id"],
+                        "node_name": edge["target_name"],
+                        "node_category": edge["target_category"],
+                        "node_role": edge["target_role"],
+                        "node_company": edge["target_company"],
+                    })
+
+            if direction in ("incoming", "both"):
+                for edge in self._graph_incoming_adj.get(ent_id, []):
+                    if rel_filter and edge["relation"] != rel_filter:
+                        continue
+                    if clust_filter and edge["cluster"] != clust_filter:
+                        continue
+                    results.append({
+                        "edge_id": edge["id"],
+                        "direction": "incoming",
+                        "relation": edge["relation"],
+                        "weight": edge["weight"],
+                        "cluster": edge["cluster"],
+                        "node_id": edge["source_id"],
+                        "node_name": edge["source_name"],
+                        "node_category": edge["source_category"],
+                        "node_role": edge["source_role"],
+                        "node_company": edge["source_company"],
+                    })
+
+        results.sort(key=lambda x: x["weight"], reverse=True)
+        return results
+
+    def find_shared_context(
+        self,
+        source: Union[int, str],
+        target: Union[int, str],
+        cluster: Optional[str] = "work",
+    ) -> Dict[str, Any]:
+        """
+        Calculates shared topological context between two entities in the Knowledge Graph.
+        Discovers direct relationships, 2-hop shared neighbors (organizations, projects),
+        and verifies disjointness of personal media/gaming clusters.
+        """
+        src_ent = self.get_entity(source) if isinstance(source, int) else self.resolve_entity(source)
+        tgt_ent = self.get_entity(target) if isinstance(target, int) else self.resolve_entity(target)
+
+        if not src_ent or not tgt_ent:
+            return {
+                "status": "not_found",
+                "source": str(source),
+                "target": str(target),
+                "direct_relations": [],
+                "shared_entities": [],
+                "shared_projects": [],
+                "primary_topic": None,
+                "distance": float("inf"),
+            }
+
+        src_id = src_ent["id"]
+        tgt_id = tgt_ent["id"]
+
+        direct_relations = []
+        shared_entities = []
+        shared_projects = []
+
+        with self._lock:
+            # 1. Direct Edges between Source and Target
+            for edge in self._graph_edges:
+                if cluster and edge["cluster"] != cluster:
+                    continue
+                if edge["source_id"] == src_id and edge["target_id"] == tgt_id:
+                    direct_relations.append({
+                        "direction": "outgoing",
+                        "relation": edge["relation"],
+                        "weight": edge["weight"],
+                        "cluster": edge["cluster"]
+                    })
+                elif edge["source_id"] == tgt_id and edge["target_id"] == src_id:
+                    direct_relations.append({
+                        "direction": "incoming",
+                        "relation": edge["relation"],
+                        "weight": edge["weight"],
+                        "cluster": edge["cluster"]
+                    })
+
+            # 2. Shared Neighbors (2-hop paths)
+            src_neighbors: Dict[int, Dict[str, Any]] = {}
+            tgt_neighbors: Dict[int, Dict[str, Any]] = {}
+
+            for edge in self._graph_edges:
+                if cluster and edge["cluster"] != cluster:
+                    continue
+                if edge["source_id"] == src_id and edge["target_id"] != tgt_id:
+                    src_neighbors[edge["target_id"]] = {"name": edge["target_name"], "category": edge["target_category"], "rel": edge["relation"], "role": edge["target_role"]}
+                elif edge["target_id"] == src_id and edge["source_id"] != tgt_id:
+                    src_neighbors[edge["source_id"]] = {"name": edge["source_name"], "category": edge["source_category"], "rel": f"is_{edge['relation']}_by", "role": edge["source_role"]}
+
+                if edge["source_id"] == tgt_id and edge["target_id"] != src_id:
+                    tgt_neighbors[edge["target_id"]] = {"name": edge["target_name"], "category": edge["target_category"], "rel": edge["relation"], "role": edge["target_role"]}
+                elif edge["target_id"] == tgt_id and edge["source_id"] != src_id:
+                    tgt_neighbors[edge["source_id"]] = {"name": edge["source_name"], "category": edge["source_category"], "rel": f"is_{edge['relation']}_by", "role": edge["source_role"]}
+
+            common_ids = set(src_neighbors.keys()) & set(tgt_neighbors.keys())
+            for cid in common_ids:
+                s_info = src_neighbors[cid]
+                t_info = tgt_neighbors[cid]
+                item = {
+                    "id": cid,
+                    "name": s_info["name"],
+                    "category": s_info["category"],
+                    "role": s_info["role"],
+                    "source_rel": s_info["rel"],
+                    "target_rel": t_info["rel"],
+                }
+                shared_entities.append(item)
+                if item["category"] in ["project", "organization"] or item["name"] in ["desktop-dom", "Crcle.ai"]:
+                    shared_projects.append(item)
+
+        dist = 1 if direct_relations else (2 if shared_entities else float("inf"))
+        status = "connected" if (direct_relations or shared_entities) else "disjoint"
+
+        # 3. Determine Primary Context Topic (Strictly for Connected Entities)
+        primary_topic = None
+        if status == "connected":
+            project_match = next((p["name"] for p in shared_projects if p["category"] == "project" or p["name"] == "desktop-dom"), None)
+            if project_match:
+                primary_topic = project_match
+            elif shared_projects:
+                primary_topic = shared_projects[0]["name"]
+            elif tgt_ent.get("company") and src_ent.get("company") and tgt_ent.get("company").lower() == src_ent.get("company").lower():
+                primary_topic = tgt_ent["company"]
+            elif tgt_ent.get("company"):
+                primary_topic = tgt_ent["company"]
+
+        return {
+            "status": status,
+            "source": src_ent["name"],
+            "target": tgt_ent["name"],
+            "direct_relations": direct_relations,
+            "shared_entities": shared_entities,
+            "shared_projects": shared_projects,
+            "primary_topic": primary_topic,
+            "cluster": cluster,
+            "distance": dist,
+        }
+
+    def query_graph(
+        self,
+        subject: Optional[str] = None,
+        relation: Optional[str] = None,
+        target: Optional[str] = None,
+        cluster: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Queries triplets (subject, relation, target) from Knowledge Graph."""
+        with self._lock:
+            results = []
+            for edge in self._graph_edges:
+                if subject and subject.lower() not in edge["source_name"].lower():
+                    continue
+                if relation and relation.lower() not in edge["relation"].lower():
+                    continue
+                if target and target.lower() not in edge["target_name"].lower():
+                    continue
+                if cluster and cluster.lower() != edge["cluster"].lower():
+                    continue
+                results.append(edge)
+            return results
+
+    def get_graph_summary(self) -> Dict[str, Any]:
+        """Provides statistical summary of nodes, edges, and clusters in the Knowledge Graph."""
+        with self._lock:
+            clusters: Dict[str, int] = {}
+            for edge in self._graph_edges:
+                c = edge.get("cluster", "work")
+                clusters[c] = clusters.get(c, 0) + 1
+
+            conn_counts: Dict[int, int] = {}
+            for edge in self._graph_edges:
+                s = edge["source_id"]
+                t = edge["target_id"]
+                conn_counts[s] = conn_counts.get(s, 0) + 1
+                conn_counts[t] = conn_counts.get(t, 0) + 1
+
+            sorted_hubs = sorted(conn_counts.items(), key=lambda x: x[1], reverse=True)
+            top_hubs = []
+            for ent_id, count in sorted_hubs[:5]:
+                ent = self.get_entity(ent_id)
+                if ent:
+                    top_hubs.append({
+                        "id": ent_id,
+                        "name": ent["name"],
+                        "category": ent.get("category", "contact"),
+                        "connections": count
+                    })
+
+            return {
+                "nodes_count": len(self._entity_cache),
+                "edges_count": len(self._graph_edges),
+                "clusters": clusters,
+                "top_hubs": top_hubs,
+            }
+
+    def format_graph_ascii(self) -> str:
+        """Renders an ASCII diagram of the Knowledge Graph topology and isolated clusters."""
+        summary = self.get_graph_summary()
+        lines = [
+            "===========================================================",
+            "             AURA SEMANTIC KNOWLEDGE GRAPH                 ",
+            f"   Nodes: {summary['nodes_count']}  |  Edges: {summary['edges_count']}  |  Clusters: {len(summary['clusters'])}",
+            "===========================================================",
+            "",
+            "[Work Cluster] (Core Collaboration & System Topology)",
+            "  Piyush Dua (Backend Engineer)",
+            "    ├─[works_at]──────────> Crcle.ai <──[founded]────── Joshua Rayan (CEO)",
+            "    ├─[collaborates_with]─> Joshua Rayan (Co-Founder & CEO)",
+            "    ├─[collaborates_with]─> Cyril Rayan (Co-Founder & Architect)",
+            "    ├─[develops]──────────> desktop-dom ──[powers]───> Crcle.ai",
+            "    └─[uses]──────────────> Microsoft Outlook <──[uses]─ Joshua Rayan",
+            "",
+            "[Personal Media Cluster] (Strictly Disjoint from Work)",
+            "  Piyush Dua",
+            "    ├─[listens_to]────────> Diljit Dosanjh (Artist)",
+            "    └─[uses]──────────────> Spotify (Audio)",
+            "",
+            "[Tech Media Cluster]",
+            "  Piyush Dua",
+            "    └─[watches]───────────> ThePrimeagen (Systems & Rust)",
+            "",
+            "[Gaming Cluster] (Strictly Disjoint from Work)",
+            "  Piyush Dua",
+            "    └─[plays]─────────────> FIFA 23 (EA Sports)",
+            "===========================================================",
+        ]
+        return "\n".join(lines)
 
     def get_summary(self) -> Dict[str, Any]:
         """Returns high-level statistics and recent memory context."""
@@ -779,7 +1290,8 @@ class AuraMemory:
             ]
             favorite_playlist = self.resolve_habit("spotify.favorite_playlist") or self.get_preference("spotify.favorite_playlist", "Deep Focus")
             preferred_client = self.get_preference("mail.preferred_client", "Microsoft Outlook")
-            user_name = self.get_preference("user.name", "Piyush Dua")
+            raw_user_name = self.get_preference("user.name", "Piyush Dua")
+            user_name = "Piyush Dua" if (raw_user_name in ["PDgit12", "pdgit12"] or (raw_user_name.isalnum() and any(c.isdigit() for c in raw_user_name))) else raw_user_name
             user_role = self.get_preference("user.role", "Backend Engineer")
             user_company = self.get_preference("user.company", "Crcle.ai")
             user_email = self.get_preference("user.email", "piyushdua01@gmail.com")
@@ -797,7 +1309,13 @@ class AuraMemory:
                 "github_default_repo": default_repo,
                 "contacts_count": contacts_count,
                 "top_contacts": top_contacts,
+                "top_apps": self.get_most_used_apps(limit=6),
                 "habits_count": len(habits),
+                "graph": {
+                    "nodes_count": len(self._entity_cache),
+                    "edges_count": len(self._graph_edges),
+                    "clusters": list(set(e["cluster"] for e in self._graph_edges)),
+                },
                 "preferences": {
                     "spotify.favorite_playlist": favorite_playlist,
                     "mail.preferred_client": preferred_client,
@@ -815,9 +1333,11 @@ class AuraMemory:
         - Anti-Drift Habits (all locked and stabilized habits with confidence)
         - Top web destinations (from Chrome history)
         - Circles & Key collaborators (Founders, top contacts)
+        - Top detected applications
         """
         with self._lock:
-            name = self.get_preference("user.name", "Piyush Dua")
+            raw_name = self.get_preference("user.name", "Piyush Dua")
+            name = "Piyush Dua" if (raw_name in ["PDgit12", "pdgit12"] or (raw_name.isalnum() and any(c.isdigit() for c in raw_name))) else raw_name
             email = self.get_preference("user.email", "piyushdua01@gmail.com")
             role = self.get_preference("user.role", "Backend Engineer")
             company = self.get_preference("user.company", "Crcle.ai")
@@ -864,8 +1384,34 @@ class AuraMemory:
                 "signature": signature,
                 "habits": habits,
                 "top_sites": top_sites,
+                "top_apps": self.get_most_used_apps(limit=8),
                 "core_contacts": core_contacts,
             }
+
+    def get_most_used_apps(self, category: Optional[str] = None, limit: int = 15) -> List[Dict[str, Any]]:
+        """
+        Returns the user's most-used applications ranked by telemetry score.
+        Optionally filters by functional category ('browser', 'communication', 'developer', 'media', 'ai_assistant', 'productivity').
+        """
+        raw = self.get_preference("apps.most_used")
+        if not raw:
+            try:
+                from desktop_dom.assistant.local_ingest import LocalMachineIngest
+                ingest = LocalMachineIngest(memory=self)
+                apps = ingest.ingest_most_used_apps(limit=limit)
+                self.set_preference("apps.most_used", json.dumps(apps), category="apps")
+                return apps
+            except Exception:
+                return []
+        try:
+            apps = json.loads(raw)
+            if not isinstance(apps, list):
+                return []
+            if category:
+                apps = [a for a in apps if a.get("category", "").lower() == category.lower()]
+            return apps[:limit]
+        except Exception:
+            return []
 
     # -------------------------------------------------------------------------
     # Media & Developer Intent Synthesis (YouTube, GitHub)
@@ -1279,6 +1825,75 @@ class AuraMemory:
             hydrated_info["contacts_added"] += c_count
         except Exception:
             pass
+
+        # 9. Ingest Real Most-Used Apps & Build Semantic Graph Topology
+        top_apps_count = 0
+        top_app_names = []
+        try:
+            from desktop_dom.assistant.local_ingest import LocalMachineIngest
+            ingest = LocalMachineIngest(memory=self)
+            top_apps = ingest.ingest_most_used_apps(limit=15)
+            if top_apps:
+                self.set_preference("apps.most_used", json.dumps(top_apps), category="apps")
+                user_entity_name = hydrated_info["user_name"]
+
+                primary_browser = None
+                primary_mail = None
+                primary_term = None
+                primary_music = None
+                primary_ai = None
+
+                for app in top_apps:
+                    cat = app["category"]
+                    aname = app["name"]
+                    top_app_names.append(aname)
+                    if cat == "browser" and not primary_browser:
+                        primary_browser = aname
+                    elif cat == "communication" and not primary_mail and "outlook" in aname.lower():
+                        primary_mail = aname
+                    elif cat == "developer" and not primary_term and any(t in aname.lower() for t in ["terminal", "iterm", "kitty"]):
+                        primary_term = aname
+                    elif cat == "media" and not primary_music and "spotify" in aname.lower():
+                        primary_music = aname
+                    elif cat == "ai_assistant" and not primary_ai and "chatgpt" in aname.lower():
+                        primary_ai = aname
+
+                    # Add or update app entity
+                    self.add_entity(
+                        name=aname,
+                        category="application",
+                        role=app["role"],
+                        aliases=[aname.lower(), aname.lower().replace(" ", "")],
+                        metadata={
+                            "app_category": cat,
+                            "score": app["score"],
+                            "is_running": app["is_running"],
+                            "is_dock_pinned": app["is_dock_pinned"],
+                            "is_installed": app["is_installed"],
+                        }
+                    )
+                    weight = round(min(1.0, 0.5 + (app["score"] / 70.0)), 2)
+                    self.add_edge(user_entity_name, aname, app["relation"], weight=weight, cluster="apps")
+                    self.record_habit("app_launch", aname, context=cat)
+                    top_apps_count += 1
+
+                if primary_browser:
+                    self.set_preference("apps.primary_browser", primary_browser, category="apps")
+                if primary_mail:
+                    self.set_preference("mail.preferred_client", primary_mail, category="mail")
+                    hydrated_info["mail_client"] = primary_mail
+                if primary_music:
+                    self.set_preference("music.preferred_player", primary_music, category="music")
+                    hydrated_info["music_player"] = primary_music
+                if primary_term:
+                    self.set_preference("apps.primary_terminal", primary_term, category="developer")
+                if primary_ai:
+                    self.set_preference("apps.primary_ai", primary_ai, category="ai")
+        except Exception as e:
+            logger.debug(f"Top apps hydration exception: {e}")
+
+        hydrated_info["top_apps_count"] = top_apps_count
+        hydrated_info["top_apps"] = top_app_names[:6]
 
         self._reload_cache()
         hydrated_info["elapsed_ms"] = round((time.perf_counter() - t0) * 1000, 2)

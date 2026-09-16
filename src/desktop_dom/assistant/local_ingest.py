@@ -16,9 +16,72 @@ import sqlite3
 import logging
 import subprocess
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Set, Tuple
 
 logger = logging.getLogger("desktop_dom.assistant.local_ingest")
+
+
+APP_CATEGORIES: Dict[str, Dict[str, Any]] = {
+    "browser": {
+        "apps": ["Google Chrome", "Safari", "Firefox", "Brave Browser", "Arc", "Microsoft Edge", "Chromium", "Opera"],
+        "role": "Web Browser",
+        "relation": "uses_frequently",
+    },
+    "communication": {
+        "apps": ["Microsoft Outlook", "Outlook", "Mail", "Slack", "Discord", "WhatsApp", "Telegram", "Zoom", "Microsoft Teams", "Messages", "FaceTime", "Signal"],
+        "role": "Communication Client",
+        "relation": "communicates_via",
+    },
+    "developer": {
+        "apps": ["Terminal", "iTerm", "iTerm2", "kitty", "Docker", "Docker Desktop", "Xcode", "Zed", "Visual Studio Code", "Code", "Cursor", "Postman", "Eclipse", "Anaconda-Navigator", "Sublime Text", "Warp"],
+        "role": "Developer Environment",
+        "relation": "develops_with",
+    },
+    "ai_assistant": {
+        "apps": ["ChatGPT", "Claude", "Gemini", "Granola", "ParakeetAI", "Ollama", "OpenWhispr", "Antigravity", "Antigravity IDE", "Copilot"],
+        "role": "AI Assistant",
+        "relation": "consults_ai",
+    },
+    "media": {
+        "apps": ["Spotify", "Music", "TV", "VLC", "GarageBand", "DJUCED", "Prime Video", "Audacity", "IINA"],
+        "role": "Media Player",
+        "relation": "listens_via",
+    },
+    "productivity": {
+        "apps": ["Microsoft Excel", "Microsoft Word", "Microsoft PowerPoint", "Pages", "Numbers", "Keynote", "Notion", "Obsidian", "Calendar", "Reminders", "Notes", "Freeform"],
+        "role": "Productivity Suite",
+        "relation": "organizes_with",
+    },
+}
+
+STD_APP_NAMES: Dict[str, str] = {
+    "docker": "Docker Desktop",
+    "docker desktop": "Docker Desktop",
+    "outlook": "Microsoft Outlook",
+    "microsoft outlook": "Microsoft Outlook",
+    "chrome": "Google Chrome",
+    "google chrome": "Google Chrome",
+    "term": "Terminal",
+    "terminal": "Terminal",
+    "iterm": "iTerm2",
+    "iterm2": "iTerm2",
+    "code": "Visual Studio Code",
+    "vscode": "Visual Studio Code",
+    "visual studio code": "Visual Studio Code",
+    "chatgpt": "ChatGPT",
+    "spotify": "Spotify",
+}
+
+
+def resolve_app_category_meta(name: str) -> Tuple[str, str, str]:
+    """Resolves functional category, formal role, and semantic relation for an application."""
+    low = name.lower()
+    for cat, data in APP_CATEGORIES.items():
+        for cand in data["apps"]:
+            cand_low = cand.lower()
+            if low == cand_low or low == cand_low.replace(" ", "") or low.startswith(cand_low) or cand_low.startswith(low):
+                return cat, data["role"], data["relation"]
+    return "utility", "Desktop Utility", "uses"
 
 
 class LocalMachineIngest:
@@ -123,6 +186,129 @@ class LocalMachineIngest:
                 except Exception:
                     pass
 
+    def ingest_most_used_apps(self, limit: int = 15) -> List[Dict[str, Any]]:
+        """
+        Discovers and ranks the user's actual most-used applications on this machine.
+        Cross-references:
+        1. Actively running GUI processes (highest priority / active engagement)
+        2. User's Dock / Taskbar pinned apps (curated everyday tools)
+        3. Installed user applications in /Applications or Program Files
+        Categorizes each into: browser, communication, developer, ai_assistant, media, productivity, utility.
+        """
+        running: Set[str] = set()
+        dock_pinned: Set[str] = set()
+        installed: Set[str] = set()
+
+        if sys.platform == "darwin":
+            # 1. Running GUI apps via ps (ultra-fast, <25ms, no prompt)
+            try:
+                res_ps = subprocess.run(["ps", "-ax", "-o", "comm="], capture_output=True, text=True, timeout=1.0)
+                if res_ps.returncode == 0 and res_ps.stdout:
+                    for line in res_ps.stdout.splitlines():
+                        line = line.strip()
+                        if ("/Applications/" in line or "/System/Applications/" in line) and ".app/Contents/MacOS/" in line:
+                            base = line.split(".app/Contents/MacOS/")[0].split("/")[-1]
+                            if not any(h in line.lower() for h in [
+                                "helper", "agent", "service", "daemon", "xpc", "renderer",
+                                "crashpad", "plugin", "loginwindow", "systemuiserver", "notificationcenter",
+                                "dock", "spotlight", "controlcenter"
+                            ]):
+                                running.add(base)
+            except Exception as e:
+                logger.debug(f"ps app discovery exception: {e}")
+
+            # 2. Dock pinned apps
+            try:
+                res_dock = subprocess.run(["defaults", "read", "com.apple.dock", "persistent-apps"], capture_output=True, text=True, timeout=1.0)
+                if res_dock.returncode == 0 and res_dock.stdout:
+                    raw_dock = re.findall(r'\"?file-label\"?\s*=\s*\"?([^;\n\"]+)\"?;', res_dock.stdout)
+                    for a in raw_dock:
+                        clean_a = a.strip()
+                        if clean_a and clean_a not in ["Apps", "Launchpad", "Trash", "App Store", "Feedback Assistant"]:
+                            dock_pinned.add(clean_a)
+            except Exception as e:
+                logger.debug(f"Dock apps discovery exception: {e}")
+
+            # 3. Installed applications in /Applications and ~/Applications
+            for search_dir in [Path("/Applications"), Path.home() / "Applications"]:
+                if search_dir.exists():
+                    try:
+                        for p in search_dir.glob("*.app"):
+                            installed.add(p.stem)
+                    except Exception:
+                        pass
+        elif sys.platform == "win32":
+            # Windows fallback
+            try:
+                res_task = subprocess.run(["tasklist", "/FO", "CSV"], capture_output=True, text=True, timeout=1.5)
+                if res_task.returncode == 0 and res_task.stdout:
+                    for row in res_task.stdout.splitlines()[1:]:
+                        parts = row.split(",")
+                        if parts:
+                            proc = parts[0].strip(' "')
+                            if proc.endswith(".exe"):
+                                running.add(proc[:-4])
+            except Exception:
+                pass
+            prog_files = [os.environ.get("ProgramFiles"), (os.environ.get("LOCALAPPDATA") or "") + r"\Programs"]
+            for pf in prog_files:
+                if pf and os.path.exists(pf):
+                    try:
+                        for entry in os.listdir(pf):
+                            if os.path.isdir(os.path.join(pf, entry)):
+                                installed.add(entry)
+                    except Exception:
+                        pass
+        else:
+            # Linux fallback
+            try:
+                res_ps = subprocess.run(["ps", "-e", "-o", "comm="], capture_output=True, text=True, timeout=1.0)
+                if res_ps.returncode == 0 and res_ps.stdout:
+                    running.update(line.strip() for line in res_ps.stdout.splitlines() if line.strip())
+            except Exception:
+                pass
+
+        # Standardize and calculate multi-factor scores
+        scored_apps: Dict[str, Dict[str, Any]] = {}
+        all_candidates = running | dock_pinned | installed
+
+        for raw_name in all_candidates:
+            clean_name = STD_APP_NAMES.get(raw_name.lower(), raw_name)
+            cat, role, relation = resolve_app_category_meta(clean_name)
+
+            is_run = (raw_name in running or clean_name in running)
+            is_dock = (raw_name in dock_pinned or clean_name in dock_pinned)
+            is_inst = (raw_name in installed or clean_name in installed)
+
+            score = 0
+            if is_run:
+                score += 15
+            if is_dock:
+                score += 10
+            if is_inst:
+                score += 5
+            if cat != "utility":
+                score += 5
+
+            # Filter out low-signal OS utility noise unless actively running or docked
+            if score < 10 and cat == "utility":
+                continue
+
+            if clean_name not in scored_apps or score > scored_apps[clean_name]["score"]:
+                scored_apps[clean_name] = {
+                    "name": clean_name,
+                    "category": cat,
+                    "role": role,
+                    "relation": relation,
+                    "score": score,
+                    "is_running": is_run,
+                    "is_dock_pinned": is_dock,
+                    "is_installed": is_inst,
+                }
+
+        ranked = sorted(scored_apps.values(), key=lambda x: (-x["score"], x["name"]))
+        return ranked[:limit]
+
     def sync_to_memory(self) -> Dict[str, Any]:
         """
         Synchronizes actual local persona data into Aura's SQLite memory store.
@@ -133,8 +319,18 @@ class LocalMachineIngest:
 
         # 1. Sync Git Identity
         git_id = self.ingest_git_identity()
-        if git_id.get("name"):
-            self.memory.set_preference("user.name", git_id["name"], category="user")
+        raw_name = git_id.get("name", "").strip()
+        if raw_name:
+            # Detect whether git name is a handle (e.g. PDgit12, user123, no spaces, contains digits)
+            is_handle = bool(re.search(r"\d", raw_name) or (" " not in raw_name and len(raw_name) > 2))
+            if is_handle:
+                self.memory.set_preference("github.username", raw_name, category="developer")
+                curr_name = self.memory.get_preference("user.name")
+                if not curr_name or curr_name == raw_name:
+                    self.memory.set_preference("user.name", "Piyush Dua", category="user")
+            else:
+                self.memory.set_preference("user.name", raw_name, category="user")
+
         if git_id.get("email"):
             self.memory.set_preference("user.email", git_id["email"], category="user")
         if git_id.get("repo"):
@@ -174,10 +370,28 @@ class LocalMachineIngest:
             except Exception as e:
                 logger.debug(f"Contacts sync exception: {e}")
 
+        # 4. Sync Most-Used Apps & Hydrate Knowledge Graph
+        top_apps = self.ingest_most_used_apps(limit=12)
+        if top_apps and self.memory:
+            self.memory.set_preference("apps.most_used", json.dumps(top_apps), category="apps")
+            user_name = self.memory.get_preference("user.name") or "Piyush Dua"
+            for app in top_apps:
+                self.memory.add_entity(
+                    name=app["name"],
+                    category="application",
+                    role=app["role"],
+                    aliases=[app["name"].lower(), app["name"].lower().replace(" ", "")],
+                    metadata={"category": app["category"], "score": app["score"], "is_running": app["is_running"], "is_dock_pinned": app["is_dock_pinned"]}
+                )
+                weight = round(min(1.0, 0.5 + (app["score"] / 70.0)), 2)
+                self.memory.add_edge(user_name, app["name"], app["relation"], weight=weight, cluster="apps")
+                self.memory.record_habit("app_launch", app["name"], context=app["category"])
+
         return {
             "status": "success",
             "git_identity": git_id,
             "youtube_entries_ingested": len(yt_list),
             "top_sites_ingested": len(top_sites),
             "contacts_synced": contacts_synced,
+            "top_apps_ingested": len(top_apps),
         }

@@ -281,7 +281,15 @@ class ContextFeedEngine:
             topic = "UI/UX & Visual Design"
             return "Design", topic, "Creative Flow", "Electronic / Chill"
 
-        # 5. Research & Web Reading
+        # 5. Media & Entertainment (YouTube, Spotify, Netflix, Twitch) -> Personal Media, NOT Work Research!
+        media_domains = ["youtube.com", "youtu.be", "spotify.com", "netflix.com", "twitch.tv", "disneyplus.com", "hulu.com", "primevideo.com", "soundcloud.com"]
+        is_media = any(d in b_url_low for d in media_domains) or any(s in b_title_low for s in ["- youtube", "spotify", "netflix", "twitch"])
+        if is_media:
+            clean_title = re.sub(r"^\(\d+\)\s*", "", browser_title or "")
+            clean_title = re.sub(r"\s*-\s*YouTube$", "", clean_title, flags=re.IGNORECASE).strip()
+            return "Media", f"Media: {clean_title}" if clean_title else "Streaming Media", "Deep Focus", "Personal"
+
+        # 6. Research & Web Reading
         if browser_name or any(b in app_low for b in ["chrome", "safari", "arc", "edge", "brave"]):
             topic = browser_title if browser_title else "Web Research"
             if len(topic) > 40:
