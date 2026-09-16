@@ -52,44 +52,46 @@ Eliminates vision agent flaws (>90% token waste, 3–6 second latency, pixel coo
    - CI/CD workflows: `.github/workflows/ci.yml` (multi-OS test matrix) and `.github/workflows/publish.yml` (tag release automation).
 
 ## Test & Integration Status
-- **158 unit and integration tests passing** (`pytest` in 25.02s, 100% pass rate, 100% hermetic).
+- **161 unit, integration, and hermetic regression tests passing** (`pytest` across 15 test files, 100% pass rate, 100% hermetic).
 - **Pure-Data Verified Onboarding Architecture & Disjoint Knowledge Graph Isolation:**
-  - Zero Speculation & Zero Hallucination: User declarations during onboarding (`desktop-dom onboard --interactive` or `/onboard verify`) explicitly seal user identity (`Piyush Dua | Backend Engineer @ Crcle.ai`), key collaborators (`Joshua Rayan [CTO]`, `Cyril Rayan [CEO]`), app bindings (Chrome, Outlook, Terminal, ChatGPT, Spotify), and habits into SQLite Knowledge Graph (`graph_edges`).
+  - Zero Speculation & Zero Hallucination: User declarations during onboarding (`desktop-dom onboard --interactive` or Omnibar Onboarding UI) explicitly seal user identity (`Piyush Dua | Backend Engineer @ Crcle.ai`), key collaborators (`Joshua Rayan [CTO]`, `Cyril Rayan [CEO]`), app bindings (Chrome, Outlook, Terminal, ChatGPT, Spotify, Zed), and habits into SQLite Knowledge Graph (`graph_edges`).
+  - Strict Eradication of Ambient YouTube Seeds: Completely removed automatic stamping of speculative YouTube channels (Fireship, ThePrimeagen) from Chrome history in `local_ingest.py` and `memory.py`. Neutral YouTube home feed routing (`https://www.youtube.com`).
   - 4 Strictly Disjoint Subgraphs: `work`, `apps`, `personal_media`, and `gaming`.
-  - Cluster Isolation Guarantee: Graph distance between work nodes (Joshua Rayan) and personal media (Diljit Dosanjh / YouTube) is verified to be $\infty$.
+  - Cluster Isolation Guarantee: Graph distance between work nodes (Joshua Rayan) and personal media (Diljit Dosanjh / YouTube) is mathematically verified to be $\infty$.
   - Anti-Drift Habit Protection: Verified user habits are locked with `is_explicit=1` and `confidence=1.0`, preventing telemetry or random browsing from hijacking habits.
   - Context Bleed Elimination: Outgoing work emails in Microsoft Outlook strictly resolve work topics from the `work` cluster (e.g. `desktop-dom`, `Crcle.ai`), eliminating accidental leaks of open YouTube tabs or Spotify tracks into work drafts.
+- **Floating Omnibar Onboarding UI/UX & Native WebKit IPC Bridge (`omnibar.py`):**
+  - Native Liquid Glass drawer with interactive application toggle chips (`active` state styling).
+  - Clean form fields (Full Name, Role, Company, Focus Playlist, Collaborators) with autofocus on open.
+  - Keyboard ergonomics: `Escape` dismisses drawer, `Enter` confirms and seals onboarding data, `×` close button.
+  - Two-way WebKit script message bridge (`get_onboarding_data` & `save_onboarding`) synchronizing front-end UI state directly with `AuraMemory.complete_verified_onboarding()`.
+- **Robust Multi-Pattern Natural Messaging Intent Parser (`brain.py`):**
+  - Handles preposition-less phrasings (e.g., `"message cyril backend tests passing 100%"`) by scanning candidate entity prefixes against the Knowledge Graph.
+  - Handles punctuation connectors (`:`, `,`, `-`) and explicit prepositions (`saying`, `about`, `with`, `that`).
+  - Zero-hallucination recipient resolution: unknown recipients yield clean `not_found` response instead of falling back to speculative LLM completions.
+  - Habitual Spotify playlist recall expansion: `"play focus playlist"`, `"play coding playlist"` resolves directly to locked `"Deep Focus"` in exact track order.
 - **Zero-Touch Local Persona & Machine Ingestion (`local_ingest.py`):**
-  - Replaces synthetic demo mocks with real user data: ingests actual Chrome SQLite history (`~/Library/Application Support/Google/Chrome/Default/History`), actual top visited web apps (`bloom.diy`, `luna.amazon.com`, `crcle.ai`), actual YouTube watch history, and local Git identity (`PDgit12 <piyushdua01@gmail.com>`).
-
+  - Replaces synthetic demo mocks with real user data: ingests actual Chrome SQLite history, actual top visited web apps, and local Git identity (`PDgit12 <piyushdua01@gmail.com>`).
 - **Level 1 Polish & Dynamic OS Catalog (`src/desktop_dom/assistant/brain.py`):**
   - Dynamic application scanner indexes 100+ native apps across `/Applications`, `/System/Applications`, `/System/Applications/Utilities`, `~/Applications`.
-  - `SequenceMatcher` typo tolerance (&ge;0.68) resolves typos (`spotfy` &rarr; Spotify, `safri` &rarr; Safari, `crome` &rarr; Google Chrome, `calc` &rarr; Calculator, `notse` &rarr; Notes) without erroneous browser fallbacks.
-  - Native folder navigation (`open downloads`, `open documents`, `open desktop`) & safe app lifecycle control (`quit Spotify`, `close Chrome`).
+  - `SequenceMatcher` typo tolerance (&ge;0.68) resolves typos without erroneous browser fallbacks.
+  - Native folder navigation & safe app lifecycle control.
 - **Level 2 Continuous Intent Cycle & Temporal Routine Engine (`context_feed.py` & `memory.py`):**
-  - Temporal Habit & Routine Engine: When screen offers zero signal (empty desktop), Aura arbitrates intent via diurnal time vectors (Morning Kickoff `05:00-12:00`, Deep Focus `12:00-18:00`, Gaming `18:00-05:00`).
-  - Composite Routine Flow: "start my day", "morning routine", "work mode" orchestrates multi-app workflows (VS Code, GitHub repo, Spotify focus beats).
-  - Data Ingestion: Frontmost application and window title capture via Cocoa/NSWorkspace (<10ms). Live browser tab and URL ingestion from Chrome/Brave/Arc/Safari via AppleScript (<15ms).
-  - Meaning Synthesis: Activity classification into Gaming, Engineering, Communication, Design, Research. Habit mapping: FIFA gaming &rarr; "FIFA Soundtrack" (Gaming Energy), coding &rarr; "Deep Focus" (Focus Beats).
-  - Context Introspection: "What was I doing?", "What am I looking at?", "Summarize my context" extracts active context without vision tokens.
-  - Multi-Modal Intent Routing:
-    - YouTube & Video Streaming: Dynamic contextual channel recommendations (Gaming &rarr; EA SPORTS FC / FIFA tactics, Coding &rarr; ThePrimeagen / Fireship), watch history memory recall, and Chrome tab intelligence (activates existing YouTube tab instead of creating duplicate tabs).
-    - Developer Repository Binding: Resolves "open my repo", "view pull requests" to the active git repository (`PDgit12/desktop-dom`) mapped from active telemetry or SQLite preferences.
-    - Calendar & Schedule Introspection: "Check my schedule" opens native Calendar.
-  - 5-Tier sub-millisecond entity disambiguation (<0.5ms): direct email (100), exact alias (100), role match (92–94), Levenshtein (80–88), SequenceMatcher (70+).
+  - Diurnal temporal arbitration (Morning Kickoff, Deep Focus, Gaming).
+  - Composite multi-app routine execution.
+  - Activity classification and context introspection without vision tokens.
+  - 5-Tier sub-millisecond entity disambiguation (<0.5ms).
 - **The Cursor-Free ("Virtual Ghost Cursor") Architecture (`src/desktop_dom/adapters/macos.py`):**
-  - **Tier 1 (Zero-Movement OS Action):** Direct `AXUIElementPerformAction(kAXPressAction)` dispatches events without moving the user's physical mouse.
-  - **Tier 2 (Microsecond Cursor Warp & Restore):** Saves physical mouse coordinates, executes click, and warps back via `CGWarpMouseCursorPosition` in <0.8ms (imperceptible to user).
-  - **Tier 3 (In-Memory Value Mutation):** Sets text fields directly via `kAXValueAttribute` without stealing active keyboard focus or disrupting typing.
-- **Level 2.5 Autonomous Execution Zone (Between Level 2 and Level 3):**
-  - Native AppleScript/JXA in-app IPC for Microsoft Outlook and Apple Mail: populates recipient, subject, and body into a single clean draft without spawning phantom/duplicate processes or empty windows.
-  - Lightweight before-and-after DOM diffing ($T_1 - T_0$) in <0.25ms certifies state mutation without multi-step loop latency.
+  - Tier 1: Zero-movement OS action via `kAXPressAction`.
+  - Tier 2: Microsecond cursor warp and restore (<0.8ms).
+  - Tier 3: In-memory value mutation via `kAXValueAttribute`.
+- **Level 2.5 Autonomous Execution Zone:**
+  - Native AppleScript/JXA in-app IPC for Microsoft Outlook and Apple Mail.
+  - Lightweight before-and-after DOM diffing ($T_1 - T_0$) in <0.25ms.
 - **Level 3 Autonomous Agentic Loop & State Verification:**
-  - $O(N)$ linear DOM diffing in `diff.py` (<0.25ms), `execute_and_verify()` state verification in `app.py`, `AutonomousDesktopAgent` ReAct loop in `agent.py`, and `desktop-dom serve` headless daemon on port 8484.
-- **Executive Documentation & PDFs:**
-  - `Desktop_DOM_One_Pager_Architecture.pdf`: Verified **exactly 1 page** executive architecture blueprint with Level 2.5 Execution Zone, syscall paths, memory hierarchy, and founder alignment.
-  - `Desktop_DOM_Comprehensive_Technical_Master_Guide.pdf`: 15-page comprehensive technical manual with founder defense playbook, evolutionary journey, and Level 2.5 architecture.
-  - `docs/DESKTOP_DOM_MASTER_DEEP_DIVE_CURRICULUM.md`: Complete markdown curriculum enriched with Section 15 detailing the Continuous Intent Cycle, Multi-Modal Intent, and certified metrics.
+  - $O(N)$ linear DOM diffing in `diff.py` (<0.25ms), `execute_and_verify()` state verification in `app.py`.
+- **Native macOS Distribution:**
+  - Native `Aura.app` bundle built and installed to `/Users/piyushdua/Applications/Aura.app`.
 - Branches: `main` (stable) and `develop` (integration) synced on `PDgit12/desktop-dom`.
 - Remote repository live on GitHub at `https://github.com/PDgit12/desktop-dom` with 100% sole contributor attribution for PDgit12.
 
