@@ -916,6 +916,103 @@ def test_omnibar_onboarding_e2e_storage_and_cluster_isolation(tmp_path):
         assert "Backend Engineer | Crcle.ai" in email_res["signature"]
 
 
+def test_omnibar_settings_ui_and_ipc(tmp_path):
+    from desktop_dom.assistant.omnibar import FloatingOmnibar, OmnibarScriptHandler
+    from desktop_dom.assistant.memory import AuraMemory
+
+    db_file = tmp_path / "test_settings_aura.db"
+    mem = AuraMemory(db_path=str(db_file))
+    mem.auto_hydrate_environment()
+
+    brain = MagicMock()
+    brain.memory = mem
+    bar = FloatingOmnibar(brain=brain)
+    bar._webview = MagicMock()
+
+    # 1. Test on_get_settings_requested
+    bar.on_get_settings_requested()
+    assert bar._webview.evaluateJavaScript_completionHandler_.call_count == 1
+    eval_call = bar._webview.evaluateJavaScript_completionHandler_.call_args[0][0]
+    assert "window.displaySettingsDrawer" in eval_call
+    assert "Piyush Dua" in eval_call
+
+    # 2. Test on_save_settings
+    bar._webview.reset_mock()
+    bar.on_save_settings({
+        "user": {"name": "Piyush Dua", "role": "Senior Engineer", "company": "Crcle.ai"},
+        "playlists": {"focus": "Ambient Coding"}
+    })
+    assert bar._webview.evaluateJavaScript_completionHandler_.call_count == 1
+    eval_save = bar._webview.evaluateJavaScript_completionHandler_.call_args[0][0]
+    assert "window.auraSettingsSaved" in eval_save
+    assert mem.get_preference("user.role") == "Senior Engineer"
+    assert mem.get_preference("spotify.favorite_playlist") == "Ambient Coding"
+
+    # 3. Test on_add_collaborator & on_delete_collaborator
+    bar._webview.reset_mock()
+    bar.on_add_collaborator(name="Elena Rostova", email="elena@crcle.ai", role="Design Lead", company="Crcle.ai")
+    assert bar._webview.evaluateJavaScript_completionHandler_.call_count == 1
+    assert "Elena Rostova" in bar._webview.evaluateJavaScript_completionHandler_.call_args[0][0]
+
+    settings = mem.get_user_settings()
+    elena = next((c for c in settings["collaborators"] if c["name"] == "Elena Rostova"), None)
+    assert elena is not None
+    assert elena["email"] == "elena@crcle.ai"
+
+    # Delete collaborator
+    bar._webview.reset_mock()
+    bar.on_delete_collaborator(elena["id"])
+    assert bar._webview.evaluateJavaScript_completionHandler_.call_count == 1
+    settings_after = mem.get_user_settings()
+    assert not any(c["name"] == "Elena Rostova" for c in settings_after["collaborators"])
+
+    # 4. Test OmnibarScriptHandler bridge for settings
+    handler = OmnibarScriptHandler(bar)
+    mock_msg = MagicMock()
+    mock_msg.body.return_value = json.dumps({"action": "get_settings"})
+    bar._webview.reset_mock()
+    handler.userContentController_didReceiveScriptMessage_(None, mock_msg)
+    assert "window.displaySettingsDrawer" in bar._webview.evaluateJavaScript_completionHandler_.call_args[0][0]
+
+    # Test /settings intercept
+    bar._webview.reset_mock()
+    bar.on_query_submitted("/settings")
+    assert "window.displaySettingsDrawer" in bar._webview.evaluateJavaScript_completionHandler_.call_args[0][0]
+
+
+def test_settings_natural_language_collaborators(tmp_path):
+    from desktop_dom.assistant.memory import AuraMemory
+    from desktop_dom.assistant.brain import AssistantBrain
+
+    db_file = tmp_path / "test_nl_settings_aura.db"
+    mem = AuraMemory(db_path=str(db_file))
+    mem.auto_hydrate_environment()
+    brain = AssistantBrain(memory=mem)
+
+    # 1. Open settings intent
+    res_set = brain.execute_intent("open settings")
+    assert res_set["status"] == "success"
+    assert res_set["action"] == "open_settings"
+
+    # 2. Add collaborator
+    res_add = brain.execute_intent("add collaborator Marcus Vance marcus@crcle.ai")
+    assert res_add["status"] == "success"
+    assert res_add["action"] == "add_collaborator"
+    assert "Marcus Vance" in res_add["response"]
+
+    # Verify in memory
+    ent = mem.resolve_entity("Marcus Vance")
+    assert ent is not None
+    assert ent["email"] == "marcus@crcle.ai"
+
+    # 3. Remove collaborator
+    res_del = brain.execute_intent("remove collaborator Marcus Vance")
+    assert res_del["status"] == "success"
+    assert res_del["action"] == "delete_collaborator"
+    assert mem.resolve_entity("Marcus Vance") is None
+
+
+
 
 
 

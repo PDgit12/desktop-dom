@@ -286,8 +286,6 @@ class AuraMemory:
         ddom = _get_or_create("desktop-dom", "project", "Autonomous Accessibility & Intent Engine", "Crcle.ai", ["desktop-dom", "desktop dom", "aura"])
         outlook = _get_or_create("Microsoft Outlook", "tool", "Enterprise Mail Client", "Microsoft", ["outlook", "ms outlook", "email"])
         spotify = _get_or_create("Spotify", "tool", "Audio & Music Streaming", "Spotify", ["spotify", "spotify app", "music"])
-        diljit = _get_or_create("Diljit Dosanjh", "media", "Artist & Musician", "Music", ["diljit", "dosanjh"])
-        fifa = _get_or_create("FIFA 23", "gaming", "Sports Game", "EA Sports", ["fifa", "fifa 23", "ea sports fc"])
 
         seed_edges = [
             # Work Topology (Connected component)
@@ -305,12 +303,8 @@ class AuraMemory:
             (p_dua, outlook, "uses", 0.90, "work"),
             (j_rayan, outlook, "uses", 0.90, "work"),
 
-            # Personal Media Topology (Strictly Disjoint from Work)
-            (p_dua, diljit, "listens_to", 0.85, "personal_media"),
-            (p_dua, spotify, "uses", 0.90, "personal_media"),
-
-            # Gaming Topology (Strictly Disjoint)
-            (p_dua, fifa, "plays", 0.75, "gaming"),
+            # Tools
+            (p_dua, spotify, "uses", 0.90, "apps"),
         ]
 
         cursor.executemany("""
@@ -1238,7 +1232,7 @@ class AuraMemory:
             }
 
     def format_graph_ascii(self) -> str:
-        """Renders an ASCII diagram of the Knowledge Graph topology and isolated clusters."""
+        """Renders an ASCII diagram of the actual Knowledge Graph topology and isolated clusters."""
         summary = self.get_graph_summary()
         lines = [
             "===========================================================",
@@ -1246,28 +1240,26 @@ class AuraMemory:
             f"   Nodes: {summary['nodes_count']}  |  Edges: {summary['edges_count']}  |  Clusters: {len(summary['clusters'])}",
             "===========================================================",
             "",
-            "[Work Cluster] (Core Collaboration & System Topology)",
-            "  Piyush Dua (Backend Engineer)",
-            "    ├─[works_at]──────────> Crcle.ai <──[founded]────── Joshua Rayan (CEO)",
-            "    ├─[collaborates_with]─> Joshua Rayan (Co-Founder & CEO)",
-            "    ├─[collaborates_with]─> Cyril Rayan (Co-Founder & Architect)",
-            "    ├─[develops]──────────> desktop-dom ──[powers]───> Crcle.ai",
-            "    └─[uses]──────────────> Microsoft Outlook <──[uses]─ Joshua Rayan",
-            "",
-            "[Personal Media Cluster] (Strictly Disjoint from Work)",
-            "  Piyush Dua",
-            "    ├─[listens_to]────────> Diljit Dosanjh (Artist)",
-            "    └─[uses]──────────────> Spotify (Audio)",
-            "",
-            "[Tech Media Cluster]",
-            "  Piyush Dua",
-            "    └─[watches]───────────> ThePrimeagen (Systems & Rust)",
-            "",
-            "[Gaming Cluster] (Strictly Disjoint from Work)",
-            "  Piyush Dua",
-            "    └─[plays]─────────────> FIFA 23 (EA Sports)",
-            "===========================================================",
         ]
+        with self._lock:
+            # Map entity id to name
+            id_to_name = {e["id"]: e.get("name", "Node") for e in self._entity_cache}
+            cluster_edges: Dict[str, list] = {}
+            for edge in self._graph_edges:
+                c = edge.get("cluster", "general")
+                cluster_edges.setdefault(c, []).append(edge)
+
+            for cluster_name, edges in sorted(cluster_edges.items()):
+                lines.append(f"[{cluster_name.replace('_', ' ').title()} Cluster]")
+                for edge in edges[:8]:
+                    src = id_to_name.get(edge.get("source_id"), edge.get("source_name", "Node"))
+                    tgt = id_to_name.get(edge.get("target_id"), edge.get("target_name", "Node"))
+                    rel = edge.get("relation", "rel")
+                    lines.append(f"  {src} ──[{rel}]──> {tgt}")
+                if len(edges) > 8:
+                    lines.append(f"  ... ({len(edges) - 8} more edges)")
+                lines.append("")
+        lines.append("===========================================================")
         return "\n".join(lines)
 
     def get_summary(self) -> Dict[str, Any]:
@@ -1961,8 +1953,8 @@ class AuraMemory:
         if not isinstance(playlists, dict):
             playlists = {}
         focus_playlist = playlists.get("focus") or self.get_preference("spotify.playlist.coding") or self.get_preference("spotify.favorite_playlist") or "Deep Focus"
-        gaming_playlist = playlists.get("gaming") or self.get_preference("spotify.playlist.gaming") or "FIFA Soundtrack"
-        favorite_artist = playlists.get("personal") or self.get_preference("spotify.favorite_artist") or "Diljit Dosanjh"
+        gaming_playlist = playlists.get("gaming") or self.get_preference("spotify.playlist.gaming") or ""
+        favorite_artist = playlists.get("personal") or self.get_preference("spotify.favorite_artist") or ""
 
         # Repositories
         raw_repos = p.get("work_repos")
@@ -1975,6 +1967,7 @@ class AuraMemory:
         self.set_preference("user.role", user_role, category="user")
         self.set_preference("user.company", user_company, category="user")
         self.set_preference("github.default_repo", default_repo, category="developer")
+        self.set_preference("work.repos", json.dumps(work_repos), category="developer")
         self.set_preference("mail.preferred_client", primary_mail, category="mail")
         self.set_preference("music.preferred_player", primary_music, category="music")
         self.set_preference("apps.primary_browser", primary_browser, category="apps")
@@ -1983,8 +1976,10 @@ class AuraMemory:
         self.set_preference("apps.primary_editor", primary_editor, category="developer")
         self.set_preference("spotify.favorite_playlist", focus_playlist, category="music")
         self.set_preference("spotify.playlist.coding", focus_playlist, category="music")
-        self.set_preference("spotify.playlist.gaming", gaming_playlist, category="music")
-        self.set_preference("spotify.favorite_artist", favorite_artist, category="music")
+        if gaming_playlist:
+            self.set_preference("spotify.playlist.gaming", gaming_playlist, category="music")
+        if favorite_artist:
+            self.set_preference("spotify.favorite_artist", favorite_artist, category="music")
         self.set_preference("onboarding.completed", "true", category="onboarding")
         self.set_preference("onboarding.verified", "true", category="onboarding")
         self.set_preference("onboarding.verified_at", str(now), category="onboarding")
@@ -1993,7 +1988,8 @@ class AuraMemory:
         # 4. Lock in Explicit Habits with Confidence=1.0 (Zero Speculation)
         self.record_habit_observation("spotify.favorite_playlist", focus_playlist, category="music", is_explicit=True)
         self.record_habit_observation("spotify.playlist.coding", focus_playlist, category="music", is_explicit=True)
-        self.record_habit_observation("spotify.playlist.gaming", gaming_playlist, category="music", is_explicit=True)
+        if gaming_playlist:
+            self.record_habit_observation("spotify.playlist.gaming", gaming_playlist, category="music", is_explicit=True)
         self.record_habit_observation("mail.preferred_client", primary_mail, category="mail", is_explicit=True)
         self.record_habit_observation("apps.primary_browser", primary_browser, category="apps", is_explicit=True)
 
@@ -2087,17 +2083,20 @@ class AuraMemory:
 
         # Cluster: Personal Media (Disjoint from Work!)
         self.add_entity(name=primary_music, category="application", role="Music Player")
-        self.add_entity(name=focus_playlist, category="media", role="Focus Playlist")
-        self.add_entity(name=favorite_artist, category="artist", role="Favorite Musician")
         self.add_edge(user_name, primary_music, "listens_via", cluster="personal_media", weight=1.0, metadata={"provenance": "user_verified"})
-        self.add_edge(user_name, focus_playlist, "focuses_with", cluster="personal_media", weight=1.0, metadata={"provenance": "user_verified"})
-        self.add_edge(user_name, favorite_artist, "listens_to_artist", cluster="personal_media", weight=1.0, metadata={"provenance": "user_verified"})
+        if focus_playlist:
+            self.add_entity(name=focus_playlist, category="media", role="Focus Playlist")
+            self.add_edge(user_name, focus_playlist, "focuses_with", cluster="personal_media", weight=1.0, metadata={"provenance": "user_verified"})
+        if favorite_artist:
+            self.add_entity(name=favorite_artist, category="artist", role="Favorite Musician")
+            self.add_edge(user_name, favorite_artist, "listens_to_artist", cluster="personal_media", weight=1.0, metadata={"provenance": "user_verified"})
 
         # Cluster: Gaming (Disjoint from Work!)
-        self.add_entity(name="FIFA 23", category="game", role="Preferred Game")
-        self.add_entity(name=gaming_playlist, category="media", role="Gaming Soundtrack")
-        self.add_edge(user_name, "FIFA 23", "plays_game", cluster="gaming", weight=1.0, metadata={"provenance": "user_verified"})
-        self.add_edge("FIFA 23", gaming_playlist, "has_soundtrack", cluster="gaming", weight=1.0, metadata={"provenance": "user_verified"})
+        if gaming_playlist:
+            self.add_entity(name="Gaming", category="game", role="Preferred Game")
+            self.add_entity(name=gaming_playlist, category="media", role="Gaming Soundtrack")
+            self.add_edge(user_name, "Gaming", "plays_game", cluster="gaming", weight=1.0, metadata={"provenance": "user_verified"})
+            self.add_edge("Gaming", gaming_playlist, "has_soundtrack", cluster="gaming", weight=1.0, metadata={"provenance": "user_verified"})
 
         self._reload_cache()
         elapsed_ms = round((time.perf_counter() - t0) * 1000, 2)
@@ -2142,6 +2141,7 @@ class AuraMemory:
             for ent in self._entity_cache:
                 if ent.get("category") == "contact" and ent.get("name") not in [profile["name"], "Piyush Dua"]:
                     collabs.append({
+                        "id": ent.get("id"),
                         "name": ent["name"],
                         "email": ent.get("email", ""),
                         "role": ent.get("role", "Collaborator"),
@@ -2164,12 +2164,13 @@ class AuraMemory:
                     "mail": self.get_preference("mail.preferred_client", "Microsoft Outlook"),
                     "terminal": self.get_preference("apps.primary_terminal", "Terminal"),
                     "ai": self.get_preference("apps.primary_ai", "ChatGPT"),
+                    "editor": self.get_preference("apps.primary_editor", "Zed"),
                     "music": self.get_preference("music.preferred_player", "Spotify"),
                 },
                 "media_habits": {
                     "focus_playlist": self.resolve_habit("spotify.favorite_playlist") or "Deep Focus",
-                    "gaming_playlist": self.resolve_habit("spotify.playlist.gaming") or "FIFA Soundtrack",
-                    "favorite_artist": self.get_preference("spotify.favorite_artist", "Diljit Dosanjh"),
+                    "gaming_playlist": self.resolve_habit("spotify.playlist.gaming") or "",
+                    "favorite_artist": self.get_preference("spotify.favorite_artist") or "",
                 },
                 "graph_topology": graph_summary,
                 "top_apps": top_apps,
@@ -2180,6 +2181,202 @@ class AuraMemory:
         """Returns True if the user has completed explicit verified onboarding."""
         with self._lock:
             return self.get_preference("onboarding.verified") == "true"
+
+    def get_user_settings(self) -> Dict[str, Any]:
+        """Returns all user settings, collaborators, app bindings, and playlists for editing."""
+        with self._lock:
+            profile = self.get_user_profile()
+            collabs = []
+            for ent in self._entity_cache:
+                if ent.get("category") == "contact" and ent.get("name") != profile.get("name"):
+                    collabs.append({
+                        "id": ent.get("id"),
+                        "name": ent.get("name"),
+                        "email": ent.get("email", ""),
+                        "role": ent.get("role", "Collaborator"),
+                        "company": ent.get("company", profile.get("company", "")),
+                    })
+
+            repos_val = self.get_preference("work.repos")
+            repos = json.loads(repos_val) if repos_val else ["desktop-dom"]
+
+            return {
+                "user": {
+                    "name": profile.get("name", "Piyush Dua"),
+                    "email": profile.get("email", "piyushdua01@gmail.com"),
+                    "role": profile.get("role", "Backend Engineer"),
+                    "company": profile.get("company", "Crcle.ai"),
+                },
+                "app_bindings": {
+                    "browser": self.get_preference("apps.primary_browser", "Google Chrome"),
+                    "mail": self.get_preference("mail.preferred_client", "Microsoft Outlook"),
+                    "terminal": self.get_preference("apps.primary_terminal", "Terminal"),
+                    "ai": self.get_preference("apps.primary_ai", "ChatGPT"),
+                    "editor": self.get_preference("apps.primary_editor", "Zed"),
+                    "music": self.get_preference("music.preferred_player", "Spotify"),
+                },
+                "playlists": {
+                    "focus": self.get_preference("spotify.favorite_playlist", "Deep Focus"),
+                    "gaming": self.get_preference("spotify.playlist.gaming", ""),
+                    "personal": self.get_preference("spotify.favorite_artist", ""),
+                },
+                "repositories": {
+                    "default_repo": self.get_preference("github.default_repo", "PDgit12/desktop-dom"),
+                    "repos": repos,
+                },
+                "collaborators": collabs,
+                "verified": self.is_onboarding_verified(),
+            }
+
+    def update_user_settings(self, settings: Dict[str, Any]) -> Dict[str, Any]:
+        """Updates user profile, app bindings, playlists, and repos from Settings."""
+        if not isinstance(settings, dict):
+            return {"status": "error", "message": "Invalid settings payload"}
+
+        if "user" in settings and isinstance(settings["user"], dict):
+            u = settings["user"]
+            if u.get("name"):
+                self.set_preference("user.name", u["name"].strip(), category="user")
+            if u.get("email"):
+                self.set_preference("user.email", u["email"].strip(), category="user")
+            if u.get("role"):
+                self.set_preference("user.role", u["role"].strip(), category="user")
+            if u.get("company"):
+                self.set_preference("user.company", u["company"].strip(), category="user")
+
+        if "app_bindings" in settings and isinstance(settings["app_bindings"], dict):
+            ab = settings["app_bindings"]
+            for key, pref_key, cat in [
+                ("browser", "apps.primary_browser", "apps"),
+                ("mail", "mail.preferred_client", "mail"),
+                ("terminal", "apps.primary_terminal", "developer"),
+                ("editor", "apps.primary_editor", "developer"),
+                ("ai", "apps.primary_ai", "ai"),
+                ("music", "music.preferred_player", "music"),
+            ]:
+                if ab.get(key):
+                    val = ab[key].strip()
+                    self.set_preference(pref_key, val, category=cat)
+                    self.record_habit_observation(pref_key, val, category=cat, is_explicit=True)
+
+        if "playlists" in settings and isinstance(settings["playlists"], dict):
+            pl = settings["playlists"]
+            if pl.get("focus"):
+                f = pl["focus"].strip()
+                self.set_preference("spotify.favorite_playlist", f, category="music")
+                self.set_preference("spotify.playlist.coding", f, category="music")
+                self.record_habit_observation("spotify.favorite_playlist", f, category="music", is_explicit=True)
+            if pl.get("gaming") is not None:
+                g = pl["gaming"].strip()
+                self.set_preference("spotify.playlist.gaming", g, category="music")
+                if g:
+                    self.record_habit_observation("spotify.playlist.gaming", g, category="music", is_explicit=True)
+            if pl.get("personal") is not None:
+                p_art = pl["personal"].strip()
+                self.set_preference("spotify.favorite_artist", p_art, category="music")
+
+        if "repositories" in settings and isinstance(settings["repositories"], dict):
+            rep = settings["repositories"]
+            if rep.get("default_repo"):
+                self.set_preference("github.default_repo", rep["default_repo"].strip(), category="developer")
+            if rep.get("repos") and isinstance(rep["repos"], list):
+                self.set_preference("work.repos", json.dumps(rep["repos"]), category="developer")
+
+        self._reload_cache()
+        return {"status": "success", "settings": self.get_user_settings()}
+
+    def add_collaborator(self, name: str, email: str = "", role: str = "Collaborator", company: str = "") -> Dict[str, Any]:
+        """Adds a team collaborator to entities and connects them to user in the work cluster."""
+        clean_name = name.strip()
+        if not clean_name:
+            return {"status": "error", "message": "Collaborator name cannot be empty"}
+        user_name = self.get_preference("user.name", "Piyush Dua")
+        comp = company.strip() or self.get_preference("user.company", "Crcle.ai")
+        parts = clean_name.split()
+        first = parts[0].lower() if parts else clean_name.lower()
+        aliases = list({clean_name.lower(), first, clean_name.lower().replace(" ", "")})
+
+        ent_id = self.add_entity(
+            name=clean_name,
+            email=email.strip(),
+            role=role.strip() or "Collaborator",
+            company=comp,
+            aliases=aliases,
+            category="contact",
+            metadata={"verified": True, "provenance": "user_settings"}
+        )
+        self.add_edge(user_name, clean_name, "collaborates_with", cluster="work", weight=1.0, metadata={"provenance": "user_settings"})
+        if comp:
+            self.add_edge(clean_name, comp, "works_at", cluster="work", weight=1.0, metadata={"provenance": "user_settings"})
+        self._reload_cache()
+        return {
+            "status": "success",
+            "id": ent_id,
+            "name": clean_name,
+            "email": email.strip(),
+            "role": role.strip() or "Collaborator",
+            "company": comp,
+        }
+
+    def delete_collaborator(self, identifier: Any) -> Dict[str, Any]:
+        """Deletes a collaborator and all incident graph edges."""
+        target_name = None
+        target_id = None
+        with self._lock:
+            if isinstance(identifier, int) or (isinstance(identifier, str) and identifier.isdigit()):
+                target_id = int(identifier)
+                for ent in self._entity_cache:
+                    if ent.get("id") == target_id:
+                        target_name = ent.get("name")
+                        break
+            else:
+                target_name = str(identifier).strip()
+                for ent in self._entity_cache:
+                    if ent.get("name", "").lower() == target_name.lower():
+                        target_id = ent.get("id")
+                        target_name = ent.get("name")
+                        break
+
+            if not target_id:
+                return {"status": "not_found", "message": f"Collaborator '{identifier}' not found"}
+
+            with sqlite3.connect(self.db_path) as conn:
+                conn.execute("DELETE FROM entities WHERE id = ?;", (target_id,))
+                conn.execute("DELETE FROM graph_edges WHERE source_id = ? OR target_id = ?;", (target_id, target_id))
+                conn.commit()
+
+        self._reload_cache()
+        return {"status": "success", "deleted_id": target_id, "deleted_name": target_name}
+
+    def reset_onboarding(self) -> Dict[str, Any]:
+        """Resets onboarding status so user can re-trigger fresh onboarding flow."""
+        self.set_preference("onboarding.verified", "false", category="onboarding")
+        self.set_preference("onboarding.completed", "false", category="onboarding")
+        return {"status": "success", "verified": False}
+
+    def reinforce_interaction(self, action_type: str, entity_name: Optional[str] = None, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Continuing data ingestion: reinforces graph edges, increments interaction counts,
+        and records habit observations so Aura becomes progressively smarter over iterations.
+        """
+        now = time.time()
+        with self._lock:
+            if entity_name:
+                ent = self.resolve_entity(entity_name)
+                if ent and ent.get("id", -1) > 0:
+                    ent_id = ent["id"]
+                    self.touch_entity(ent_id, action_type)
+                    with sqlite3.connect(self.db_path) as conn:
+                        conn.execute("""
+                        UPDATE graph_edges
+                        SET weight = MIN(1.0, weight + 0.05),
+                            updated_at = ?
+                        WHERE source_id = ? OR target_id = ?;
+                        """, (now, ent_id, ent_id))
+                        conn.commit()
+
+        self._reload_cache()
+        return {"status": "success", "action": action_type, "entity": entity_name}
 
 
 

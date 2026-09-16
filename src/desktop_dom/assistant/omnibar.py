@@ -590,6 +590,110 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     transform: scale(0.98);
   }
 
+  /* Interactive Settings Drawer */
+  .settings-drawer {
+    display: none;
+    flex-direction: column;
+    padding: 12px 16px;
+    gap: 10px;
+    max-height: 330px;
+    overflow-y: auto;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity 0.16s ease, transform 0.16s ease;
+  }
+  .settings-drawer::-webkit-scrollbar {
+    width: 4px;
+  }
+  .settings-drawer::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+  }
+  .settings-drawer.visible {
+    display: flex !important;
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .settings-collabs-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 110px;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 6px;
+    padding: 6px 8px;
+  }
+  .settings-collab-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 3px 6px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.03);
+    font-size: 11px;
+    color: #e4e4e7;
+  }
+  .settings-collab-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .settings-del-btn {
+    background: transparent;
+    border: none;
+    color: #ef4444;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+    padding: 2px 5px;
+    border-radius: 3px;
+    transition: background 0.1s ease;
+  }
+  .settings-del-btn:hover {
+    background: rgba(239, 68, 68, 0.15);
+  }
+  .settings-add-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    margin-top: 4px;
+  }
+  .settings-add-btn {
+    background: rgba(167, 139, 250, 0.15);
+    border: 1px solid rgba(167, 139, 250, 0.3);
+    color: #a78bfa;
+    border-radius: 5px;
+    padding: 5px 10px;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.12s ease;
+  }
+  .settings-add-btn:hover {
+    background: rgba(167, 139, 250, 0.25);
+  }
+  .settings-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.12s ease;
+    color: #71717a;
+  }
+  .settings-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #f4f4f5;
+  }
+
   .footer-bar {
     height: 32px;
     border-top: 1px solid rgba(255, 255, 255, 0.06);
@@ -670,6 +774,12 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
             <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
             <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
             <line x1="12" y1="19" x2="12" y2="22"/>
+          </svg>
+        </div>
+        <div class="settings-btn" id="settings-btn" title="Memory Settings & Collaborators">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
           </svg>
         </div>
         <div class="status-badge" id="badge">
@@ -761,6 +871,53 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       </div>
     </div>
 
+    <div class="settings-drawer" id="settings-drawer" style="display: none;">
+      <div class="onb-header">
+        <div class="onb-title" style="color: #a78bfa;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span>Memory & Intent Settings</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div class="status-badge" style="background: rgba(167, 139, 250, 0.1); color: #a78bfa;" id="settings-status-badge">Live Config</div>
+          <button class="onb-close-btn" id="settings-close-btn" title="Dismiss (Esc)">×</button>
+        </div>
+      </div>
+      <div class="onb-grid">
+        <div class="onb-field">
+          <label class="onb-label">Full Name</label>
+          <input type="text" class="onb-input" id="settings-name" />
+        </div>
+        <div class="onb-field">
+          <label class="onb-label">Role</label>
+          <input type="text" class="onb-input" id="settings-role" />
+        </div>
+        <div class="onb-field">
+          <label class="onb-label">Company</label>
+          <input type="text" class="onb-input" id="settings-company" />
+        </div>
+        <div class="onb-field">
+          <label class="onb-label">Focus Playlist</label>
+          <input type="text" class="onb-input" id="settings-playlist" />
+        </div>
+      </div>
+      <div class="onb-field">
+        <label class="onb-label">Team Collaborators (Knowledge Graph)</label>
+        <div class="settings-collabs-list" id="settings-collabs-container">
+          <!-- Populated with collaborator rows -->
+        </div>
+        <div class="settings-add-row">
+          <input type="text" class="onb-input" id="settings-new-name" placeholder="Teammate Name" style="flex: 2;" />
+          <input type="text" class="onb-input" id="settings-new-email" placeholder="Email" style="flex: 2;" />
+          <input type="text" class="onb-input" id="settings-new-role" placeholder="Role (e.g. CTO)" style="flex: 1.5;" />
+          <button class="settings-add-btn" id="settings-add-collab-btn">+ Add</button>
+        </div>
+      </div>
+      <div class="onb-btn-bar">
+        <button class="onb-cancel-btn" id="settings-reset-btn" title="Re-run onboarding flow">Re-run Onboarding</button>
+        <button class="onb-confirm-btn" id="settings-save-btn" style="background: #7c3aed;">Save Changes</button>
+      </div>
+    </div>
+
     <div class="footer-bar">
       <div class="shortcuts">
         <span class="kbd-pill"><span class="kbd">↵</span> Run</span>
@@ -815,6 +972,21 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     const onbCancelBtn = document.getElementById("onb-cancel-btn");
     const footerOnbTag = document.getElementById("footer-onb-tag");
     const onbStatusBadge = document.getElementById("onb-status-badge");
+    const settingsBtn = document.getElementById("settings-btn");
+    const settingsDrawer = document.getElementById("settings-drawer");
+    const settingsName = document.getElementById("settings-name");
+    const settingsRole = document.getElementById("settings-role");
+    const settingsCompany = document.getElementById("settings-company");
+    const settingsPlaylist = document.getElementById("settings-playlist");
+    const settingsCollabsContainer = document.getElementById("settings-collabs-container");
+    const settingsNewName = document.getElementById("settings-new-name");
+    const settingsNewEmail = document.getElementById("settings-new-email");
+    const settingsNewRole = document.getElementById("settings-new-role");
+    const settingsAddCollabBtn = document.getElementById("settings-add-collab-btn");
+    const settingsCloseBtn = document.getElementById("settings-close-btn");
+    const settingsResetBtn = document.getElementById("settings-reset-btn");
+    const settingsSaveBtn = document.getElementById("settings-save-btn");
+    const settingsStatusBadge = document.getElementById("settings-status-badge");
 
     // Pure Monochrome Vector SVGs (Zero Emojis)
     const ICONS = {
@@ -837,6 +1009,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
 
     const defaultActions = [
       { iconType: "app", title: "Top Apps & Brain Onboarding", subtitle: "Discovered apps & knowledge graph topology", query: "/onboard", badge: "Brain" },
+      { iconType: "app", title: "Memory & Collaborators", subtitle: "Manage profile, collaborators & app bindings", query: "/settings", badge: "Config" },
       { iconType: "app", title: "Message Josh", subtitle: "Draft update to Josh about Crcle", query: "message Josh the deck is ready", badge: "Intent" },
       { iconType: "app", title: "Message Cyril", subtitle: "Quick message to Cyril Rayan", query: "message Cyril PR is ready", badge: "Intent" },
       { iconType: "screen", title: "What was I doing?", subtitle: "Summarize active desktop context & focus", query: "what was I doing?", badge: "Context" },
@@ -930,6 +1103,16 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
           });
         }
 
+        if (q.startsWith("/settings") || q.toLowerCase().includes("setting") || q === "config" || q === "preferences") {
+          currentSuggestions.push({
+            iconType: "app",
+            title: "Memory & Collaborator Settings",
+            subtitle: "Manage profile, collaborators & app bindings",
+            query: "/settings",
+            badge: "Config"
+          });
+        }
+
         currentSuggestions.push({
           iconType: "search",
           title: q,
@@ -948,6 +1131,10 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       resultDrawer.classList.remove("visible");
       modelDrawer.classList.remove("visible");
       onboardingDrawer.classList.remove("visible");
+      if (settingsDrawer) {
+        settingsDrawer.classList.remove("visible");
+        settingsDrawer.style.display = "none";
+      }
       isDrawerOpen = false;
 
       if (selectedIndex >= currentSuggestions.length) {
@@ -984,6 +1171,8 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         contentHeight = 52 + modelDrawer.scrollHeight + 32 + 16;
       } else if (onboardingDrawer.classList.contains("visible")) {
         contentHeight = 52 + onboardingDrawer.scrollHeight + 32 + 16;
+      } else if (settingsDrawer && settingsDrawer.classList.contains("visible")) {
+        contentHeight = 52 + settingsDrawer.scrollHeight + 32 + 16;
       } else {
         contentHeight = 52 + 24 + (currentSuggestions.length * 38) + 32 + 12;
       }
@@ -1005,6 +1194,10 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       modelDrawer.style.display = "none";
       onboardingDrawer.classList.remove("visible");
       onboardingDrawer.style.display = "none";
+      if (settingsDrawer) {
+        settingsDrawer.classList.remove("visible");
+        settingsDrawer.style.display = "none";
+      }
       commandSection.style.display = "block";
       isDrawerOpen = false;
       badgeText.innerText = "Ready";
@@ -1091,6 +1284,10 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       modelDrawer.style.display = "none";
       onboardingDrawer.classList.remove("visible");
       onboardingDrawer.style.display = "none";
+      if (settingsDrawer) {
+        settingsDrawer.classList.remove("visible");
+        settingsDrawer.style.display = "none";
+      }
       commandSection.style.display = "block";
       isDrawerOpen = false;
       badgeText.innerText = "Ready";
@@ -1138,6 +1335,10 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     }
 
     window.displayResult = function(payload) {
+      if (payload && payload.action === "open_settings") {
+        window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({ action: "get_settings" }));
+        return;
+      }
       progress.classList.remove("active");
       card.classList.remove("executing");
       commandSection.style.display = "none";
@@ -1412,6 +1613,152 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       }
     });
 
+    let currentSettingsData = null;
+
+    window.displaySettingsDrawer = function(data) {
+      if (autoCloseTimer) clearTimeout(autoCloseTimer);
+      progress.classList.remove("active");
+      card.classList.remove("executing");
+      commandSection.style.display = "none";
+      resultDrawer.classList.remove("visible");
+      resultDrawer.style.display = "none";
+      modelDrawer.classList.remove("visible");
+      modelDrawer.style.display = "none";
+      onboardingDrawer.classList.remove("visible");
+      onboardingDrawer.style.display = "none";
+      if (settingsDrawer) {
+        settingsDrawer.style.display = "flex";
+        settingsDrawer.classList.add("visible");
+      }
+      isDrawerOpen = true;
+
+      badgeText.innerText = "Settings";
+      statusDot.style.background = "#a78bfa";
+
+      currentSettingsData = data || {};
+      const user = currentSettingsData.user || {};
+      if (settingsName) settingsName.value = user.name || "";
+      if (settingsRole) settingsRole.value = user.role || "";
+      if (settingsCompany) settingsCompany.value = user.company || "";
+      
+      const playlists = currentSettingsData.playlists || {};
+      if (settingsPlaylist) settingsPlaylist.value = playlists.focus || "";
+
+      renderSettingsCollabs(currentSettingsData.collaborators || []);
+      notifyResize();
+    };
+
+    function renderSettingsCollabs(collabs) {
+      if (!settingsCollabsContainer) return;
+      settingsCollabsContainer.innerHTML = "";
+      if (!collabs || collabs.length === 0) {
+        settingsCollabsContainer.innerHTML = '<div style="color: #71717a; font-size: 11px; padding: 4px;">No team collaborators yet. Add one below.</div>';
+        return;
+      }
+      collabs.forEach(c => {
+        const row = document.createElement("div");
+        row.className = "settings-collab-row";
+        row.innerHTML = `
+          <div class="settings-collab-info">
+            <span style="font-weight: 500; color: #f4f4f5;">${escapeHtml(c.name)}</span>
+            <span style="color: #71717a;">·</span>
+            <span style="color: #a1a1aa;">${escapeHtml(c.email || c.role || "Team")}</span>
+          </div>
+          <button class="settings-del-btn" title="Delete collaborator" data-id="${escapeHtml(c.id || c.name)}">✕</button>
+        `;
+        const delBtn = row.querySelector(".settings-del-btn");
+        delBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({
+            action: "delete_collaborator",
+            identifier: c.id || c.name
+          }));
+        });
+        settingsCollabsContainer.appendChild(row);
+      });
+    }
+
+    window.auraSettingsSaved = function(result) {
+      if (settingsSaveBtn) {
+        settingsSaveBtn.innerText = "✓ Saved";
+        settingsSaveBtn.style.background = "#059669";
+        settingsSaveBtn.disabled = false;
+      }
+      badgeText.innerText = "Saved";
+      statusDot.style.background = "#10b981";
+      setTimeout(() => {
+        closeDrawers();
+      }, 800);
+    };
+
+    if (settingsBtn) {
+      settingsBtn.addEventListener("click", () => {
+        if (settingsDrawer && settingsDrawer.classList.contains("visible")) {
+          closeDrawers();
+        } else {
+          window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({ action: "get_settings" }));
+        }
+      });
+    }
+
+    if (settingsCloseBtn) settingsCloseBtn.addEventListener("click", closeDrawers);
+
+    if (settingsAddCollabBtn) {
+      settingsAddCollabBtn.addEventListener("click", () => {
+        const name = settingsNewName ? settingsNewName.value.trim() : "";
+        const email = settingsNewEmail ? settingsNewEmail.value.trim() : "";
+        const role = settingsNewRole ? settingsNewRole.value.trim() : "";
+        if (!name) return;
+        window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({
+          action: "add_collaborator",
+          name: name,
+          email: email,
+          role: role,
+          company: settingsCompany ? settingsCompany.value.trim() : ""
+        }));
+        if (settingsNewName) settingsNewName.value = "";
+        if (settingsNewEmail) settingsNewEmail.value = "";
+        if (settingsNewRole) settingsNewRole.value = "";
+      });
+    }
+
+    if (settingsSaveBtn) {
+      settingsSaveBtn.addEventListener("click", () => {
+        settingsSaveBtn.innerText = "Saving...";
+        settingsSaveBtn.disabled = true;
+        const payload = {
+          action: "save_settings",
+          settings: {
+            user: {
+              name: settingsName ? settingsName.value.trim() : "",
+              role: settingsRole ? settingsRole.value.trim() : "",
+              company: settingsCompany ? settingsCompany.value.trim() : ""
+            },
+            playlists: {
+              focus: settingsPlaylist ? settingsPlaylist.value.trim() : ""
+            }
+          }
+        };
+        window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify(payload));
+      });
+    }
+
+    if (settingsResetBtn) {
+      settingsResetBtn.addEventListener("click", () => {
+        window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({ action: "reset_onboarding" }));
+      });
+    }
+
+    if (settingsDrawer) {
+      settingsDrawer.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          e.stopPropagation();
+          closeDrawers();
+        }
+      });
+    }
+
     window.updateModelStatus = function(status) {
       if (!status) return;
       const cur = status.current_model || "Zero-Model Fast-Path";
@@ -1482,6 +1829,22 @@ class OmnibarScriptHandler:
             elif action == "save_onboarding":
                 profile = payload.get("profile", {})
                 self.controller.on_save_onboarding(profile)
+            elif action == "get_settings":
+                self.controller.on_get_settings_requested()
+            elif action == "save_settings":
+                settings = payload.get("settings", {})
+                self.controller.on_save_settings(settings)
+            elif action == "add_collaborator":
+                self.controller.on_add_collaborator(
+                    payload.get("name", ""),
+                    payload.get("email", ""),
+                    payload.get("role", "Collaborator"),
+                    payload.get("company", "")
+                )
+            elif action == "delete_collaborator":
+                self.controller.on_delete_collaborator(payload.get("identifier"))
+            elif action == "reset_onboarding":
+                self.controller.on_reset_onboarding()
             elif action == "copy_to_clipboard":
                 text = payload.get("text", "")
                 self.controller.copy_text(text)
@@ -1658,6 +2021,22 @@ class FloatingOmnibar:
                         elif act == "save_onboarding":
                             profile = payload.get("profile", {})
                             self.ctrl.on_save_onboarding(profile)
+                        elif act == "get_settings":
+                            self.ctrl.on_get_settings_requested()
+                        elif act == "save_settings":
+                            settings = payload.get("settings", {})
+                            self.ctrl.on_save_settings(settings)
+                        elif act == "add_collaborator":
+                            self.ctrl.on_add_collaborator(
+                                payload.get("name", ""),
+                                payload.get("email", ""),
+                                payload.get("role", "Collaborator"),
+                                payload.get("company", "")
+                            )
+                        elif act == "delete_collaborator":
+                            self.ctrl.on_delete_collaborator(payload.get("identifier"))
+                        elif act == "reset_onboarding":
+                            self.ctrl.on_reset_onboarding()
                         elif act == "copy_to_clipboard":
                             self.ctrl.copy_text(payload.get("text", ""))
                     except Exception as e:
@@ -1889,12 +2268,67 @@ class FloatingOmnibar:
         except Exception as e:
             logger.warning(f"Error saving onboarding profile: {e}")
 
+    def on_get_settings_requested(self):
+        """Retrieves user settings & collaborators and displays the interactive Settings drawer."""
+        if not self.brain or not getattr(self.brain, "memory", None):
+            return
+        try:
+            settings_data = self.brain.memory.get_user_settings()
+            self.evaluate_js(f"window.displaySettingsDrawer({json.dumps(settings_data)});")
+        except Exception as e:
+            logger.warning(f"Error fetching user settings: {e}")
+
+    def on_save_settings(self, settings: dict):
+        """Persists updated settings and updates UI."""
+        if not self.brain or not getattr(self.brain, "memory", None):
+            return
+        try:
+            res = self.brain.memory.update_user_settings(settings)
+            self.evaluate_js(f"window.auraSettingsSaved({json.dumps(res)});")
+        except Exception as e:
+            logger.warning(f"Error saving settings: {e}")
+
+    def on_add_collaborator(self, name: str, email: str = "", role: str = "Collaborator", company: str = ""):
+        """Adds collaborator in Knowledge Graph and refreshes settings drawer."""
+        if not self.brain or not getattr(self.brain, "memory", None):
+            return
+        try:
+            self.brain.memory.add_collaborator(name, email=email, role=role, company=company)
+            settings_data = self.brain.memory.get_user_settings()
+            self.evaluate_js(f"window.displaySettingsDrawer({json.dumps(settings_data)});")
+        except Exception as e:
+            logger.warning(f"Error adding collaborator: {e}")
+
+    def on_delete_collaborator(self, identifier: Any):
+        """Deletes collaborator in Knowledge Graph and refreshes settings drawer."""
+        if not self.brain or not getattr(self.brain, "memory", None):
+            return
+        try:
+            self.brain.memory.delete_collaborator(identifier)
+            settings_data = self.brain.memory.get_user_settings()
+            self.evaluate_js(f"window.displaySettingsDrawer({json.dumps(settings_data)});")
+        except Exception as e:
+            logger.warning(f"Error deleting collaborator: {e}")
+
+    def on_reset_onboarding(self):
+        """Resets onboarding flag and immediately opens fresh onboarding drawer."""
+        if not self.brain or not getattr(self.brain, "memory", None):
+            return
+        try:
+            self.brain.memory.reset_onboarding()
+            self.on_get_onboarding_requested()
+        except Exception as e:
+            logger.warning(f"Error resetting onboarding: {e}")
+
     def on_query_submitted(self, query: str):
         """Processes submitted query with zero flicker and expands Result Drawer."""
         logger.info(f"Omnibar query submitted: '{query}'")
         clean_q = (query or "").strip().lower()
         if clean_q in ("/onboard", "onboard", "/onboarding", "onboarding"):
             self.on_get_onboarding_requested()
+            return
+        if clean_q in ("/settings", "settings", "/config", "config", "open settings", "preferences"):
+            self.on_get_settings_requested()
             return
         
         def _execute():

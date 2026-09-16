@@ -348,12 +348,18 @@ class AssistantBrain:
             collab_strs = [f"{c['name']} ({c.get('role', 'Teammate')})" for c in collabs]
             app_str = f"Chrome ({apps.get('browser')}), Outlook ({apps.get('mail')}), Terminal ({apps.get('terminal')}), AI ({apps.get('ai')})"
 
+            media_line = f"• Habitual Media: Focus: '{media.get('focus_playlist', 'Deep Focus')}'"
+            if media.get("favorite_artist"):
+                media_line += f", Artist: '{media.get('favorite_artist')}'"
+            if media.get("gaming_playlist"):
+                media_line += f", Gaming: '{media.get('gaming_playlist')}'"
+
             lines = [
                 f"✓ Knowledge Graph & Intent Engine Onboarded ({'Verified Pure Data' if profile['verified'] else 'Ambient'})",
                 f"• Identity: {user_info['name']} ({user_info['email']}) — {user_info['role']} | {user_info['company']}",
                 f"• Work Circle: {', '.join(collab_strs) if collab_strs else 'Joshua Rayan, Cyril Rayan'}",
                 f"• Verified Apps: {app_str}",
-                f"• Habitual Media: Focus: '{media.get('focus_playlist', 'Deep Focus')}', Artist: '{media.get('favorite_artist', 'Diljit Dosanjh')}'",
+                media_line,
                 f"• Graph Clusters: 4 Disjoint Subgraphs (work, apps, personal_media, gaming)",
                 f"• Cluster Isolation: STRICT_DISJOINT (Cross-Cluster Leakage: 0.0%)",
                 f"• Personal Intent Engine: Level 2.0 (Deterministic) + Level 2.5 (Habit Grounded)",
@@ -370,6 +376,58 @@ class AssistantBrain:
                 "top_apps": profile.get("top_apps", []),
                 "response": resp,
             }
+
+        # 1a-0. Settings & Preferences Management ("open settings", "settings", "view settings", "configure brain")
+        if prompt in ["open settings", "settings", "show settings", "view settings", "configure brain", "/settings", "preferences"]:
+            settings = self.memory.get_user_settings()
+            return {
+                "status": "success",
+                "action": "open_settings",
+                "settings": settings,
+                "response": "Opening Settings. You can view, add, or delete profile fields, app bindings, and collaborators.",
+            }
+
+        # Add collaborator: "add collaborator Cyril Rayan cyril@crcle.ai"
+        add_collab_match = re.match(
+            r"^add\s+(?:collaborator|teammate|coworker|colleague)\s+([a-zA-Z\s]+?)(?:\s+(?:with\s+email|email|at)?\s*([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+))?$",
+            raw_prompt,
+            re.IGNORECASE
+        )
+        if add_collab_match:
+            c_name = add_collab_match.group(1).strip()
+            c_email = add_collab_match.group(2).strip() if add_collab_match.group(2) else ""
+            res = self.memory.add_collaborator(name=c_name, email=c_email)
+            return {
+                "status": "success",
+                "action": "add_collaborator",
+                "name": c_name,
+                "email": c_email,
+                "response": f"Added collaborator '{c_name}' ({c_email or 'no email'}) to Knowledge Graph under work cluster.",
+            }
+
+        # Delete collaborator: "remove collaborator Cyril Rayan"
+        del_collab_match = re.match(
+            r"^(?:remove|delete)\s+(?:collaborator|teammate|coworker|colleague)\s+([a-zA-Z0-9_.+-@\s]+)$",
+            raw_prompt,
+            re.IGNORECASE
+        )
+        if del_collab_match:
+            c_target = del_collab_match.group(1).strip()
+            res = self.memory.delete_collaborator(c_target)
+            if res.get("status") == "success":
+                return {
+                    "status": "success",
+                    "action": "delete_collaborator",
+                    "target": c_target,
+                    "response": f"Removed collaborator '{res.get('deleted_name', c_target)}' and disconnected Knowledge Graph edges.",
+                }
+            else:
+                return {
+                    "status": "not_found",
+                    "action": "delete_collaborator",
+                    "target": c_target,
+                    "response": f"Could not find collaborator '{c_target}' in contacts.",
+                }
 
         # 1a-1. Natural Language Profile & Onboarding Declarations
         set_role_match = re.match(r"^(?:set|change|update)\s+my\s+role\s+to\s+(.+)$", raw_prompt, re.IGNORECASE)
@@ -1591,6 +1649,7 @@ class AssistantBrain:
 end tell'''
                 res = subprocess.run(["osascript", "-e", osa_script], capture_output=True, text=True, timeout=4.0)
                 if res.returncode == 0:
+                    self.memory.reinforce_interaction("send_message", entity_name=name)
                     return {
                         "status": "success",
                         "action": "send_message",
@@ -1623,6 +1682,7 @@ end tell'''
 end tell'''
                 res = subprocess.run(["osascript", "-e", osa_script], capture_output=True, text=True, timeout=4.0)
                 if res.returncode == 0:
+                    self.memory.reinforce_interaction("send_message", entity_name=name)
                     return {
                         "status": "success",
                         "action": "send_message",

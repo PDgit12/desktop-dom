@@ -269,9 +269,9 @@ def test_youtube_explicit_creator_search(mock_memory):
 
 def test_youtube_remember_favorite_channel(mock_memory):
     brain = AssistantBrain(memory=mock_memory)
-    res_rem = brain.execute_intent("remember my favorite youtube channel for tech is Fireship")
+    res_rem = brain.execute_intent("remember my favorite youtube channel for tech is Computerphile")
     assert res_rem.get("status") == "success"
-    assert mock_memory.get_preference("youtube.favorite_channel.tech") == "Fireship"
+    assert mock_memory.get_preference("youtube.favorite_channel.tech") == "Computerphile"
 
     with patch.object(brain.context_feed, "capture_active_context") as mock_cap:
         mock_cap.return_value = ActiveContextSnapshot(
@@ -288,7 +288,7 @@ def test_youtube_remember_favorite_channel(mock_memory):
         )
         with patch("webbrowser.open") as mock_open:
             res = brain.execute_intent("watch youtube")
-            assert res.get("channel") == "Fireship"
+            assert res.get("channel") == "Computerphile"
 
 
 def test_github_developer_repo_intent(mock_memory):
@@ -567,11 +567,14 @@ def test_signature_uses_human_name_not_git_handle(mock_memory):
 
 def test_knowledge_graph_bootstrap_and_topology(mock_memory):
     summary = mock_memory.get_graph_summary()
-    assert summary["nodes_count"] >= 9
-    assert summary["edges_count"] >= 14
+    assert summary["nodes_count"] >= 7
+    assert summary["edges_count"] >= 8
     assert "work" in summary["clusters"]
-    assert "personal_media" in summary["clusters"]
-    assert "gaming" in summary["clusters"]
+    assert "apps" in summary["clusters"]
+
+    # When personal media and gaming are added during onboarding
+    mock_memory.add_edge("Piyush Dua", "Deep Focus", "listens_to", cluster="personal_media")
+    mock_memory.add_edge("Piyush Dua", "FIFA 23", "plays", cluster="gaming")
 
     ascii_view = mock_memory.format_graph_ascii()
     assert "AURA SEMANTIC KNOWLEDGE GRAPH" in ascii_view
@@ -611,9 +614,13 @@ def test_knowledge_graph_shared_context_and_disjoint_isolation(mock_memory):
     shared_names = [e["name"] for e in work_shared["shared_entities"]]
     assert "Crcle.ai" in shared_names or "Microsoft Outlook" in shared_names
 
-    # Personal media context: Diljit Dosanjh <-> Joshua Rayan
+    # Add personal media and gaming clusters to test strict disjoint isolation
+    mock_memory.add_edge("Piyush Dua", "Synthwave Chill", "listens_to", cluster="personal_media")
+    mock_memory.add_edge("Piyush Dua", "FIFA 23", "plays", cluster="gaming")
+
+    # Personal media context: Synthwave Chill <-> Joshua Rayan
     # Mathematical Guarantee: Personal media is strictly disjoint from work contacts!
-    media_disjoint = mock_memory.find_shared_context("Diljit Dosanjh", "Joshua Rayan")
+    media_disjoint = mock_memory.find_shared_context("Synthwave Chill", "Joshua Rayan")
     assert media_disjoint["status"] == "disjoint"
     assert media_disjoint["primary_topic"] is None
     assert media_disjoint["distance"] == float("inf")
@@ -755,10 +762,10 @@ def test_intent_guard_youtube_clean_home_feed(mock_memory):
         assert "Opening YouTube Home" in res["response"]
 
         # Explicit creator watch query must route to requested creator
-        res_creator = brain.execute_intent("watch Fireship")
+        res_creator = brain.execute_intent("watch Computerphile")
         assert res_creator["status"] == "success"
-        assert res_creator["channel"] == "Fireship"
-        assert "Fireship" in res_creator["url"]
+        assert res_creator["channel"] == "Computerphile"
+        assert "Computerphile" in res_creator["url"]
 
 
 def test_intent_guard_native_app_over_web_and_category_aliases(mock_memory):
