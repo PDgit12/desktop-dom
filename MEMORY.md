@@ -65,12 +65,16 @@ Eliminates vision agent flaws (>90% token waste, 3–6 second latency, pixel coo
   - **Tier 1 (Zero-Movement OS Action):** Direct `AXUIElementPerformAction(kAXPressAction)` dispatches events without moving the user's physical mouse.
   - **Tier 2 (Microsecond Cursor Warp & Restore):** Saves physical mouse coordinates, executes click, and warps back via `CGWarpMouseCursorPosition` in <0.8ms (imperceptible to user).
   - **Tier 3 (In-Memory Value Mutation):** Sets text fields directly via `kAXValueAttribute` without stealing active keyboard focus or disrupting typing.
+- **Level 2.5 Autonomous Execution Zone (Between Level 2 and Level 3):**
+  - Synthesizes human intent through grounded local Mistral and dispatches via 3-Tier Ghost Cursor without runaway agentic risk.
+  - Native AppleScript/JXA orchestration for Microsoft Outlook and Apple Mail: populates recipient, subject, and body into a single clean draft without spawning phantom/duplicate processes or empty windows.
+  - Lightweight before-and-after DOM diffing ($T_1 - T_0$) in <0.25ms certifies state mutation without multi-step loop latency.
 - **Level 3 Autonomous Agentic Loop & State Verification:**
   - $O(N)$ linear DOM diffing in `diff.py` (<0.25ms), `execute_and_verify()` state verification in `app.py`, `AutonomousDesktopAgent` ReAct loop in `agent.py`, and `desktop-dom serve` headless daemon on port 8484.
 - **Executive Documentation & PDFs:**
-  - `Desktop_DOM_One_Pager_Architecture.pdf`: 1-page executive architecture blueprint for founders Joshua & Cyril Rayan.
-  - `Desktop_DOM_Comprehensive_Technical_Master_Guide.pdf`: 15-page comprehensive technical manual with founder defense playbook.
-  - `docs/DESKTOP_DOM_MASTER_DEEP_DIVE_CURRICULUM.md`: Complete markdown curriculum.
+  - `Desktop_DOM_One_Pager_Architecture.pdf`: Verified **exactly 1 page** executive architecture blueprint with Level 2.5 Execution Zone, syscall paths, memory hierarchy, and founder alignment.
+  - `Desktop_DOM_Comprehensive_Technical_Master_Guide.pdf`: 15-page comprehensive technical manual with founder defense playbook, evolutionary journey, and Level 2.5 architecture.
+  - `docs/DESKTOP_DOM_MASTER_DEEP_DIVE_CURRICULUM.md`: Complete markdown curriculum enriched with Evolutionary Genesis Story (8.9) and Level 2.5 Execution Zone (8.10).
 - Branches: `main` (stable) and `develop` (integration) synced on `PDgit12/desktop-dom`.
 - Remote repository live on GitHub at `https://github.com/PDgit12/desktop-dom` with 100% sole contributor attribution for PDgit12.
 

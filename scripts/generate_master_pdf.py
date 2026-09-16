@@ -566,6 +566,27 @@ def create_pdf(output_path):
         body_style
     ))
 
+    story.append(Paragraph("8.6 The Evolutionary Journey: From Small Idea to Level 1 to Level 2 and Level 2.5", h2_style))
+    story.append(Paragraph(
+        "Desktop-DOM's architecture evolved through a disciplined 4-stage progression:<br/>"
+        "• <b>Stage 0 (The Small Idea):</b> Realizing vision-based agents fail due to pixel bloat (8M pixels = 2,000 tokens/step, 3–5s latency, cursor hijacking), and discovering operating systems already expose native accessibility semantic trees.<br/>"
+        "• <b>Stage 1 (Level 1 — Deterministic Fast-Path):</b> Building the kernel adapters, 88% AST pruner, dynamic app catalog scanner, typo tolerance via SequenceMatcher (&ge;0.68), folder navigation, and safe app quitting in &lt;25ms.<br/>"
+        "• <b>Stage 2 (Level 2 — The Intent Layer Where Crcle Lies):</b> Moving beyond rigid keywords to ambiguous human intent by grounding local Mistral in active desktop DOM + SQLite WAL personal memory (5-tier disambiguation in 0.49ms).<br/>"
+        "• <b>Stage 3 (Level 2.5 — The Execution Zone Between 2 & 3):</b> Combining Level 2 intent understanding with Level 3 autonomous execution (3-tier ghost cursor) and lightweight $O(N)$ DOM diff verification ($T_1 - T_0$), avoiding the runaway failure risks of unconstrained multi-step agent loops.",
+        body_style
+    ))
+
+    story.append(Paragraph("8.7 Level 2.5: The Intent-to-Action Execution Zone (Between Level 2 and Level 3)", h2_style))
+    story.append(Paragraph(
+        "<b>1. The 3-Tier Ghost Cursor Architecture ('Giving the AI Its Own Cursor'):</b><br/>"
+        "• <b>Tier 1 (In-Memory Direct Action):</b> Invokes <code>kAXPressAction</code> via <code>AXUIElementPerformAction</code> with <b>0px physical cursor movement</b>.<br/>"
+        "• <b>Tier 2 (Ghost Cursor Warp-and-Restore):</b> For canvas/Electron apps, saves user coordinates $(x_0, y_0)$, posts synthetic event at centroid via <code>kCGHIDEventTap</code>, and restores pointer instantly via <code>CGWarpMouseCursorPosition</code> in <b>&lt;0.8ms</b>.<br/>"
+        "• <b>Tier 3 (In-Memory Value Mutation):</b> Sets text directly via <code>kAXValueAttribute</code> without stealing focus or synthetic keystroke jitter.<br/>"
+        "<b>2. Lightweight Before-and-After DOM Diffing ($T_1 - T_0$):</b><br/>"
+        "Captures pre-action snapshot $T_0$, dispatches ghost action, captures post-action snapshot $T_1$, and verifies state mutation $\\Delta = T_1 - T_0$ in <b>&lt;0.25ms</b>, certifying task success without runaway agent loops.",
+        body_style
+    ))
+
     story.append(PageBreak())
 
     # =========================================================================

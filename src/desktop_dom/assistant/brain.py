@@ -165,7 +165,7 @@ class AssistantBrain:
                     return "mistral"
                 # Standard Mistral model prioritization
                 for m in models:
-                    if "mistral" in m.lower():
+                    if any(sub in m.lower() for sub in ["mistral", "ministral"]):
                         return m
                 for m in models:
                     if any(sub in m.lower() for sub in ["qwen", "llama3"]):
@@ -219,7 +219,7 @@ class AssistantBrain:
         self._notify_action("thinking", f"Processing: '{prompt}'")
 
         # 0. Multi-Action Compound Query Support (e.g. "open chrome and open gmail", "open outlook and message josh")
-        if (" and " in clean_prompt or " then " in clean_prompt) and not any(clean_prompt.startswith(p) for p in ["search", "google", "calculate", "type", "note", "remember"]):
+        if (" and " in clean_prompt or " then " in clean_prompt) and not any(clean_prompt.startswith(p) for p in ["what", "who", "where", "why", "how", "tell", "explain", "describe", "search", "google", "calculate", "type", "note", "remember"]):
             parts = [s.strip() for s in re.split(r"\s+(?:and|then)\s+", prompt, flags=re.IGNORECASE) if s.strip()]
             if len(parts) > 1 and all(len(p) > 2 for p in parts):
                 normalized = []
@@ -892,8 +892,14 @@ class AssistantBrain:
 
         self._notify_action("executing", f"Composing message to {name} ({email}) in {client}")
 
-        subject = "Quick Note"
-        body = ""
+        user_name = "Piyush"
+        try:
+            mem_summary = self.memory.get_summary()
+            user_name = mem_summary.get("user", {}).get("name", "Piyush")
+        except Exception:
+            pass
+
+        first_name = name.split()[0] if name else "there"
         if content:
             clean_content = content.strip().strip('"\'')
             if len(clean_content) < 50:
@@ -902,15 +908,31 @@ class AssistantBrain:
             else:
                 subject = "Update"
                 body = clean_content
+            clean_for_draft = re.sub(r"^(?:that|saying|about|with)\s+", "", clean_content, flags=re.IGNORECASE).strip()
+            draft_body = f"Hi {first_name},\n\n{clean_for_draft.capitalize()}.\n\nBest,\n{user_name}"
+        else:
+            subject = "Quick Note"
+            body = ""
+            draft_body = f"Hi {first_name},\n\nHope you are having a productive week! Wanted to connect briefly.\n\nBest,\n{user_name}"
 
         encoded_subject = urllib.parse.quote(subject)
-        encoded_body = urllib.parse.quote(body)
+        encoded_body = urllib.parse.quote(draft_body)
         mailto_url = f"mailto:{email}?subject={encoded_subject}&body={encoded_body}"
 
         if sys.platform == "darwin":
-            # If Outlook is requested/preferred
+            # 1. Native Microsoft Outlook outgoing draft via AppleScript
             if "outlook" in client.lower():
-                res = subprocess.run(["open", "-a", "Microsoft Outlook", mailto_url], capture_output=True, text=True)
+                escaped_subject = subject.replace('\\', '\\\\').replace('"', '\\"')
+                escaped_body = draft_body.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
+                escaped_name = name.replace('\\', '\\\\').replace('"', '\\"')
+                escaped_email = email.replace('\\', '\\\\').replace('"', '\\"')
+                osa_script = f'''tell application "Microsoft Outlook"
+    activate
+    set newMsg to make new outgoing message with properties {{subject:"{escaped_subject}", plain text content:"{escaped_body}"}}
+    make new recipient at newMsg with properties {{email address:{{name:"{escaped_name}", address:"{escaped_email}"}}}}
+    open newMsg
+end tell'''
+                res = subprocess.run(["osascript", "-e", osa_script], capture_output=True, text=True, timeout=4.0)
                 if res.returncode == 0:
                     return {
                         "status": "success",
@@ -922,10 +944,38 @@ class AssistantBrain:
                         "client": "Microsoft Outlook",
                         "subject": subject,
                         "body": body,
-                        "response": f"Opened Microsoft Outlook compose window to {name} ({email}).",
+                        "response": f"Composed message in Microsoft Outlook to {name} ({email}) with subject '{subject}'.",
                     }
 
-            # Fallback to system mail client
+            # 2. Native Apple Mail outgoing draft via AppleScript
+            if "mail" in client.lower():
+                escaped_subject = subject.replace('\\', '\\\\').replace('"', '\\"')
+                escaped_body = body.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
+                escaped_name = name.replace('\\', '\\\\').replace('"', '\\"')
+                escaped_email = email.replace('\\', '\\\\').replace('"', '\\"')
+                osa_script = f'''tell application "Mail"
+    activate
+    set newMsg to make new outgoing message with properties {{subject:"{escaped_subject}", content:"{escaped_body}", visible:true}}
+    tell newMsg
+        make new to recipient at end of to recipients with properties {{name:"{escaped_name}", address:"{escaped_email}"}}
+    end tell
+end tell'''
+                res = subprocess.run(["osascript", "-e", osa_script], capture_output=True, text=True, timeout=4.0)
+                if res.returncode == 0:
+                    return {
+                        "status": "success",
+                        "action": "send_message",
+                        "recipient": name,
+                        "email": email,
+                        "company": entity.get("company", ""),
+                        "role": entity.get("role", ""),
+                        "client": "Mail",
+                        "subject": subject,
+                        "body": body,
+                        "response": f"Composed message in Mail to {name} ({email}) with subject '{subject}'.",
+                    }
+
+            # 3. Fallback to system mailto handler
             res = subprocess.run(["open", mailto_url], capture_output=True, text=True)
             if res.returncode == 0:
                 return {
@@ -935,7 +985,7 @@ class AssistantBrain:
                     "email": email,
                     "company": entity.get("company", ""),
                     "role": entity.get("role", ""),
-                    "client": "Mail",
+                    "client": client,
                     "subject": subject,
                     "body": body,
                     "response": f"Opened email compose window to {name} ({email}).",
@@ -1297,7 +1347,7 @@ class AssistantBrain:
                 data=json.dumps(payload).encode("utf-8"),
                 headers={"Content-Type": "application/json", "User-Agent": "desktop-dom"},
             )
-            with urllib.request.urlopen(req, timeout=12.0) as resp:
+            with urllib.request.urlopen(req, timeout=35.0) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
                 reply = data.get("response", "").strip()
                 if not reply:

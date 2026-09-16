@@ -801,7 +801,7 @@ def test_assistant_fast_path_quit_app(brain):
 
 def test_assistant_mistral_standard_model_priority():
     b_def = AssistantBrain()
-    assert "mistral" in b_def.preferred_model.lower()
+    assert any(sub in b_def.preferred_model.lower() for sub in ["mistral", "ministral"])
 
 
 
