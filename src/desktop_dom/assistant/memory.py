@@ -2081,6 +2081,21 @@ class AuraMemory:
             self.add_entity(name=app_val, category="application", role=f"Primary {app_lbl}")
             self.add_edge(user_name, app_val, app_lbl, cluster="apps", weight=1.0, metadata={"provenance": "user_verified"})
 
+        # Additional connected apps selected or added by the user during onboarding
+        extra_apps = p.get("connected_apps") or p.get("top_apps") or []
+        for app_item in extra_apps:
+            if isinstance(app_item, str):
+                a_name = app_item.strip()
+                a_cat = "application"
+            elif isinstance(app_item, dict):
+                a_name = str(app_item.get("name") or "").strip()
+                a_cat = str(app_item.get("category") or "application").strip()
+            else:
+                continue
+            if a_name and a_name not in [primary_browser, primary_terminal, primary_ai, primary_editor, primary_mail, primary_music]:
+                self.add_entity(name=a_name, category="application", role=f"{a_cat.capitalize()} Tool", metadata={"category": a_cat, "verified": True})
+                self.add_edge(user_name, a_name, "uses_app", cluster="apps", weight=1.0, metadata={"category": a_cat, "provenance": "user_verified"})
+
         # Cluster: Personal Media (Disjoint from Work!)
         self.add_entity(name=primary_music, category="application", role="Music Player")
         self.add_edge(user_name, primary_music, "listens_via", cluster="personal_media", weight=1.0, metadata={"provenance": "user_verified"})
@@ -2200,6 +2215,18 @@ class AuraMemory:
             repos_val = self.get_preference("work.repos")
             repos = json.loads(repos_val) if repos_val else ["desktop-dom"]
 
+            apps_list = []
+            for ent in self._entity_cache:
+                if ent.get("category") == "application":
+                    meta = ent.get("metadata") or {}
+                    cat = meta.get("category", "application") if isinstance(meta, dict) else "application"
+                    apps_list.append({
+                        "id": ent.get("id"),
+                        "name": ent.get("name"),
+                        "role": ent.get("role", "Application"),
+                        "category": cat
+                    })
+
             return {
                 "user": {
                     "name": profile.get("name", "Piyush Dua"),
@@ -2215,6 +2242,7 @@ class AuraMemory:
                     "editor": self.get_preference("apps.primary_editor", "Zed"),
                     "music": self.get_preference("music.preferred_player", "Spotify"),
                 },
+                "connected_apps": apps_list,
                 "playlists": {
                     "focus": self.get_preference("spotify.favorite_playlist", "Deep Focus"),
                     "gaming": self.get_preference("spotify.playlist.gaming", ""),
@@ -2339,6 +2367,52 @@ class AuraMemory:
 
             if not target_id:
                 return {"status": "not_found", "message": f"Collaborator '{identifier}' not found"}
+
+            with sqlite3.connect(self.db_path) as conn:
+                conn.execute("DELETE FROM entities WHERE id = ?;", (target_id,))
+                conn.execute("DELETE FROM graph_edges WHERE source_id = ? OR target_id = ?;", (target_id, target_id))
+                conn.commit()
+
+        self._reload_cache()
+        return {"status": "success", "deleted_id": target_id, "deleted_name": target_name}
+
+    def add_app(self, name: str, category: str = "application") -> Dict[str, Any]:
+        """Adds an application to Knowledge Graph and binds it to user in apps cluster."""
+        clean_name = name.strip()
+        if not clean_name:
+            return {"status": "error", "message": "App name cannot be empty"}
+        user_name = self.get_preference("user.name", "Piyush Dua")
+        ent_id = self.add_entity(
+            name=clean_name,
+            category="application",
+            role=f"{category.capitalize()} Tool",
+            metadata={"category": category, "verified": True, "provenance": "user_settings"}
+        )
+        self.add_edge(user_name, clean_name, "uses_app", cluster="apps", weight=1.0, metadata={"category": category, "provenance": "user_settings"})
+        self._reload_cache()
+        return {"status": "success", "id": ent_id, "name": clean_name, "category": category}
+
+    def delete_app(self, identifier: Any) -> Dict[str, Any]:
+        """Removes an application from entities and graph edges."""
+        target_name = None
+        target_id = None
+        with self._lock:
+            if isinstance(identifier, int) or (isinstance(identifier, str) and identifier.isdigit()):
+                target_id = int(identifier)
+                for ent in self._entity_cache:
+                    if ent.get("id") == target_id:
+                        target_name = ent.get("name")
+                        break
+            else:
+                target_name = str(identifier).strip()
+                for ent in self._entity_cache:
+                    if ent.get("name", "").lower() == target_name.lower():
+                        target_id = ent.get("id")
+                        target_name = ent.get("name")
+                        break
+
+            if not target_id:
+                return {"status": "not_found", "message": f"App '{identifier}' not found"}
 
             with sqlite3.connect(self.db_path) as conn:
                 conn.execute("DELETE FROM entities WHERE id = ?;", (target_id,))

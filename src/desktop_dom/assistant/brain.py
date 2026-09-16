@@ -429,6 +429,48 @@ class AssistantBrain:
                     "response": f"Could not find collaborator '{c_target}' in contacts.",
                 }
 
+        # Add app: "add app Notion" or "add app Slack as communication" or "connect app Figma"
+        add_app_match = re.match(
+            r"^(?:add|connect)\s+app\s+([a-zA-Z0-9\s._-]+?)(?:\s+as\s+([a-zA-Z_-]+))?$",
+            raw_prompt,
+            re.IGNORECASE
+        )
+        if add_app_match:
+            app_name = add_app_match.group(1).strip()
+            app_cat = add_app_match.group(2).strip() if add_app_match.group(2) else "utility"
+            res = self.memory.add_app(name=app_name, category=app_cat)
+            return {
+                "status": "success",
+                "action": "add_app",
+                "name": app_name,
+                "category": app_cat,
+                "response": f"Added application '{app_name}' ({app_cat}) to Knowledge Graph under apps cluster.",
+            }
+
+        # Delete app: "remove app Notion" or "delete app Slack"
+        del_app_match = re.match(
+            r"^(?:remove|delete)\s+app\s+([a-zA-Z0-9\s._-]+)$",
+            raw_prompt,
+            re.IGNORECASE
+        )
+        if del_app_match:
+            app_target = del_app_match.group(1).strip()
+            res = self.memory.delete_app(app_target)
+            if res.get("status") == "success":
+                return {
+                    "status": "success",
+                    "action": "delete_app",
+                    "target": app_target,
+                    "response": f"Removed application '{res.get('deleted_name', app_target)}' from Knowledge Graph.",
+                }
+            else:
+                return {
+                    "status": "not_found",
+                    "action": "delete_app",
+                    "target": app_target,
+                    "response": f"Could not find application '{app_target}' in registered apps.",
+                }
+
         # 1a-1. Natural Language Profile & Onboarding Declarations
         set_role_match = re.match(r"^(?:set|change|update)\s+my\s+role\s+to\s+(.+)$", raw_prompt, re.IGNORECASE)
         if set_role_match:

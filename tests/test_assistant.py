@@ -1012,6 +1012,74 @@ def test_settings_natural_language_collaborators(tmp_path):
     assert mem.resolve_entity("Marcus Vance") is None
 
 
+def test_app_addition_ui_ipc_and_natural_language(tmp_path):
+    from desktop_dom.assistant.memory import AuraMemory
+    from desktop_dom.assistant.brain import AssistantBrain
+    from desktop_dom.assistant.omnibar import FloatingOmnibar, OmnibarScriptHandler
+
+    db_file = tmp_path / "test_app_addition.db"
+    mem = AuraMemory(db_path=str(db_file))
+    mem.auto_hydrate_environment()
+    brain = AssistantBrain(memory=mem)
+
+    bar = FloatingOmnibar(brain=brain)
+    bar._webview = MagicMock()
+
+    # 1. Test on_add_app in FloatingOmnibar
+    bar.on_add_app(name="Notion", category="productivity")
+    assert bar._webview.evaluateJavaScript_completionHandler_.call_count == 1
+    eval_call = bar._webview.evaluateJavaScript_completionHandler_.call_args[0][0]
+    assert "window.displaySettingsDrawer" in eval_call
+    assert "Notion" in eval_call
+
+    # Check in memory & graph
+    ent = mem.resolve_entity("Notion")
+    assert ent is not None
+    assert ent["category"] == "application"
+    conns = mem.get_connected_nodes("Piyush Dua", relation="uses_app")
+    assert any(c["node_name"] == "Notion" for c in conns)
+
+    # 2. Test on_delete_app
+    bar._webview.reset_mock()
+    bar.on_delete_app("Notion")
+    assert bar._webview.evaluateJavaScript_completionHandler_.call_count == 1
+    assert mem.resolve_entity("Notion") is None
+
+    # 3. Test natural language commands
+    res_nl_add = brain.execute_intent("add app Slack as communication")
+    assert res_nl_add["status"] == "success"
+    assert res_nl_add["action"] == "add_app"
+    assert "Slack" in res_nl_add["response"]
+    assert mem.resolve_entity("Slack") is not None
+
+    res_nl_del = brain.execute_intent("remove app Slack")
+    assert res_nl_del["status"] == "success"
+    assert res_nl_del["action"] == "delete_app"
+    assert mem.resolve_entity("Slack") is None
+
+    # 4. Test OmnibarScriptHandler bridge for add_app
+    handler = OmnibarScriptHandler(bar)
+    mock_msg = MagicMock()
+    mock_msg.body.return_value = json.dumps({"action": "add_app", "name": "Xcode", "category": "developer"})
+    bar._webview.reset_mock()
+    handler.userContentController_didReceiveScriptMessage_(None, mock_msg)
+    assert "window.displaySettingsDrawer" in bar._webview.evaluateJavaScript_completionHandler_.call_args[0][0]
+    assert mem.resolve_entity("Xcode") is not None
+
+    # 5. Test onboarding with connected_apps
+    onb_res = mem.complete_verified_onboarding({
+        "user_name": "Piyush Dua",
+        "connected_apps": [
+            {"name": "Figma", "category": "design"},
+            {"name": "Linear", "category": "productivity"}
+        ]
+    })
+    assert onb_res["status"] == "success"
+    assert mem.resolve_entity("Figma") is not None
+    assert mem.resolve_entity("Linear") is not None
+
+
+
 
 
 

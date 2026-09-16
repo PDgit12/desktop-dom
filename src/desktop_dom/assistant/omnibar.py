@@ -864,6 +864,11 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         <div class="onb-chips" id="onb-apps-chips">
           <!-- Dynamically populated chips -->
         </div>
+        <div class="settings-add-row" style="margin-top: 6px;">
+          <input type="text" class="onb-input" id="onb-new-app-name" placeholder="Add App (e.g. Notion, Slack, Xcode)" style="flex: 3;" />
+          <input type="text" class="onb-input" id="onb-new-app-cat" placeholder="Category (e.g. developer)" style="flex: 2;" />
+          <button class="settings-add-btn" id="onb-add-app-btn" type="button">+ Add App</button>
+        </div>
       </div>
       <div class="onb-btn-bar">
         <button class="onb-cancel-btn" id="onb-cancel-btn">Dismiss</button>
@@ -898,6 +903,17 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         <div class="onb-field">
           <label class="onb-label">Focus Playlist</label>
           <input type="text" class="onb-input" id="settings-playlist" />
+        </div>
+      </div>
+      <div class="onb-field">
+        <label class="onb-label">Connected Applications (Knowledge Graph Apps Cluster)</label>
+        <div class="settings-collabs-list" id="settings-apps-container">
+          <!-- Populated with connected app rows -->
+        </div>
+        <div class="settings-add-row">
+          <input type="text" class="onb-input" id="settings-new-app-name" placeholder="App Name (e.g. Notion, Slack, Xcode)" style="flex: 3;" />
+          <input type="text" class="onb-input" id="settings-new-app-cat" placeholder="Category (e.g. developer)" style="flex: 2;" />
+          <button class="settings-add-btn" id="settings-add-app-btn" type="button">+ Add App</button>
         </div>
       </div>
       <div class="onb-field">
@@ -968,6 +984,9 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     const onbPlaylist = document.getElementById("onb-playlist");
     const onbCollabs = document.getElementById("onb-collabs");
     const onbAppsChips = document.getElementById("onb-apps-chips");
+    const onbNewAppName = document.getElementById("onb-new-app-name");
+    const onbNewAppCat = document.getElementById("onb-new-app-cat");
+    const onbAddAppBtn = document.getElementById("onb-add-app-btn");
     const onbConfirmBtn = document.getElementById("onb-confirm-btn");
     const onbCancelBtn = document.getElementById("onb-cancel-btn");
     const footerOnbTag = document.getElementById("footer-onb-tag");
@@ -978,6 +997,10 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     const settingsRole = document.getElementById("settings-role");
     const settingsCompany = document.getElementById("settings-company");
     const settingsPlaylist = document.getElementById("settings-playlist");
+    const settingsAppsContainer = document.getElementById("settings-apps-container");
+    const settingsNewAppName = document.getElementById("settings-new-app-name");
+    const settingsNewAppCat = document.getElementById("settings-new-app-cat");
+    const settingsAddAppBtn = document.getElementById("settings-add-app-btn");
     const settingsCollabsContainer = document.getElementById("settings-collabs-container");
     const settingsNewName = document.getElementById("settings-new-name");
     const settingsNewEmail = document.getElementById("settings-new-email");
@@ -1493,6 +1516,8 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       apps.forEach(app => {
         const chip = document.createElement("div");
         chip.className = "onb-chip active";
+        chip.setAttribute("data-app-name", app.name);
+        chip.setAttribute("data-app-cat", app.category || "application");
         chip.title = "Click to toggle application binding";
         const icon = { browser: "🌐", communication: "💬", developer: "💻", ai_assistant: "🤖", media: "🎵" }[app.category] || "📦";
         chip.innerHTML = `<span>${icon}</span> <span>${escapeHtml(app.name)}</span>`;
@@ -1562,6 +1587,28 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       }
     });
 
+    if (onbAddAppBtn) {
+      onbAddAppBtn.addEventListener("click", () => {
+        const appName = onbNewAppName ? onbNewAppName.value.trim() : "";
+        const appCat = (onbNewAppCat && onbNewAppCat.value.trim()) ? onbNewAppCat.value.trim() : "developer";
+        if (!appName) return;
+        const chip = document.createElement("div");
+        chip.className = "onb-chip active";
+        chip.setAttribute("data-app-name", appName);
+        chip.setAttribute("data-app-cat", appCat);
+        chip.title = "Click to toggle application binding";
+        const icon = { browser: "🌐", communication: "💬", developer: "💻", ai_assistant: "🤖", media: "🎵" }[appCat] || "📦";
+        chip.innerHTML = `<span>${icon}</span> <span>${escapeHtml(appName)}</span>`;
+        chip.addEventListener("click", () => {
+          chip.classList.toggle("active");
+        });
+        onbAppsChips.appendChild(chip);
+        if (onbNewAppName) onbNewAppName.value = "";
+        if (onbNewAppCat) onbNewAppCat.value = "";
+        notifyResize();
+      });
+    }
+
     onbConfirmBtn.addEventListener("click", () => {
       onbConfirmBtn.innerText = "Sealing Knowledge Graph...";
       onbConfirmBtn.disabled = true;
@@ -1589,6 +1636,16 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         }
       });
 
+      const activeApps = [];
+      const chips = onbAppsChips.querySelectorAll(".onb-chip.active");
+      chips.forEach(chip => {
+        const appName = chip.getAttribute("data-app-name") || chip.querySelector("span:last-child")?.innerText?.trim();
+        const appCat = chip.getAttribute("data-app-cat") || "application";
+        if (appName) {
+          activeApps.push({ name: appName, category: appCat });
+        }
+      });
+
       const profilePayload = {
         action: "save_onboarding",
         profile: {
@@ -1598,7 +1655,8 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
           playlists: {
             focus: onbPlaylist.value.trim()
           },
-          collaborators: collabsParsed
+          collaborators: collabsParsed,
+          connected_apps: activeApps
         }
       };
 
@@ -1644,9 +1702,42 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       const playlists = currentSettingsData.playlists || {};
       if (settingsPlaylist) settingsPlaylist.value = playlists.focus || "";
 
+      renderSettingsApps(currentSettingsData.connected_apps || []);
       renderSettingsCollabs(currentSettingsData.collaborators || []);
       notifyResize();
     };
+
+    function renderSettingsApps(apps) {
+      if (!settingsAppsContainer) return;
+      settingsAppsContainer.innerHTML = "";
+      if (!apps || apps.length === 0) {
+        settingsAppsContainer.innerHTML = '<div style="color: #71717a; font-size: 11px; padding: 4px;">No connected applications yet. Add one below.</div>';
+        return;
+      }
+      apps.forEach(a => {
+        const row = document.createElement("div");
+        row.className = "settings-collab-row";
+        const icon = { browser: "🌐", communication: "💬", developer: "💻", ai_assistant: "🤖", media: "🎵" }[a.category] || "📦";
+        row.innerHTML = `
+          <div class="settings-collab-info">
+            <span>${icon}</span>
+            <span style="font-weight: 500; color: #f4f4f5;">${escapeHtml(a.name)}</span>
+            <span style="color: #71717a;">·</span>
+            <span style="color: #a1a1aa;">${escapeHtml(a.category || a.role || "App")}</span>
+          </div>
+          <button class="settings-del-btn" title="Delete application" data-id="${escapeHtml(a.id || a.name)}">✕</button>
+        `;
+        const delBtn = row.querySelector(".settings-del-btn");
+        delBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({
+            action: "delete_app",
+            identifier: a.id || a.name
+          }));
+        });
+        settingsAppsContainer.appendChild(row);
+      });
+    }
 
     function renderSettingsCollabs(collabs) {
       if (!settingsCollabsContainer) return;
@@ -1702,6 +1793,21 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     }
 
     if (settingsCloseBtn) settingsCloseBtn.addEventListener("click", closeDrawers);
+
+    if (settingsAddAppBtn) {
+      settingsAddAppBtn.addEventListener("click", () => {
+        const name = settingsNewAppName ? settingsNewAppName.value.trim() : "";
+        const cat = (settingsNewAppCat && settingsNewAppCat.value.trim()) ? settingsNewAppCat.value.trim() : "developer";
+        if (!name) return;
+        window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({
+          action: "add_app",
+          name: name,
+          category: cat
+        }));
+        if (settingsNewAppName) settingsNewAppName.value = "";
+        if (settingsNewAppCat) settingsNewAppCat.value = "";
+      });
+    }
 
     if (settingsAddCollabBtn) {
       settingsAddCollabBtn.addEventListener("click", () => {
@@ -1843,6 +1949,13 @@ class OmnibarScriptHandler:
                 )
             elif action == "delete_collaborator":
                 self.controller.on_delete_collaborator(payload.get("identifier"))
+            elif action == "add_app":
+                self.controller.on_add_app(
+                    payload.get("name", ""),
+                    payload.get("category", "application")
+                )
+            elif action == "delete_app":
+                self.controller.on_delete_app(payload.get("identifier"))
             elif action == "reset_onboarding":
                 self.controller.on_reset_onboarding()
             elif action == "copy_to_clipboard":
@@ -2035,6 +2148,13 @@ class FloatingOmnibar:
                             )
                         elif act == "delete_collaborator":
                             self.ctrl.on_delete_collaborator(payload.get("identifier"))
+                        elif act == "add_app":
+                            self.ctrl.on_add_app(
+                                payload.get("name", ""),
+                                payload.get("category", "application")
+                            )
+                        elif act == "delete_app":
+                            self.ctrl.on_delete_app(payload.get("identifier"))
                         elif act == "reset_onboarding":
                             self.ctrl.on_reset_onboarding()
                         elif act == "copy_to_clipboard":
@@ -2309,6 +2429,28 @@ class FloatingOmnibar:
             self.evaluate_js(f"window.displaySettingsDrawer({json.dumps(settings_data)});")
         except Exception as e:
             logger.warning(f"Error deleting collaborator: {e}")
+
+    def on_add_app(self, name: str, category: str = "application"):
+        """Adds application in Knowledge Graph and refreshes settings drawer."""
+        if not self.brain or not getattr(self.brain, "memory", None):
+            return
+        try:
+            self.brain.memory.add_app(name=name, category=category)
+            settings_data = self.brain.memory.get_user_settings()
+            self.evaluate_js(f"window.displaySettingsDrawer({json.dumps(settings_data)});")
+        except Exception as e:
+            logger.warning(f"Error adding app: {e}")
+
+    def on_delete_app(self, identifier: Any):
+        """Deletes application from Knowledge Graph and refreshes settings drawer."""
+        if not self.brain or not getattr(self.brain, "memory", None):
+            return
+        try:
+            self.brain.memory.delete_app(identifier)
+            settings_data = self.brain.memory.get_user_settings()
+            self.evaluate_js(f"window.displaySettingsDrawer({json.dumps(settings_data)});")
+        except Exception as e:
+            logger.warning(f"Error deleting app: {e}")
 
     def on_reset_onboarding(self):
         """Resets onboarding flag and immediately opens fresh onboarding drawer."""
