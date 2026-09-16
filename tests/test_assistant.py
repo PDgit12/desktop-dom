@@ -605,6 +605,16 @@ def test_assistant_habitual_playlist(tmp_path):
         assert res2["playlist"] == "Lofi Beats"
         mock_spotify2.assert_called_with("Lofi Beats")
 
+    # Contextual gaming/FIFA playlist recall
+    with patch.object(brain, "_get_frontmost_app_name", return_value="FIFA 23"):
+        with patch.object(brain, "_control_spotify_play") as mock_spotify3:
+            mock_spotify3.return_value = {"status": "success", "action": "spotify_play", "query": "FIFA Soundtrack"}
+            res3 = brain.execute_intent("play my playlist")
+            assert res3["status"] == "success"
+            assert res3["playlist"] == "FIFA Soundtrack"
+            assert res3["context"] == "Gaming Energy"
+            mock_spotify3.assert_called_with("FIFA Soundtrack")
+
 def test_assistant_memory_inspection_and_who_is(tmp_path):
     from desktop_dom.assistant.memory import AuraMemory
     mem = AuraMemory(tmp_path / "mem.db")

@@ -392,13 +392,24 @@ class AssistantBrain:
         # 2. Habitual Playlist Recall ("open my playlist", "play my playlist", "play my music")
         playlist_regex = re.compile(r"^(?:open|play)\s+(?:my\s+)?(?:favorite\s+|favourite\s+)?(?:spotify\s+)?(?:playlist|music|songs?)$", re.IGNORECASE)
         if playlist_regex.match(raw_prompt.strip()):
-            fav_playlist = self.memory.get_preference("spotify.favorite_playlist", "Deep Focus")
-            self._notify_action("executing", f"Playing favorite playlist '{fav_playlist}' on Spotify")
+            frontmost = (self._get_frontmost_app_name() or "").lower()
+            contextual_genre = "Personal"
+            
+            # Contextual Intent Synthesis: Active App Telemetry -> Meaning -> Contextual Habit
+            if any(game in frontmost for game in ["fifa", "steam", "game", "fortnite", "epic"]):
+                contextual_genre = "Gaming Energy"
+                fav_playlist = self.memory.get_preference("spotify.playlist.gaming", "FIFA Soundtrack")
+            else:
+                fav_playlist = self.memory.get_preference("spotify.favorite_playlist", "Deep Focus")
+
+            self._notify_action("executing", f"Playing {contextual_genre} playlist '{fav_playlist}' on Spotify")
             res = self._control_spotify_play(fav_playlist)
             if res.get("status") == "success":
                 res["action"] = "spotify_playlist"
+                res["level"] = "2.0"
                 res["playlist"] = fav_playlist
-                res["response"] = f"Now playing your favorite playlist '{fav_playlist}' on Spotify."
+                res["context"] = contextual_genre
+                res["response"] = f"Now playing your {contextual_genre} playlist '{fav_playlist}' on Spotify."
             return res
 
         # 3. Personal Intent Messaging & Email Flow ("message Josh", "email Josh", "shoot an email to josh", "ping josh")

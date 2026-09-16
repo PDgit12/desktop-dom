@@ -353,11 +353,19 @@ Inspired by Crcle's design discipline:
   - **Cross-Platform Fallback:** Safe `mailto:` handler if native AppleScript APIs are unavailable.
 - **Zero Hallucination:** If a contact is unknown, Aura explicitly states they are not in memory and prompts to learn them.
 
-### 8.7 Habitual Media Recall (Spotify Native Integration)
-- Triggered by *"open my playlist"*, *"play my playlist"*, *"play my music"*.
-- Retrieves `spotify.favorite_playlist` (`"Deep Focus"`) from SQLite memory.
-- Plays on Spotify via native AppleScript dispatch in **<1ms**.
-- Dynamic learning: Saying *"remember my favorite playlist is Lalkara"* immediately updates the database.
+### 8.7 Contextual Habit Recall & The "Data Feeding &rarr; Meaning &rarr; Intent" Pipeline
+A core architectural premise of Level 2 is that user intent cannot be derived from words alone—it is inextricably bound to active context:
+- **The Classical Dilemma:** When a user says *"play the playlist"*, what does that actually mean?
+  - A Level 1 command launcher has no context: it either fails or plays one static hardcoded string.
+  - A true Level 2 Intent Layer derives **meaning from ambient data telemetry**:
+    1. **Data Ingestion (The Feeding Process):** Ingests the frontmost application context via `_get_frontmost_app_name()` and the window's accessibility DOM (e.g. `FIFA 23`, `Google Chrome`, `Cursor / VS Code`).
+    2. **Meaning Synthesis (The Local SLM):**
+       - When the user is playing **FIFA / Gaming**, the engine derives the semantic meaning: *"High-energy gaming soundtrack required; do not play deep study/focus music."*
+       - When the user is in **VS Code / Terminal**, the engine derives the meaning: *"Deep Focus / instrumental coding beats."*
+       - When the user is in **Google Chrome / Research**, the engine derives the meaning: *"Background ambient audio."*
+    3. **Intent Formulation:** Compiles that contextual meaning into the linear Level 1 action schema (`ACTION: play FIFA Soundtrack on Spotify`).
+    4. **Level 2.5 Ghost Execution:** Dispatches via background AppleScript IPC with **0px cursor displacement**. The user is in the middle of a FIFA match: their gamepad and mouse never lose window focus, and playback begins seamlessly.
+- **Dynamic Learning:** Saying *"remember my favorite playlist is Lalkara"* immediately updates the SQLite WAL preferences database for general recall.
 
 ### 8.8 Zero-Click Ambient Onboarding & Cold-Start Hydration
 - Automatically harvests user real name (`id -F`), Unix user (`whoami`), and Git identity (`git config user.name / user.email`).
