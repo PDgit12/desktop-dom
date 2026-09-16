@@ -404,18 +404,26 @@ class AssistantBrain:
                 snapshot.suggested_genre = "Gaming Energy"
             self._current_context_snapshot = snapshot
 
-            # Contextual Intent Synthesis: Active App + Window + Browser -> Contextual Habit
-            custom_favorite = self.memory.get_preference("spotify.favorite_playlist")
+            # Strict Anti-Drift Habit Resolution Hierarchy:
+            # 1. Tier 1: Explicit User Lock in habits table or preferences (ground truth)
+            explicit_fav = self.memory.resolve_habit("spotify.favorite_playlist") or self.memory.get_preference("spotify.favorite_playlist")
 
-            if snapshot.activity_category == "Gaming" or any(g in (frontmost or "").lower() for g in ["fifa", "steam", "game"]):
+            # Check if user explicitly asked for gaming vs coding/focus
+            req_gaming = any(w in prompt for w in ["gaming", "game", "fifa"])
+            req_coding = any(w in prompt for w in ["coding", "code", "work", "focus"])
+
+            if req_gaming or snapshot.activity_category == "Gaming":
                 contextual_genre = "Gaming Energy"
-                fav_playlist = self.memory.get_preference("spotify.playlist.gaming", snapshot.suggested_playlist or "FIFA Soundtrack")
-            elif custom_favorite:
-                contextual_genre = "Personal"
-                fav_playlist = custom_favorite
+                fav_playlist = self.memory.resolve_habit("spotify.playlist.gaming") or self.memory.get_preference("spotify.playlist.gaming", snapshot.suggested_playlist or "FIFA Soundtrack")
+            elif req_coding:
+                contextual_genre = "Focus Beats"
+                fav_playlist = self.memory.resolve_habit("spotify.playlist.coding") or self.memory.get_preference("spotify.playlist.coding", snapshot.suggested_playlist or "Deep Focus")
+            elif explicit_fav:
+                contextual_genre = "Personal Favorite"
+                fav_playlist = explicit_fav
             elif snapshot.activity_category == "Engineering":
                 contextual_genre = "Focus Beats"
-                fav_playlist = self.memory.get_preference("spotify.playlist.coding", snapshot.suggested_playlist or "Deep Focus")
+                fav_playlist = self.memory.resolve_habit("spotify.playlist.coding") or "Deep Focus"
             elif snapshot.activity_category == "Design":
                 contextual_genre = "Creative Flow"
                 fav_playlist = self.memory.get_preference("spotify.playlist.design", snapshot.suggested_playlist or "Creative Flow")
@@ -424,9 +432,12 @@ class AssistantBrain:
                 fav_playlist = self.memory.get_preference("spotify.playlist.research", snapshot.suggested_playlist or "Lofi Beats")
             else:
                 contextual_genre = "Personal"
-                fav_playlist = custom_favorite or "Deep Focus"
+                fav_playlist = self.memory.get_preference("spotify.favorite_playlist", "Deep Focus")
 
-            self._notify_action("executing", f"Playing {contextual_genre} playlist '{fav_playlist}' on Spotify")
+            # Prevent drift: record observation to reinforce this habit
+            self.memory.record_habit_observation("spotify.last_played_playlist", fav_playlist, category="music", is_explicit=False)
+
+            self._notify_action("executing", f"Playing {contextual_genre} playlist '{fav_playlist}' on Spotify in exact order")
             res = self._control_spotify_play(fav_playlist)
             if res.get("status") == "success":
                 res["action"] = "spotify_playlist"
@@ -434,7 +445,7 @@ class AssistantBrain:
                 res["playlist"] = fav_playlist
                 res["context"] = contextual_genre
                 res["activity"] = snapshot.activity_category
-                res["response"] = f"Now playing your {contextual_genre} playlist '{fav_playlist}' on Spotify."
+                res["response"] = f"Now playing your {contextual_genre} playlist '{fav_playlist}' on Spotify in exact track order."
             return res
 
         # 3. Personal Intent Messaging & Email Flow ("message Josh", "email Josh", "shoot an email to josh", "ping josh")
@@ -1434,10 +1445,12 @@ end tell'''
         if sys.platform == "darwin":
             import urllib.parse
             encoded_query = urllib.parse.quote(query)
+            target_uri = query if query.startswith("spotify:") else f"spotify:search:{encoded_query}"
             osa = f'''
             tell application "Spotify"
                 activate
-                open location "spotify:search:{encoded_query}"
+                set shuffling to false
+                open location "{target_uri}"
                 delay 0.4
                 play
             end tell

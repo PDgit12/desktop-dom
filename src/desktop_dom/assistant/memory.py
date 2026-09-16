@@ -102,6 +102,21 @@ class AuraMemory:
             """)
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_preferences_category ON preferences(category);")
 
+            # 2b. Stabilized Anti-Drift Habits Table (Hysteresis & Confidence Guard)
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS habits (
+                habit_key TEXT PRIMARY KEY,
+                habit_value TEXT NOT NULL,
+                category TEXT DEFAULT 'media',
+                confidence REAL DEFAULT 0.5,
+                occurrence_count INTEGER DEFAULT 1,
+                is_explicit INTEGER DEFAULT 0,
+                last_confirmed REAL NOT NULL,
+                metadata TEXT DEFAULT '{}'
+            );
+            """)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_habits_confidence ON habits(confidence DESC);")
+
             # 3. Activity & Context Log
             cursor.execute("""
             CREATE TABLE IF NOT EXISTS activity_log (
@@ -424,6 +439,97 @@ class AuraMemory:
             return dict(self._pref_cache)
 
     # -------------------------------------------------------------------------
+    # Stabilized Anti-Drift Habit Engine (Hysteresis & Confidence Guard)
+    # -------------------------------------------------------------------------
+
+    def record_habit_observation(
+        self,
+        habit_key: str,
+        value: str,
+        category: str = "media",
+        is_explicit: bool = False,
+    ) -> Dict[str, Any]:
+        """
+        Records or updates a habit observation with strict anti-drift hysteresis:
+        - If is_explicit: overrides immediately, locks confidence to 1.0, and sets is_explicit=1.
+        - If not is_explicit:
+          - If existing habit is_explicit=1: REJECTS drift; explicit user choice is preserved.
+          - If value matches existing: increments occurrence_count, boosts confidence by +0.15 (max 0.95).
+          - If value differs: decays existing confidence by -0.10; does NOT overwrite until candidate
+            accumulates >= 3 occurrences across separate sessions.
+        """
+        now = time.time()
+        with self._lock, self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT habit_value, confidence, occurrence_count, is_explicit FROM habits WHERE habit_key = ?;", (habit_key,))
+            row = cursor.fetchone()
+
+            if not row:
+                conf = 1.0 if is_explicit else 0.50
+                exp = 1 if is_explicit else 0
+                cursor.execute("""
+                INSERT INTO habits (habit_key, habit_value, category, confidence, occurrence_count, is_explicit, last_confirmed)
+                VALUES (?, ?, ?, ?, 1, ?, ?);
+                """, (habit_key, value, category, conf, exp, now))
+                conn.commit()
+                act = "locked_explicit" if is_explicit else "created"
+                return {"action": act, "key": habit_key, "value": value, "confidence": conf, "is_explicit": is_explicit}
+
+            curr_val = row["habit_value"]
+            curr_conf = row["confidence"]
+            curr_count = row["occurrence_count"]
+            curr_exp = row["is_explicit"]
+
+            if is_explicit:
+                # Explicit user override: lock ground truth
+                cursor.execute("""
+                UPDATE habits
+                SET habit_value = ?, confidence = 1.0, occurrence_count = occurrence_count + 1, is_explicit = 1, last_confirmed = ?
+                WHERE habit_key = ?;
+                """, (value, now, habit_key))
+                conn.commit()
+                return {"action": "locked_explicit", "key": habit_key, "value": value, "confidence": 1.0}
+
+            if curr_exp == 1:
+                # Anti-drift guard: Never allow passive telemetry to override explicit user choice
+                return {"action": "drift_rejected", "key": habit_key, "value": curr_val, "confidence": curr_conf, "reason": "explicit_lock"}
+
+            if curr_val == value:
+                # Reinforce existing habit
+                new_conf = min(0.95, curr_conf + 0.15)
+                cursor.execute("""
+                UPDATE habits
+                SET confidence = ?, occurrence_count = occurrence_count + 1, last_confirmed = ?
+                WHERE habit_key = ?;
+                """, (new_conf, now, habit_key))
+                conn.commit()
+                return {"action": "reinforced", "key": habit_key, "value": value, "confidence": new_conf}
+            else:
+                # Conflicting passive observation: apply hysteresis decay
+                new_conf = max(0.15, curr_conf - 0.10)
+                cursor.execute("""
+                UPDATE habits
+                SET confidence = ?, last_confirmed = ?
+                WHERE habit_key = ?;
+                """, (new_conf, now, habit_key))
+                conn.commit()
+                return {"action": "decayed_old", "key": habit_key, "value": curr_val, "confidence": new_conf}
+
+    def resolve_habit(self, habit_key: str, default: Optional[str] = None) -> Optional[str]:
+        """
+        Resolves a stabilized habit value if confidence >= 0.40 or is_explicit == 1.
+        Returns default if habit has drifted or does not exist.
+        """
+        with self._lock, self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT habit_value, confidence, is_explicit FROM habits WHERE habit_key = ?;", (habit_key,))
+            row = cursor.fetchone()
+            if row:
+                if row["is_explicit"] == 1 or row["confidence"] >= 0.40:
+                    return row["habit_value"]
+            return default
+
+    # -------------------------------------------------------------------------
     # Entity CRUD API
     # -------------------------------------------------------------------------
 
@@ -547,6 +653,7 @@ class AuraMemory:
         if playlist_match:
             playlist_name = playlist_match.group(1).strip().strip('"\'')
             self.set_preference("spotify.favorite_playlist", playlist_name, category="music")
+            self.record_habit_observation("spotify.favorite_playlist", playlist_name, category="music", is_explicit=True)
             return {
                 "status": "success",
                 "action": "remember_preference",

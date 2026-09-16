@@ -349,4 +349,81 @@ def test_sync_local_persona(mock_memory):
         assert "15 YouTube items" in res.get("response", "")
 
 
+def test_habit_anti_drift_explicit_lock(mock_memory):
+    # 1. Lock explicit habit
+    res1 = mock_memory.record_habit_observation("spotify.favorite_playlist", "Karan Aujla Hits", is_explicit=True)
+    assert res1["action"] == "locked_explicit"
+    assert res1["confidence"] == 1.0
+
+    # 2. Transient passive observation of another playlist should be REJECTED
+    res2 = mock_memory.record_habit_observation("spotify.favorite_playlist", "Random Coffee Lofi", is_explicit=False)
+    assert res2["action"] == "drift_rejected"
+
+    # 3. Resolved value remains strictly the locked ground truth
+    assert mock_memory.resolve_habit("spotify.favorite_playlist") == "Karan Aujla Hits"
+
+
+def test_habit_anti_drift_passive_hysteresis(mock_memory):
+    # 1. First passive observation creates candidate with 0.5 confidence
+    res1 = mock_memory.record_habit_observation("media.genre", "Tech Podcasts", is_explicit=False)
+    assert res1["action"] == "created"
+    assert res1["confidence"] == 0.50
+
+    # 2. Conflicting passive observation decays confidence instead of immediately switching
+    res2 = mock_memory.record_habit_observation("media.genre", "Cooking Shows", is_explicit=False)
+    assert res2["action"] == "decayed_old"
+    assert res2["confidence"] < 0.50
+
+    # 3. Same observation reinforces habit
+    res3 = mock_memory.record_habit_observation("media.genre", "Tech Podcasts", is_explicit=False)
+    assert res3["action"] == "reinforced"
+
+
+def test_playlist_recall_exact_order_and_explicit_priority(mock_memory):
+    brain = AssistantBrain(memory=mock_memory)
+    # Set explicit personal favorite playlist
+    mock_memory.record_habit_observation("spotify.favorite_playlist", "Diljit Dosanjh Essentials", is_explicit=True)
+
+    with patch.object(brain.context_feed, "capture_active_context") as mock_cap, patch.object(brain, "_control_spotify_play") as mock_spot:
+        # 1. Active gaming context routes to gaming playlist
+        mock_cap.return_value = ActiveContextSnapshot(
+            timestamp=time.time(),
+            frontmost_app="FIFA 23",
+            window_title="Matchday",
+            activity_category="Gaming",
+            focused_topic="Gaming Session",
+            suggested_playlist="FIFA Soundtrack",
+            suggested_genre="Gaming Energy",
+            browser_name=None,
+            browser_url=None,
+            browser_title=None,
+        )
+        mock_spot.return_value = {"status": "success"}
+
+        res_gaming = brain.execute_intent("open playlist")
+        assert res_gaming.get("status") == "success"
+        assert res_gaming.get("playlist") == "FIFA Soundtrack"
+        assert res_gaming.get("context") == "Gaming Energy"
+        assert "exact track order" in res_gaming.get("response", "")
+
+        # 2. In non-gaming context, explicit personal favorite takes priority over generic defaults
+        mock_cap.return_value = ActiveContextSnapshot(
+            timestamp=time.time(),
+            frontmost_app="Google Chrome",
+            window_title="New Tab",
+            activity_category="General",
+            focused_topic="Browsing",
+            suggested_playlist=None,
+            suggested_genre=None,
+            browser_name="Google Chrome",
+            browser_url="chrome://newtab",
+            browser_title="New Tab",
+        )
+        res_fav = brain.execute_intent("open playlist")
+        assert res_fav.get("status") == "success"
+        assert res_fav.get("playlist") == "Diljit Dosanjh Essentials"
+        assert res_fav.get("context") == "Personal Favorite"
+
+
+
 

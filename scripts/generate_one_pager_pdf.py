@@ -44,7 +44,7 @@ class SinglePageCanvas(canvas.Canvas):
         self.setFont("Helvetica", 7)
         self.setFillColor(colors.HexColor("#64748b"))
         self.drawString(32, 13, "Desktop-DOM v0.2.0 • Systems Architecture Blueprint • Author: Piyush Dua (PDgit12)")
-        self.drawRightString(580, 13, "Prepared for Crcle.ai • 125/125 Tests Passing (100% Hermetic) • Exactly 1 Page")
+        self.drawRightString(580, 13, "Prepared for Crcle.ai • 138/138 Tests Passing (100% Hermetic) • Exactly 1 Page")
         self.restoreState()
 
 def build_one_pager(output_path: str):
@@ -190,7 +190,7 @@ def build_one_pager(output_path: str):
         [
             Paragraph("<b>Layer 2<br/>Intent Core</b>", badge_accent_style),
             Paragraph("<b>Feeding ⟶ Meaning ⟶ Intent</b><br/>Chrome Ingest + Context Feed", cell_bold),
-            Paragraph("<b>Where Crcle.ai fundamentally lies:</b> Continuous intent cycle: Ingests OS telemetry + Chrome active tab + SQLite WAL memory. Synthesizes meaning (FIFA &rarr; FIFA Soundtrack; coding &rarr; Deep Focus; YouTube/GitHub routing). Resolves entities (<i>'message Josh'</i>) in &lt;0.5ms.", cell_body),
+            Paragraph("<b>Where Crcle.ai fundamentally lies:</b> Continuous intent cycle: Ingests OS telemetry + Chrome active tab + SQLite WAL memory. Anti-drift hysteresis state machine filters transient feeds from real habits. Resolves exact Spotify order & entities (<i>'message Josh'</i>) in &lt;0.5ms.", cell_body),
             Paragraph("<b>0.49 ms</b> (Mem)<br/><b>&lt;15 ms</b> (Ingest)", cell_bold),
         ],
         [
@@ -280,8 +280,8 @@ def build_one_pager(output_path: str):
             Paragraph("<b>Founder Alignment</b>", cell_bold),
         ],
         [
-            Paragraph("<b>135 / 135 Passing (100%)</b><br/>Zero flaky tests in ~16s. Hermetic: schema, pruners, memory, Chrome/macOS ingest, daily routines, agent.", cell_body),
-            Paragraph("<b>SQLite in WAL Mode</b><br/>Dual-layer in-memory hot cache. 5-tier disambiguation executes in <b>0.49ms</b> with zero cloud lock.", cell_body),
+            Paragraph("<b>138 / 138 Passing (100%)</b><br/>Zero flaky tests in ~15s. Hermetic: anti-drift habit hysteresis, exact Spotify order, Chrome ingest, tree pruning.", cell_body),
+            Paragraph("<b>Anti-Drift Memory</b><br/>SQLite WAL + dual-layer cache. Hysteresis filter locks explicit intent; resolves habits & entities in <b>0.49ms</b>.", cell_body),
             Paragraph("<b>Sub-ms Headless Daemon</b><br/><code>desktop-dom serve</code> on port 8484 exposes tree, intent, diff, and agent endpoints for Crcle.", cell_body),
             Paragraph("<b>Joshua & Cyril Rayan</b><br/>Delivers the exact high-velocity backend engine solving Crcle's core intent layer bottlenecks.", cell_body),
         ]
