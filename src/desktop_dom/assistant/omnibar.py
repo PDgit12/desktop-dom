@@ -865,8 +865,8 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
           <!-- Dynamically populated chips -->
         </div>
         <div class="settings-add-row" style="margin-top: 6px;">
-          <input type="text" class="onb-input" id="onb-new-app-name" placeholder="Add App (e.g. Notion, Slack, Xcode)" style="flex: 3;" />
-          <input type="text" class="onb-input" id="onb-new-app-cat" placeholder="Category (e.g. developer)" style="flex: 2;" />
+          <input type="text" class="onb-input" id="onb-new-app-name" placeholder="App Name (e.g. Granola, Figma, Linear, Notion)" style="flex: 3;" />
+          <input type="text" class="onb-input" id="onb-new-app-cat" placeholder="Capability / Intent (e.g. meeting, design, tasks)" style="flex: 2;" />
           <button class="settings-add-btn" id="onb-add-app-btn" type="button">+ Add App</button>
         </div>
       </div>
@@ -911,8 +911,8 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
           <!-- Populated with connected app rows -->
         </div>
         <div class="settings-add-row">
-          <input type="text" class="onb-input" id="settings-new-app-name" placeholder="App Name (e.g. Notion, Slack, Xcode)" style="flex: 3;" />
-          <input type="text" class="onb-input" id="settings-new-app-cat" placeholder="Category (e.g. developer)" style="flex: 2;" />
+          <input type="text" class="onb-input" id="settings-new-app-name" placeholder="App Name (e.g. Granola, Figma, Linear)" style="flex: 3;" />
+          <input type="text" class="onb-input" id="settings-new-app-cat" placeholder="Capability / Intent (e.g. meeting, design, tasks)" style="flex: 2;" />
           <button class="settings-add-btn" id="settings-add-app-btn" type="button">+ Add App</button>
         </div>
       </div>
@@ -1032,6 +1032,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
 
     const defaultActions = [
       { iconType: "app", title: "Top Apps & Brain Onboarding", subtitle: "Discovered apps & knowledge graph topology", query: "/onboard", badge: "Brain" },
+      { iconType: "app", title: "I Have a Meeting", subtitle: "Launch bound meeting companion (Level 2.5 Ghost)", query: "i have a meeting", badge: "Intent" },
       { iconType: "app", title: "Memory & Collaborators", subtitle: "Manage profile, collaborators & app bindings", query: "/settings", badge: "Config" },
       { iconType: "app", title: "Message Josh", subtitle: "Draft update to Josh about Crcle", query: "message Josh the deck is ready", badge: "Intent" },
       { iconType: "app", title: "Message Cyril", subtitle: "Quick message to Cyril Rayan", query: "message Cyril PR is ready", badge: "Intent" },
@@ -1049,6 +1050,16 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       if (!q) {
         currentSuggestions = defaultActions;
       } else {
+        if (q.toLowerCase().includes("meet") || q.toLowerCase().includes("granola") || q.toLowerCase().includes("call") || q.toLowerCase().includes("sync")) {
+          currentSuggestions.push({
+            iconType: "app",
+            title: "Meeting Companion Intent",
+            subtitle: "Launch bound meeting workspace & notes",
+            query: q,
+            badge: "Meeting"
+          });
+        }
+
         if (q.toLowerCase().includes("onboard") || q.toLowerCase().includes("top app") || q.toLowerCase().includes("most used") || q.toLowerCase().includes("graph")) {
           currentSuggestions.push({
             iconType: "app",
@@ -1388,6 +1399,35 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
           <div class="result-math-highlight" style="font-size: 18px; font-weight: 600; color: #10b981; margin-bottom: 4px;">${escapeHtml(payload.playlist)}</div>
           <div class="result-math-sub" style="font-size: 12px; color: #a1a1aa;">Habitual Playlist · Spotify Native AppleScript</div>
         `;
+      } else if (action === "meeting_intent" && payload.tool) {
+        const pName = payload.participant && payload.participant.name ? payload.participant.name : "";
+        const pRole = payload.participant && payload.participant.role ? payload.participant.role : "";
+        const pCompany = payload.participant && payload.participant.company ? payload.participant.company : "";
+        let metaHtml = "";
+        if (pName) {
+          metaHtml = `<span>With <b>${escapeHtml(pName)}</b></span>`;
+          if (pRole && pRole !== "Participant") {
+            metaHtml += ` <span style="color: #a1a1aa;">(${escapeHtml(pRole)}${pCompany ? ` @ ${escapeHtml(pCompany)}` : ""})</span>`;
+          }
+        }
+        if (payload.topic) {
+          metaHtml += `${metaHtml ? `<span style="color: #52525b;">·</span> ` : ""}<span>Topic: <b>${escapeHtml(payload.topic)}</b></span>`;
+        }
+        resultBody.innerHTML = `
+          <div class="result-math-highlight" style="font-size: 18px; font-weight: 600; color: #38bdf8; margin-bottom: 4px;">${escapeHtml(payload.tool)}</div>
+          <div class="result-math-sub" style="font-size: 12px; color: #a1a1aa; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+            <span>Meeting Companion · Level 2.5 Ghost Launch</span>
+            ${metaHtml ? `<span style="color: #52525b;">·</span> ${metaHtml}` : ""}
+          </div>
+        `;
+      } else if (action.endsWith("_intent") && payload.tool) {
+        const intentDisplay = action.replace("_intent", "").toUpperCase();
+        resultBody.innerHTML = `
+          <div class="result-math-highlight" style="font-size: 18px; font-weight: 600; color: #a78bfa; margin-bottom: 4px;">${escapeHtml(payload.tool)}</div>
+          <div class="result-math-sub" style="font-size: 12px; color: #a1a1aa; display: flex; align-items: center; gap: 6px;">
+            <span>${escapeHtml(intentDisplay)} Capability · Knowledge Graph Bound</span>
+          </div>
+        `;
       } else if (action === "calculate" && payload.result) {
         resultBody.innerHTML = `
           <div class="result-math-highlight">${escapeHtml(payload.result)}</div>
@@ -1400,7 +1440,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       const engine = payload.engine || "fast_path";
       const latency = payload.latency_ms ? `${Math.round(payload.latency_ms)}ms` : "";
 
-      if (action === "send_message" || action === "spotify_playlist" || action === "who_is" || action === "memory_summary" || action.startsWith("remember_")) {
+      if (action === "send_message" || action === "spotify_playlist" || action === "who_is" || action === "memory_summary" || action.endsWith("_intent") || action.startsWith("remember_")) {
         resultEnginePill.innerText = latency ? `Memory · ${latency}` : "Memory";
       } else if (engine === "fast_path") {
         resultEnginePill.innerText = latency ? `Fast-Path · ${latency}` : "Fast-Path";
@@ -1510,7 +1550,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         { name: "Terminal", category: "developer", is_running: true },
         { name: "ChatGPT", category: "ai_assistant", is_running: true },
         { name: "Spotify", category: "media", is_running: true },
-        { name: "Granola", category: "ai_assistant", is_running: true }
+        { name: "Granola", category: "meeting", is_running: true }
       ];
 
       apps.forEach(app => {
@@ -1519,8 +1559,8 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         chip.setAttribute("data-app-name", app.name);
         chip.setAttribute("data-app-cat", app.category || "application");
         chip.title = "Click to toggle application binding";
-        const icon = { browser: "🌐", communication: "💬", developer: "💻", ai_assistant: "🤖", media: "🎵" }[app.category] || "📦";
-        chip.innerHTML = `<span>${icon}</span> <span>${escapeHtml(app.name)}</span>`;
+        const icon = { browser: "🌐", communication: "💬", developer: "💻", ai_assistant: "🤖", media: "🎵", meeting: "🗓️", notes: "📝", design: "🎨", tasks: "✅" }[app.category] || "📦";
+        chip.innerHTML = `<span>${icon}</span> <span>${escapeHtml(app.name)}</span> <span style="opacity: 0.6; font-size: 10px; margin-left: 2px;">(${escapeHtml(app.category || "app")})</span>`;
         chip.addEventListener("click", () => {
           chip.classList.toggle("active");
         });
@@ -1615,8 +1655,8 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
           chip.setAttribute("data-app-name", appName);
           chip.setAttribute("data-app-cat", appCat);
           chip.title = "Click to toggle application binding";
-          const icon = { browser: "🌐", communication: "💬", developer: "💻", ai_assistant: "🤖", media: "🎵", utility: "⚙️", productivity: "📝" }[appCat] || "📦";
-          chip.innerHTML = `<span>${icon}</span> <span>${escapeHtml(appName)}</span>`;
+          const icon = { browser: "🌐", communication: "💬", developer: "💻", ai_assistant: "🤖", media: "🎵", meeting: "🗓️", notes: "📝", design: "🎨", tasks: "✅", utility: "⚙️", productivity: "📝" }[appCat] || "📦";
+          chip.innerHTML = `<span>${icon}</span> <span>${escapeHtml(appName)}</span> <span style="opacity: 0.6; font-size: 10px; margin-left: 2px;">(${escapeHtml(appCat)})</span>`;
           chip.addEventListener("click", () => {
             chip.classList.toggle("active");
           });
@@ -1758,13 +1798,14 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       apps.forEach(a => {
         const row = document.createElement("div");
         row.className = "settings-collab-row";
-        const icon = { browser: "🌐", communication: "💬", developer: "💻", ai_assistant: "🤖", media: "🎵" }[a.category] || "📦";
+        const icon = { browser: "🌐", communication: "💬", developer: "💻", ai_assistant: "🤖", media: "🎵", meeting: "🗓️", notes: "📝", design: "🎨", tasks: "✅" }[a.category] || "📦";
+        const intentOrCat = a.intent || a.category || a.role || "App";
         row.innerHTML = `
           <div class="settings-collab-info">
             <span>${icon}</span>
             <span style="font-weight: 500; color: #f4f4f5;">${escapeHtml(a.name)}</span>
             <span style="color: #71717a;">·</span>
-            <span style="color: #a1a1aa;">${escapeHtml(a.category || a.role || "App")}</span>
+            <span style="color: #a1a1aa; font-size: 11px;">Capability: <b style="color: #c4b5fd;">${escapeHtml(intentOrCat)}</b></span>
           </div>
           <button class="settings-del-btn" title="Delete application" data-id="${escapeHtml(a.id || a.name)}">✕</button>
         `;
@@ -1843,7 +1884,8 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({
           action: "add_app",
           name: name,
-          category: cat
+          category: cat,
+          intent: cat
         }));
         if (settingsNewAppName) settingsNewAppName.value = "";
         if (settingsNewAppCat) settingsNewAppCat.value = "";
@@ -2066,7 +2108,8 @@ class OmnibarScriptHandler:
             elif action == "add_app":
                 self.controller.on_add_app(
                     payload.get("name", ""),
-                    payload.get("category", "application")
+                    payload.get("category", "application"),
+                    payload.get("intent")
                 )
             elif action == "delete_app":
                 self.controller.on_delete_app(payload.get("identifier"))
@@ -2267,7 +2310,8 @@ class FloatingOmnibar:
                         elif act == "add_app":
                             self.ctrl.on_add_app(
                                 payload.get("name", ""),
-                                payload.get("category", "application")
+                                payload.get("category", "application"),
+                                payload.get("intent")
                             )
                         elif act == "delete_app":
                             self.ctrl.on_delete_app(payload.get("identifier"))
@@ -2567,12 +2611,12 @@ class FloatingOmnibar:
         except Exception as e:
             logger.warning(f"Error deleting collaborator: {e}")
 
-    def on_add_app(self, name: str, category: str = "application"):
+    def on_add_app(self, name: str, category: str = "application", intent: Optional[str] = None):
         """Adds application in Knowledge Graph and refreshes settings drawer."""
         if not self.brain or not getattr(self.brain, "memory", None):
             return
         try:
-            self.brain.memory.add_app(name=name, category=category)
+            self.brain.memory.add_app(name=name, category=category, intent=intent)
             settings_data = self.brain.memory.get_user_settings()
             self.evaluate_js(f"window.displaySettingsDrawer({json.dumps(settings_data)});")
         except Exception as e:

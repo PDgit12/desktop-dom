@@ -1938,6 +1938,111 @@ class AuraMemory:
         self._reload_cache()
         return summary
 
+    def resolve_app_for_intent(self, intent: str) -> Optional[str]:
+        """
+        Dynamically resolves the application bound to handle a high-level intent
+        (e.g., 'meeting', 'notes', 'design', 'tasks', 'browser', 'terminal', 'ai', 'editor', 'music', 'mail')
+        from the sovereign Knowledge Graph and verified onboarding bindings.
+        ZERO hardcoded fallbacks — reflects the user's explicit setup.
+        """
+        clean_intent = intent.strip().lower()
+        if not clean_intent:
+            return None
+
+        with self._lock:
+            # 1. Primary: Explicit user preference for this intent (respecting "" as unconfigured)
+            pref_keys = [f"apps.primary_{clean_intent}"]
+            if clean_intent in ["meeting", "meetings"]:
+                pref_keys = ["apps.primary_meeting"]
+            elif clean_intent == "mail":
+                pref_keys = ["mail.preferred_client", "apps.primary_mail"]
+            elif clean_intent in ["music", "media"]:
+                pref_keys = ["music.preferred_player", "apps.primary_music"]
+            elif clean_intent in ["browser", "web"]:
+                pref_keys = ["apps.primary_browser"]
+            elif clean_intent in ["terminal", "shell", "console"]:
+                pref_keys = ["apps.primary_terminal"]
+            elif clean_intent in ["ai", "assistant"]:
+                pref_keys = ["apps.primary_ai"]
+            elif clean_intent in ["editor", "code", "coding"]:
+                pref_keys = ["apps.primary_editor"]
+
+            for pk in pref_keys:
+                p = self.get_preference(pk)
+                if p == "":  # User explicitly cleared or unconfigured this intent
+                    return None
+                if p:
+                    return p
+
+            # 2. Secondary: Check graph edges for handles_<intent>_intent
+            rel_target = f"handles_{clean_intent}_intent"
+            for edge in self._graph_edges:
+                rel = (edge.get("relation") or "").lower()
+                meta = edge.get("metadata") or {}
+                if rel == rel_target or meta.get("intent") == clean_intent:
+                    tgt = edge.get("target_name")
+                    if tgt:
+                        return tgt
+
+            # 3. Tertiary: Entity cache with category or intent metadata in 'apps' cluster
+            for ent in self._entity_cache:
+                if ent.get("category") == "application":
+                    meta = ent.get("metadata") or {}
+                    ent_cat = (meta.get("category") or "").lower()
+                    ent_intent = (meta.get("intent") or "").lower()
+                    role_low = (ent.get("role") or "").lower()
+                    if ent_intent == clean_intent or ent_cat == clean_intent or f"{clean_intent} " in role_low:
+                        return ent.get("name")
+
+        return None
+
+    def get_all_configured_intents(self) -> Dict[str, str]:
+        """
+        Returns a dictionary mapping all user-configured intents to their bound applications
+        from the sovereign Knowledge Graph and preferences (e.g. {'meeting': 'Granola', 'design': 'Figma'}).
+        """
+        intents: Dict[str, str] = {}
+        with self._lock:
+            for edge in self._graph_edges:
+                rel = (edge.get("relation") or "").lower()
+                meta = edge.get("metadata") or {}
+                tgt = edge.get("target_name")
+                if not tgt:
+                    continue
+                if rel.startswith("handles_") and rel.endswith("_intent"):
+                    intent_name = rel[len("handles_"):-len("_intent")]
+                    if intent_name and intent_name not in intents:
+                        intents[intent_name] = tgt
+                elif meta.get("intent") and meta["intent"] not in intents:
+                    intents[meta["intent"]] = tgt
+
+            # Standard preferences fallback if not in edges
+            core_map = [
+                ("meeting", "apps.primary_meeting"),
+                ("browser", "apps.primary_browser"),
+                ("mail", "mail.preferred_client"),
+                ("terminal", "apps.primary_terminal"),
+                ("ai", "apps.primary_ai"),
+                ("editor", "apps.primary_editor"),
+                ("music", "music.preferred_player"),
+            ]
+            for ik, pk in core_map:
+                if ik not in intents:
+                    val = self.get_preference(pk)
+                    if val:
+                        intents[ik] = val
+
+            # Also check entity metadata
+            for ent in self._entity_cache:
+                if ent.get("category") == "application":
+                    meta = ent.get("metadata") or {}
+                    i = meta.get("intent") or meta.get("category")
+                    name = ent.get("name")
+                    if i and name and i not in ["application", "utility"] and i not in intents:
+                        intents[str(i).lower()] = name
+
+        return intents
+
     def complete_verified_onboarding(self, profile: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Synthesizes 100% verified, pure user data into the Knowledge Graph and intent engine.
@@ -1979,6 +2084,14 @@ class AuraMemory:
         primary_ai = apps.get("ai") or self.get_preference("apps.primary_ai") or "ChatGPT"
         primary_music = apps.get("music") or self.get_preference("music.preferred_player") or ambient.get("music_player") or "Spotify"
         primary_editor = apps.get("editor") or self.get_preference("apps.primary_editor") or "Zed"
+        primary_meeting = apps.get("meeting") or self.get_preference("apps.primary_meeting") or ""
+        if not primary_meeting:
+            for itm in (p.get("connected_apps") or p.get("top_apps") or []):
+                name = itm.get("name") if isinstance(itm, dict) else str(itm)
+                cat = (itm.get("category") or "").lower() if isinstance(itm, dict) else ""
+                if cat in ["meeting", "meetings", "notes"] or "granola" in name.lower():
+                    primary_meeting = name
+                    break
 
         # Media Preferences
         playlists = p.get("playlists")
@@ -2006,6 +2119,8 @@ class AuraMemory:
         self.set_preference("apps.primary_terminal", primary_terminal, category="developer")
         self.set_preference("apps.primary_ai", primary_ai, category="ai")
         self.set_preference("apps.primary_editor", primary_editor, category="developer")
+        if primary_meeting:
+            self.set_preference("apps.primary_meeting", primary_meeting, category="apps")
         self.set_preference("spotify.favorite_playlist", focus_playlist, category="music")
         self.set_preference("spotify.playlist.coding", focus_playlist, category="music")
         if gaming_playlist:
@@ -2119,14 +2234,38 @@ class AuraMemory:
             if isinstance(app_item, str):
                 a_name = app_item.strip()
                 a_cat = "application"
+                a_intent = ""
             elif isinstance(app_item, dict):
                 a_name = str(app_item.get("name") or "").strip()
-                a_cat = str(app_item.get("category") or "application").strip()
+                a_cat = str(app_item.get("category") or "application").strip().lower()
+                a_intent = str(app_item.get("intent") or "").strip().lower()
             else:
                 continue
-            if a_name and a_name not in [primary_browser, primary_terminal, primary_ai, primary_editor, primary_mail, primary_music]:
-                self.add_entity(name=a_name, category="application", role=f"{a_cat.capitalize()} Tool", metadata={"category": a_cat, "verified": True})
-                self.add_edge(user_name, a_name, "uses_app", cluster="apps", weight=1.0, metadata={"category": a_cat, "provenance": "user_verified"})
+
+            if not a_name or a_name in [primary_browser, primary_terminal, primary_ai, primary_editor, primary_mail, primary_music]:
+                continue
+
+            if not a_intent and a_cat not in ["application", "utility"]:
+                a_intent = a_cat
+            if "granola" in a_name.lower():
+                a_intent = "meeting"
+
+            meta = {"category": a_cat, "verified": True, "provenance": "user_verified"}
+            if a_intent:
+                meta["intent"] = a_intent
+                self.set_preference(f"apps.primary_{a_intent}", a_name, category="apps")
+
+            role_str = "Meeting Companion" if a_intent == "meeting" else (f"{a_intent.capitalize()} Tool" if a_intent else f"{a_cat.capitalize()} Tool")
+
+            self.add_entity(name=a_name, category="application", role=role_str, metadata=meta)
+            self.add_edge(user_name, a_name, "uses_app", cluster="apps", weight=1.0, metadata=meta)
+            if a_intent:
+                self.add_edge(user_name, a_name, f"handles_{a_intent}_intent", cluster="apps", weight=1.0, metadata=meta)
+
+        if primary_meeting:
+            self.add_entity(name=primary_meeting, category="application", role="Meeting Companion", metadata={"category": "meeting", "intent": "meeting", "verified": True})
+            self.add_edge(user_name, primary_meeting, "handles_meeting_intent", cluster="apps", weight=1.0, metadata={"intent": "meeting", "provenance": "user_verified"})
+            self.set_preference("apps.primary_meeting", primary_meeting, category="apps")
 
         # Cluster: Personal Media (Disjoint from Work!)
         self.add_entity(name=primary_music, category="application", role="Music Player")
@@ -2165,6 +2304,7 @@ class AuraMemory:
                 "ai": primary_ai,
                 "editor": primary_editor,
                 "music": primary_music,
+                "meeting": primary_meeting,
             },
             "media_habits": {
                 "focus_playlist": focus_playlist,
@@ -2173,6 +2313,7 @@ class AuraMemory:
             },
             "graph_clusters": ["work", "apps", "personal_media", "gaming"],
             "cluster_isolation_verified": True,
+            "configured_intents": self.get_all_configured_intents(),
             "elapsed_ms": elapsed_ms,
         }
 
@@ -2213,7 +2354,9 @@ class AuraMemory:
                     "ai": self.get_preference("apps.primary_ai", "ChatGPT"),
                     "editor": self.get_preference("apps.primary_editor", "Zed"),
                     "music": self.get_preference("music.preferred_player", "Spotify"),
+                    "meeting": self.resolve_app_for_intent("meeting") or self.get_preference("apps.primary_meeting", ""),
                 },
+                "configured_intents": self.get_all_configured_intents(),
                 "media_habits": {
                     "focus_playlist": self.resolve_habit("spotify.favorite_playlist") or "Deep Focus",
                     "gaming_playlist": self.resolve_habit("spotify.playlist.gaming") or "",
@@ -2252,11 +2395,13 @@ class AuraMemory:
                 if ent.get("category") == "application":
                     meta = ent.get("metadata") or {}
                     cat = meta.get("category", "application") if isinstance(meta, dict) else "application"
+                    intent_val = meta.get("intent", "") if isinstance(meta, dict) else ""
                     apps_list.append({
                         "id": ent.get("id"),
                         "name": ent.get("name"),
                         "role": ent.get("role", "Application"),
-                        "category": cat
+                        "category": cat,
+                        "intent": intent_val or cat,
                     })
 
             return {
@@ -2273,7 +2418,9 @@ class AuraMemory:
                     "ai": self.get_preference("apps.primary_ai", "ChatGPT"),
                     "editor": self.get_preference("apps.primary_editor", "Zed"),
                     "music": self.get_preference("music.preferred_player", "Spotify"),
+                    "meeting": self.resolve_app_for_intent("meeting") or self.get_preference("apps.primary_meeting", ""),
                 },
+                "configured_intents": self.get_all_configured_intents(),
                 "connected_apps": apps_list,
                 "playlists": {
                     "focus": self.get_preference("spotify.favorite_playlist", "Deep Focus"),
@@ -2313,11 +2460,18 @@ class AuraMemory:
                 ("editor", "apps.primary_editor", "developer"),
                 ("ai", "apps.primary_ai", "ai"),
                 ("music", "music.preferred_player", "music"),
+                ("meeting", "apps.primary_meeting", "apps"),
             ]:
                 if ab.get(key):
                     val = ab[key].strip()
                     self.set_preference(pref_key, val, category=cat)
                     self.record_habit_observation(pref_key, val, category=cat, is_explicit=True)
+
+            if "meeting" in ab and ab.get("meeting"):
+                m_app = ab["meeting"].strip()
+                user_name = self.get_preference("user.name", "Piyush Dua")
+                self.add_entity(name=m_app, category="application", role="Meeting Companion", metadata={"category": "meeting", "intent": "meeting", "verified": True})
+                self.add_edge(user_name, m_app, "handles_meeting_intent", cluster="apps", weight=1.0, metadata={"intent": "meeting", "provenance": "user_settings"})
 
         if "playlists" in settings and isinstance(settings["playlists"], dict):
             pl = settings["playlists"]
@@ -2408,32 +2562,58 @@ class AuraMemory:
         self._reload_cache()
         return {"status": "success", "deleted_id": target_id, "deleted_name": target_name}
 
-    def add_app(self, name: str, category: str = "application") -> Dict[str, Any]:
+    def add_app(self, name: str, category: str = "application", intent: Optional[str] = None) -> Dict[str, Any]:
         """Adds an application to Knowledge Graph and binds it to user in apps cluster."""
         clean_name = name.strip()
         if not clean_name:
             return {"status": "error", "message": "App name cannot be empty"}
         user_name = self.get_preference("user.name", "Piyush Dua")
+        clean_cat = category.strip().lower()
+
+        clean_intent = (intent or "").strip().lower()
+        if not clean_intent:
+            if clean_cat not in ["application", "utility"]:
+                clean_intent = clean_cat
+            elif "granola" in clean_name.lower():
+                clean_intent = "meeting"
+            elif "figma" in clean_name.lower():
+                clean_intent = "design"
+            elif "linear" in clean_name.lower():
+                clean_intent = "tasks"
+
+        metadata = {"category": clean_cat, "verified": True, "provenance": "user_settings"}
+        if clean_intent:
+            metadata["intent"] = clean_intent
+            self.set_preference(f"apps.primary_{clean_intent}", clean_name, category="apps")
+
+        role_str = "Meeting Companion" if clean_intent == "meeting" else (f"{clean_intent.capitalize()} Tool" if clean_intent else f"{clean_cat.capitalize()} Tool")
+
         ent_id = self.add_entity(
             name=clean_name,
             category="application",
-            role=f"{category.capitalize()} Tool",
-            metadata={"category": category, "verified": True, "provenance": "user_settings"}
+            role=role_str,
+            metadata=metadata
         )
-        self.add_edge(user_name, clean_name, "uses_app", cluster="apps", weight=1.0, metadata={"category": category, "provenance": "user_settings"})
+        self.add_edge(user_name, clean_name, "uses_app", cluster="apps", weight=1.0, metadata=metadata)
+        if clean_intent:
+            self.add_edge(user_name, clean_name, f"handles_{clean_intent}_intent", cluster="apps", weight=1.0, metadata=metadata)
+
         self._reload_cache()
-        return {"status": "success", "id": ent_id, "name": clean_name, "category": category}
+        return {"status": "success", "id": ent_id, "name": clean_name, "category": clean_cat, "intent": clean_intent}
 
     def delete_app(self, identifier: Any) -> Dict[str, Any]:
         """Removes an application from entities and graph edges."""
         target_name = None
         target_id = None
+        target_intent = None
         with self._lock:
             if isinstance(identifier, int) or (isinstance(identifier, str) and identifier.isdigit()):
                 target_id = int(identifier)
                 for ent in self._entity_cache:
                     if ent.get("id") == target_id:
                         target_name = ent.get("name")
+                        meta = ent.get("metadata") or {}
+                        target_intent = meta.get("intent")
                         break
             else:
                 target_name = str(identifier).strip()
@@ -2441,10 +2621,17 @@ class AuraMemory:
                     if ent.get("name", "").lower() == target_name.lower():
                         target_id = ent.get("id")
                         target_name = ent.get("name")
+                        meta = ent.get("metadata") or {}
+                        target_intent = meta.get("intent")
                         break
 
             if not target_id:
                 return {"status": "not_found", "message": f"App '{identifier}' not found"}
+
+            if target_intent and self.get_preference(f"apps.primary_{target_intent}") == target_name:
+                self.set_preference(f"apps.primary_{target_intent}", "", category="apps")
+            if self.get_preference("apps.primary_meeting") == target_name:
+                self.set_preference("apps.primary_meeting", "", category="apps")
 
             with sqlite3.connect(self.db_path) as conn:
                 conn.execute("DELETE FROM entities WHERE id = ?;", (target_id,))

@@ -22,13 +22,33 @@ logger = logging.getLogger("desktop_dom.assistant.local_ingest")
 
 
 APP_CATEGORIES: Dict[str, Dict[str, Any]] = {
+    "meeting": {
+        "apps": ["Granola", "Zoom", "zoom.us", "Microsoft Teams", "Google Meet", "Webex", "Slack Huddle"],
+        "role": "Meeting Companion",
+        "relation": "handles_meeting_intent",
+    },
+    "notes": {
+        "apps": ["Notion", "Obsidian", "Bear", "Apple Notes", "Notes", "Evernote", "Roam Research", "Logseq"],
+        "role": "Notes & Knowledge Workspace",
+        "relation": "handles_notes_intent",
+    },
+    "design": {
+        "apps": ["Figma", "Sketch", "Adobe XD", "Illustrator", "Photoshop", "Canva"],
+        "role": "Design Suite",
+        "relation": "handles_design_intent",
+    },
+    "tasks": {
+        "apps": ["Linear", "Jira", "Asana", "Trello", "Monday.com", "ClickUp"],
+        "role": "Project Management",
+        "relation": "handles_tasks_intent",
+    },
     "browser": {
         "apps": ["Google Chrome", "Safari", "Firefox", "Brave Browser", "Arc", "Microsoft Edge", "Chromium", "Opera"],
         "role": "Web Browser",
         "relation": "uses_frequently",
     },
     "communication": {
-        "apps": ["Microsoft Outlook", "Outlook", "Mail", "Slack", "Discord", "WhatsApp", "Telegram", "Zoom", "Microsoft Teams", "Messages", "FaceTime", "Signal"],
+        "apps": ["Microsoft Outlook", "Outlook", "Mail", "Slack", "Discord", "WhatsApp", "Telegram", "Messages", "FaceTime", "Signal"],
         "role": "Communication Client",
         "relation": "communicates_via",
     },
@@ -38,7 +58,7 @@ APP_CATEGORIES: Dict[str, Dict[str, Any]] = {
         "relation": "develops_with",
     },
     "ai_assistant": {
-        "apps": ["ChatGPT", "Claude", "Gemini", "Granola", "ParakeetAI", "Ollama", "OpenWhispr", "Antigravity", "Antigravity IDE", "Copilot"],
+        "apps": ["ChatGPT", "Claude", "Gemini", "ParakeetAI", "Ollama", "OpenWhispr", "Antigravity", "Antigravity IDE", "Copilot"],
         "role": "AI Assistant",
         "relation": "consults_ai",
     },
@@ -48,7 +68,7 @@ APP_CATEGORIES: Dict[str, Dict[str, Any]] = {
         "relation": "listens_via",
     },
     "productivity": {
-        "apps": ["Microsoft Excel", "Microsoft Word", "Microsoft PowerPoint", "Pages", "Numbers", "Keynote", "Notion", "Obsidian", "Calendar", "Reminders", "Notes", "Freeform"],
+        "apps": ["Microsoft Excel", "Microsoft Word", "Microsoft PowerPoint", "Pages", "Numbers", "Keynote", "Calendar", "Reminders", "Freeform"],
         "role": "Productivity Suite",
         "relation": "organizes_with",
     },

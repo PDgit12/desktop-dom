@@ -129,18 +129,25 @@ class AssistantBrain:
         if not q:
             return None
 
-        # 0. Check memory-configured primary apps & functional categories
+        # 0. Check memory-configured primary apps & functional categories from Knowledge Graph
         if hasattr(self, "memory") and self.memory:
+            configured = self.memory.get_all_configured_intents()
+            for intent_key, app_name in configured.items():
+                if q in {intent_key, f"{intent_key} app", f"{intent_key} tool", f"my {intent_key}", f"{intent_key} notes"}:
+                    return app_name
+
             if q in {"browser", "web browser", "internet"}:
-                return self.memory.get_preference("apps.primary_browser", "Google Chrome")
+                return self.memory.resolve_app_for_intent("browser") or self.memory.get_preference("apps.primary_browser", "Google Chrome")
             if q in {"mail", "email", "email client", "mail client"}:
-                return self.memory.get_preference("mail.preferred_client", "Microsoft Outlook")
+                return self.memory.resolve_app_for_intent("mail") or self.memory.get_preference("mail.preferred_client", "Microsoft Outlook")
             if q in {"music", "songs", "player", "music player"}:
-                return self.memory.get_preference("music.preferred_player", "Spotify")
+                return self.memory.resolve_app_for_intent("music") or self.memory.get_preference("music.preferred_player", "Spotify")
             if q in {"terminal", "console", "shell", "command line"}:
-                return self.memory.get_preference("apps.primary_terminal", "Terminal")
+                return self.memory.resolve_app_for_intent("terminal") or self.memory.get_preference("apps.primary_terminal", "Terminal")
             if q in {"ai", "assistant", "ai assistant"}:
-                return self.memory.get_preference("apps.primary_ai", "ChatGPT")
+                return self.memory.resolve_app_for_intent("ai") or self.memory.get_preference("apps.primary_ai", "ChatGPT")
+            if q in {"meeting", "meeting notes", "meetings", "meeting tool", "notes for meeting"}:
+                return self.memory.resolve_app_for_intent("meeting")
 
         # 1. Built-in curated aliases
         if q in BUILTIN_APP_ALIASES:
@@ -772,7 +779,94 @@ class AssistantBrain:
                     "response": f"I don't have '{target}' in personal memory yet. You can say 'remember {target} is {target.lower()}@domain.com' to save them.",
                 }
 
-        # 2. Habitual Playlist Recall ("open my playlist", "play my playlist", "play my music", "play focus playlist", "play coding playlist")
+        # 2. Meeting Intent & Companion Routing ("i have a meeting [with ...]", "meeting with ...", "meeting starting", "join meeting", "meeting notes")
+        meeting_regex = re.match(
+            r"^(?:(?:i\s+have|i\'m\s+in|im\s+in|have|got|there\s*is|starting|start|join|prep\s+for|in|take|open)\s+(?:a\s+|my\s+)?)?meeting(?:\s+(?:is\s+)?starting|\s+notes|\s+now)?(?:\s+(?:with|and)\s+([a-zA-Z0-9\s]+?))?(?:\s+(?:about|regarding)\s+(.+))?$",
+            prompt,
+            re.IGNORECASE
+        )
+        if meeting_regex:
+            meeting_app = self.memory.resolve_app_for_intent("meeting") if hasattr(self, "memory") and self.memory else None
+            if not meeting_app:
+                return {
+                    "status": "unconfigured",
+                    "action": "meeting_intent",
+                    "response": "No meeting tool bound in your onboarding setup yet. You can connect Granola, Zoom, or another tool in Onboarding or Settings.",
+                }
+
+            collab_query = meeting_regex.group(1).strip() if meeting_regex.group(1) else None
+            meeting_topic = meeting_regex.group(2).strip() if meeting_regex.group(2) else None
+
+            participant_info = None
+            if collab_query:
+                ent = self.memory.resolve_entity(collab_query)
+                if ent and ent.get("name"):
+                    participant_info = ent
+                    self.memory.reinforce_interaction("meeting", entity_name=ent["name"], metadata={"topic": meeting_topic or "meeting"})
+                else:
+                    participant_info = {"name": collab_query.title(), "role": "Participant"}
+
+            self._notify_action("executing", f"Launching {meeting_app} for meeting")
+            if sys.platform == "darwin":
+                subprocess.run(["open", "-a", meeting_app], capture_output=True, text=True)
+
+            self.context_feed.capture_active_context(record=True)
+
+            if participant_info and participant_info.get("name"):
+                p_name = participant_info["name"]
+                p_role = participant_info.get("role", "")
+                p_comp = participant_info.get("company", "")
+                detail = f" with {p_name}"
+                if p_role and p_role not in ["Participant", "Collaborator"]:
+                    detail += f" ({p_role}"
+                    if p_comp:
+                        detail += f" @ {p_comp}"
+                    detail += ")"
+                elif p_comp:
+                    detail += f" ({p_comp})"
+                if meeting_topic:
+                    detail += f" regarding '{meeting_topic}'"
+                resp = f"Opened {meeting_app} for meeting notes{detail}."
+            elif meeting_topic:
+                resp = f"Opened {meeting_app} for meeting notes regarding '{meeting_topic}'."
+            else:
+                resp = f"Opened {meeting_app} for your meeting notes."
+
+            return {
+                "status": "success",
+                "action": "meeting_intent",
+                "level": "2.5",
+                "tool": meeting_app,
+                "participant": participant_info,
+                "topic": meeting_topic,
+                "response": resp,
+            }
+
+        # 2b. Dynamic Knowledge Graph Capability & Intent Routing (Thousands of Use Cases: notes, design, tasks, crm, 3d, analytics, etc.)
+        general_intent_match = re.match(
+            r"^(?:open|launch|start|show|check|view|go\s+to|prep\s+for|take)\s+(?:my\s+)?([a-zA-Z0-9_\-]+)(?:\s+(?:app|tool|workspace|dashboard|board))?$",
+            prompt,
+            re.IGNORECASE
+        )
+        if general_intent_match and hasattr(self, "memory") and self.memory:
+            raw_intent_key = general_intent_match.group(1).strip().lower()
+            # Guard against hijacking system/audio controls or built-ins that have dedicated branches
+            if raw_intent_key not in ["browser", "safari", "chrome", "mail", "email", "terminal", "console", "playlist", "music", "volume", "sound", "mute", "unmute", "window", "screen", "wifi", "bluetooth"]:
+                bound_app = self.memory.resolve_app_for_intent(raw_intent_key)
+                if bound_app:
+                    self._notify_action("executing", f"Launching {bound_app} for {raw_intent_key}")
+                    if sys.platform == "darwin":
+                        subprocess.run(["open", "-a", bound_app], capture_output=True, text=True)
+                    self.context_feed.capture_active_context(record=True)
+                    return {
+                        "status": "success",
+                        "action": f"{raw_intent_key}_intent",
+                        "level": "2.5",
+                        "tool": bound_app,
+                        "response": f"Opened {bound_app} for {raw_intent_key}.",
+                    }
+
+        # 3. Habitual Playlist Recall ("open my playlist", "play my playlist", "play my music", "play focus playlist", "play coding playlist")
         playlist_regex = re.compile(
             r"^(?:open|play)\s+(?:my\s+)?(?:favorite\s+|favourite\s+)?(?:spotify\s+)?(?:focus\s+|coding\s+|work\s+|gaming\s+|personal\s+)?(?:playlist|music|songs?)$",
             re.IGNORECASE

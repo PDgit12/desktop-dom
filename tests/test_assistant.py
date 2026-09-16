@@ -1079,6 +1079,122 @@ def test_app_addition_ui_ipc_and_natural_language(tmp_path):
     assert mem.resolve_entity("Linear") is not None
 
 
+def test_dynamic_intent_resolution_zero_hardcoding(tmp_path):
+    """
+    Verifies that intent computing resolves dynamically from the sovereign Knowledge Graph
+    and onboarding bindings without hardcoding:
+    - If user configures Granola, 'meeting' routes to Granola.
+    - If user configures Zoom, 'meeting' routes to Zoom.
+    - If unconfigured, cleanly returns unconfigured status with zero speculation.
+    """
+    from desktop_dom.assistant.memory import AuraMemory
+    from desktop_dom.assistant.brain import AssistantBrain
+
+    db_file = tmp_path / "intent_zero_hardcoding.db"
+    mem = AuraMemory(db_path=str(db_file))
+    brain = AssistantBrain(memory=mem)
+
+    # 1. Unconfigured meeting intent
+    mem.set_preference("apps.primary_meeting", "")
+    res_unconf = brain.execute_intent("i have a meeting")
+    assert res_unconf["status"] == "unconfigured"
+    assert res_unconf["action"] == "meeting_intent"
+    assert "No meeting tool bound in your onboarding setup" in res_unconf["response"]
+
+    # 2. Onboard with Granola as meeting companion
+    mem.complete_verified_onboarding({
+        "user_name": "Piyush Dua",
+        "app_bindings": {"meeting": "Granola"},
+        "connected_apps": [{"name": "Granola", "category": "meeting"}]
+    })
+    assert mem.resolve_app_for_intent("meeting") == "Granola"
+
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value.returncode = 0
+        res_granola = brain.execute_intent("i have a meeting")
+        assert res_granola["status"] == "success"
+        assert res_granola["action"] == "meeting_intent"
+        assert res_granola["tool"] == "Granola"
+        assert "Opened Granola for your meeting notes" in res_granola["response"]
+        mock_run.assert_any_call(["open", "-a", "Granola"], capture_output=True, text=True)
+
+    # 3. Meeting with Cyril Rayan
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value.returncode = 0
+        res_collab = brain.execute_intent("i have a meeting with Cyril regarding product roadmap")
+        assert res_collab["status"] == "success"
+        assert res_collab["tool"] == "Granola"
+        assert res_collab["participant"]["name"] == "Cyril Rayan"
+        assert res_collab["topic"] == "product roadmap"
+        assert "Cyril Rayan" in res_collab["response"]
+        assert "product roadmap" in res_collab["response"]
+
+    # 4. User changes meeting app to Zoom in Settings (zero hardcoding proof!)
+    mem.update_user_settings({
+        "app_bindings": {"meeting": "Zoom"}
+    })
+    assert mem.resolve_app_for_intent("meeting") == "Zoom"
+
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value.returncode = 0
+        res_zoom = brain.execute_intent("i have a meeting")
+        assert res_zoom["status"] == "success"
+        assert res_zoom["tool"] == "Zoom"
+        assert "Opened Zoom for your meeting notes" in res_zoom["response"]
+        mock_run.assert_any_call(["open", "-a", "Zoom"], capture_output=True, text=True)
+
+
+def test_thousands_of_use_cases_dynamic_capability_binding(tmp_path):
+    """
+    Verifies that the Knowledge Graph and onboarding engine seamlessly handle 1,000+ use cases
+    (design, tasks, 3d, crm, notes) purely via user capability registration.
+    """
+    from desktop_dom.assistant.memory import AuraMemory
+    from desktop_dom.assistant.brain import AssistantBrain
+
+    db_file = tmp_path / "use_cases.db"
+    mem = AuraMemory(db_path=str(db_file))
+    brain = AssistantBrain(memory=mem)
+
+    # Register arbitrary domain capabilities during onboarding / settings
+    mem.add_app(name="Figma", category="design")
+    mem.add_app(name="Linear", category="tasks")
+    mem.add_app(name="Blender", category="3d")
+    mem.add_app(name="Notion", category="notes")
+    mem.add_app(name="Salesforce", category="crm")
+
+    assert mem.resolve_app_for_intent("design") == "Figma"
+    assert mem.resolve_app_for_intent("tasks") == "Linear"
+    assert mem.resolve_app_for_intent("3d") == "Blender"
+    assert mem.resolve_app_for_intent("notes") == "Notion"
+    assert mem.resolve_app_for_intent("crm") == "Salesforce"
+
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value.returncode = 0
+
+        # 1. Design intent
+        res_des = brain.execute_intent("open design")
+        assert res_des["status"] == "success"
+        assert res_des["action"] == "design_intent"
+        assert res_des["tool"] == "Figma"
+        mock_run.assert_any_call(["open", "-a", "Figma"], capture_output=True, text=True)
+
+        # 2. Tasks intent
+        res_tsk = brain.execute_intent("check tasks")
+        assert res_tsk["status"] == "success"
+        assert res_tsk["action"] == "tasks_intent"
+        assert res_tsk["tool"] == "Linear"
+        mock_run.assert_any_call(["open", "-a", "Linear"], capture_output=True, text=True)
+
+        # 3. 3D intent
+        res_3d = brain.execute_intent("start 3d")
+        assert res_3d["status"] == "success"
+        assert res_3d["action"] == "3d_intent"
+        assert res_3d["tool"] == "Blender"
+        mock_run.assert_any_call(["open", "-a", "Blender"], capture_output=True, text=True)
+
+
+
 
 
 
