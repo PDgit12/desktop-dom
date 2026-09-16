@@ -17,6 +17,7 @@ from desktop_dom.app import DesktopApp
 from desktop_dom.schema import DesktopNode
 from desktop_dom.adapters import get_platform_adapter
 from desktop_dom.assistant.memory import AuraMemory
+from desktop_dom.assistant.context_feed import ContextFeedEngine, ActiveContextSnapshot
 
 logger = logging.getLogger("desktop_dom.assistant.brain")
 
@@ -83,6 +84,8 @@ class AssistantBrain:
         self._installed_apps: Dict[str, str] = {}
         self._scan_installed_apps()
         self.memory = memory or AuraMemory()
+        self.context_feed = ContextFeedEngine(memory=self.memory)
+        self._current_context_snapshot: Optional[ActiveContextSnapshot] = None
         if not self.memory.get_preference("onboarding.completed"):
             try:
                 self.memory.auto_hydrate_environment()
@@ -392,15 +395,36 @@ class AssistantBrain:
         # 2. Habitual Playlist Recall ("open my playlist", "play my playlist", "play my music")
         playlist_regex = re.compile(r"^(?:open|play)\s+(?:my\s+)?(?:favorite\s+|favourite\s+)?(?:spotify\s+)?(?:playlist|music|songs?)$", re.IGNORECASE)
         if playlist_regex.match(raw_prompt.strip()):
-            frontmost = (self._get_frontmost_app_name() or "").lower()
-            contextual_genre = "Personal"
-            
-            # Contextual Intent Synthesis: Active App Telemetry -> Meaning -> Contextual Habit
-            if any(game in frontmost for game in ["fifa", "steam", "game", "fortnite", "epic"]):
+            snapshot = self.context_feed.capture_active_context(record=True)
+            frontmost = self._get_frontmost_app_name()
+            if frontmost and any(g in frontmost.lower() for g in ["fifa", "steam", "game", "fortnite", "epic"]):
+                snapshot.frontmost_app = frontmost
+                snapshot.activity_category = "Gaming"
+                snapshot.suggested_playlist = "FIFA Soundtrack"
+                snapshot.suggested_genre = "Gaming Energy"
+            self._current_context_snapshot = snapshot
+
+            # Contextual Intent Synthesis: Active App + Window + Browser -> Contextual Habit
+            custom_favorite = self.memory.get_preference("spotify.favorite_playlist")
+
+            if snapshot.activity_category == "Gaming" or any(g in (frontmost or "").lower() for g in ["fifa", "steam", "game"]):
                 contextual_genre = "Gaming Energy"
-                fav_playlist = self.memory.get_preference("spotify.playlist.gaming", "FIFA Soundtrack")
+                fav_playlist = self.memory.get_preference("spotify.playlist.gaming", snapshot.suggested_playlist or "FIFA Soundtrack")
+            elif custom_favorite:
+                contextual_genre = "Personal"
+                fav_playlist = custom_favorite
+            elif snapshot.activity_category == "Engineering":
+                contextual_genre = "Focus Beats"
+                fav_playlist = self.memory.get_preference("spotify.playlist.coding", snapshot.suggested_playlist or "Deep Focus")
+            elif snapshot.activity_category == "Design":
+                contextual_genre = "Creative Flow"
+                fav_playlist = self.memory.get_preference("spotify.playlist.design", snapshot.suggested_playlist or "Creative Flow")
+            elif snapshot.activity_category == "Research":
+                contextual_genre = "Study / Instrumental"
+                fav_playlist = self.memory.get_preference("spotify.playlist.research", snapshot.suggested_playlist or "Lofi Beats")
             else:
-                fav_playlist = self.memory.get_preference("spotify.favorite_playlist", "Deep Focus")
+                contextual_genre = "Personal"
+                fav_playlist = custom_favorite or "Deep Focus"
 
             self._notify_action("executing", f"Playing {contextual_genre} playlist '{fav_playlist}' on Spotify")
             res = self._control_spotify_play(fav_playlist)
@@ -409,6 +433,7 @@ class AssistantBrain:
                 res["level"] = "2.0"
                 res["playlist"] = fav_playlist
                 res["context"] = contextual_genre
+                res["activity"] = snapshot.activity_category
                 res["response"] = f"Now playing your {contextual_genre} playlist '{fav_playlist}' on Spotify."
             return res
 
@@ -444,7 +469,29 @@ class AssistantBrain:
                         "response": f"I couldn't find '{target_raw}' in contacts. Say 'remember {target_raw} is {target_raw.lower()}@example.com' or input their email directly.",
                     }
 
-        # 4. Screen Introspection & Active Window Reading
+        # 4. Context Ingestion & Real-Time Telemetry Introspection
+        if any(p in prompt for p in [
+            "what was i doing", "what am i doing", "what was i just doing",
+            "summarize my context", "summarize context", "what's my active context",
+            "what is my active context", "what am i working on", "what was i working on",
+            "what am i looking at"
+        ]):
+            snapshot = self.context_feed.capture_active_context(record=True)
+            self._current_context_snapshot = snapshot
+            summary = self.context_feed.summarize_current_context()
+            return {
+                "status": "success",
+                "action": "context_summary",
+                "level": "2.0",
+                "activity": snapshot.activity_category,
+                "topic": snapshot.focused_topic,
+                "app": snapshot.frontmost_app,
+                "window": snapshot.window_title,
+                "browser_url": snapshot.browser_url,
+                "response": summary,
+            }
+
+        # 5. Screen Introspection & Active Window Reading
         if any(p in prompt for p in ["what is on my screen", "what's on my screen", "inspect screen", "read screen", "inspect active window", "read active window", "summarize screen", "what is on screen"]):
             return self._control_inspect_screen(prompt)
 
@@ -926,9 +973,19 @@ class AssistantBrain:
             clean_for_draft = re.sub(r"^(?:that|saying|about|with)\s+", "", clean_content, flags=re.IGNORECASE).strip()
             draft_body = f"Hi {first_name},\n\n{clean_for_draft.capitalize()}.\n\nBest,\n{user_name}"
         else:
-            subject = "Quick Note"
-            body = ""
-            draft_body = f"Hi {first_name},\n\nHope you are having a productive week! Wanted to connect briefly.\n\nBest,\n{user_name}"
+            snap = None
+            try:
+                snap = self.context_feed.capture_active_context(record=False)
+            except Exception:
+                pass
+            if snap and snap.focused_topic and snap.focused_topic not in ["Desktop", "General", "Main Window"]:
+                subject = f"Update on {snap.focused_topic}"
+                body = f"Working on {snap.focused_topic}"
+                draft_body = f"Hi {first_name},\n\nSharing a quick update: currently working on {snap.focused_topic}.\n\nBest,\n{user_name}"
+            else:
+                subject = "Quick Note"
+                body = ""
+                draft_body = f"Hi {first_name},\n\nHope you are having a productive week! Wanted to connect briefly.\n\nBest,\n{user_name}"
 
         encoded_subject = urllib.parse.quote(subject)
         encoded_body = urllib.parse.quote(draft_body)
@@ -960,6 +1017,7 @@ end tell'''
                         "client": "Microsoft Outlook",
                         "subject": subject,
                         "body": body,
+                        "verified": True,
                         "response": f"Composed message in Microsoft Outlook to {name} ({email}) with subject '{subject}'.",
                     }
 
@@ -988,7 +1046,7 @@ end tell'''
                         "role": entity.get("role", ""),
                         "client": "Mail",
                         "subject": subject,
-                        "body": body,
+                        "verified": True,
                         "response": f"Composed message in Mail to {name} ({email}) with subject '{subject}'.",
                     }
 

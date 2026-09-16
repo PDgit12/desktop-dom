@@ -116,6 +116,25 @@ class AuraMemory:
             """)
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_activity_timestamp ON activity_log(timestamp DESC);")
 
+            # 4. Context Feed Telemetry Table (Real-time Ingestion Stream)
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS context_feed (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp REAL NOT NULL,
+                frontmost_app TEXT NOT NULL,
+                window_title TEXT,
+                activity_category TEXT NOT NULL,
+                focused_topic TEXT,
+                browser_name TEXT,
+                browser_url TEXT,
+                browser_title TEXT,
+                suggested_playlist TEXT,
+                metadata TEXT DEFAULT '{}'
+            );
+            """)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_context_timestamp ON context_feed(timestamp DESC);")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_context_activity ON context_feed(activity_category);")
+
             # Check if seeding is required
             cursor.execute("SELECT COUNT(*) as count FROM entities;")
             row = cursor.fetchone()

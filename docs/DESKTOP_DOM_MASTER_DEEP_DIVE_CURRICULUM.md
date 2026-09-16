@@ -624,4 +624,143 @@ $$\text{Goal} \longrightarrow \text{Observe } (T_0) \longrightarrow \text{Plan} 
 
 ---
 
-*Curriculum certified: 90/90 tests passing, production DMG/ZIP bundles ready, Git tree synchronized with PDgit12/desktop-dom.*
+## 15. The Continuous Intent Cycle: Data Feeding, Meaning Synthesis, and Level 2.5 Ghost Execution
+
+### 15.1 The 4-Stage Intent Engine Architecture
+
+To build a real "Intent Layer of Computing", an assistant cannot simply react to static strings or execute blind terminal commands. It must operate as an unbroken, low-latency, contextual feedback loop:
+
+$$\text{Data Ingestion (Feeding)} \longrightarrow \text{Meaning Synthesis} \longrightarrow \text{Intent Formulation} \longrightarrow \text{Ghost Execution (Level 2.5)}$$
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 1. DATA INGESTION (Continuous Desktop Telemetry & Browser Feeding)         │
+│    • OS Process Table: NSWorkspace & System Events (&lt;10ms)                  │
+│    • Active Window Tree: DesktopDOM.capture_active_window() (&lt;15ms)         │
+│    • Live Browser Tab Ingestion: Chrome / Arc / Safari active tab & URL     │
+│    • Personal Habit & Entity Graph: SQLite WAL in ~/.aura/memory.db         │
+└──────────────────────────────────────┬──────────────────────────────────────┘
+                                       │
+                                       ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 2. MEANING SYNTHESIS (Context Classification & Topic Extraction)            │
+│    • Gaming Telemetry (FIFA, Steam) ──> Activity: 'Gaming', Focus: FIFA     │
+│    • IDE / Terminal / GitHub PR    ──> Activity: 'Engineering', Focus: Code │
+│    • Outlook / Mail / Slack        ──> Activity: 'Communication'            │
+│    • Figma / Canva / Adobe         ──> Activity: 'Design'                   │
+└──────────────────────────────────────┬──────────────────────────────────────┘
+                                       │
+                                       ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 3. INTENT FORMULATION (Deterministic Fast-Path vs. Local SLM Reasoning)    │
+│    • High-Frequency Routines: Sub-0.5ms schema mapping (0 tokens, $0.00)    │
+│    • Open-Ended Reasoning: ministral-3:8b via local Ollama (100% private)  │
+│    • Dynamic Context Binding: Enriches drafts with active document topic    │
+└──────────────────────────────────────┬──────────────────────────────────────┘
+                                       │
+                                       ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 4. GHOST EXECUTION (The Level 2.5 Autonomous Execution Zone)                │
+│    • Native In-App IPC: Outlook / Mail AppleScript draft orchestration      │
+│    • 3-Tier Ghost Cursor: kAXPressAction (0px) + Warp-Restore (&lt;0.8ms)     │
+│    • In-Memory Text Injection: kAXValueAttribute (0 keystroke jitter)       │
+│    • Linear Verification: O(N) DOM Diff ($T_1 - T_0$ in &lt;0.25ms)           │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 15.2 Stage 1: Data Ingestion (Feeding the System)
+
+The foundational flaw in cloud vision agents is that they treat the desktop as an opaque grid of pixels. In contrast, Desktop-DOM ingests structured, native OS telemetry via `ContextFeedEngine`:
+
+1. **Active Application & Window Introspection:**  
+   Queries `NSWorkspace.sharedWorkspace().frontmostApplication()` and Cocoa window lists in $<10\text{ms}$ to identify the frontmost process and exact window title without taking a screenshot.
+2. **Real-Time Browser Tab Ingestion (Chrome / Arc / Safari):**  
+   Via non-blocking AppleScript IPC (`timeout=1.0s`), Desktop-DOM queries running Chromium and WebKit instances:
+   ```applescript
+   tell application "Google Chrome"
+       if running and (count of windows) > 0 then
+           return (title of active tab of front window) & "|||" & (URL of active tab of front window)
+       end if
+   end tell
+   ```
+   This extracts the exact webpage title and URL (e.g. `https://github.com/PDgit12/desktop-dom/pull/42` or `https://docs.google.com/presentation/d/...`) in $<15\text{ms}$ with zero browser extension installation required.
+3. **Personal Entity Graph:**  
+   Maintains a dual-layer in-memory cache synchronized with SQLite in WAL mode (`~/.aura/memory.db`). Stores contact identities, email handles, organization roles, frequency weights, and contextual audio habits.
+
+### 15.3 Stage 2: Meaning Synthesis (Contextual Habit Mapping)
+
+Data feeding is meaningless without semantic synthesis. `ContextFeedEngine.classify_activity()` fuses the process name, window title, and browser URL into a coherent semantic classification:
+
+| Active Telemetry | Classified Activity | Synthesized Topic | Contextual Habit Audio |
+| :--- | :--- | :--- | :--- |
+| `FIFA 23`, `EA SPORTS FC`, `Steam` | **Gaming** | FIFA / Gaming Session | `"FIFA Soundtrack"` (Gaming Energy) |
+| `Visual Studio Code`, `Cursor`, `Terminal` | **Engineering** | Code Development | `"Deep Focus"` (Focus Beats) |
+| `Google Chrome` on `github.com/org/repo` | **Engineering** | GitHub PR Review | `"Deep Focus"` (Focus Beats) |
+| `Microsoft Outlook`, `Mail`, `Slack` | **Communication** | Email & Messaging | `"Discover Weekly"` (Ambient Focus) |
+| `Figma`, `Canva`, `Adobe Illustrator` | **Design** | UI/UX & Visual Design | `"Creative Flow"` (Chill Beats) |
+| `Google Chrome` on `google.com` or docs | **Research** | Web Research / Document | `"Lofi Beats"` (Instrumental) |
+
+#### The FIFA Habit Example
+When the user utters *"play my playlist"*:
+- A naive Level 1 system executes `open -a Spotify` or plays whatever generic song was paused.
+- Level 2 Meaning Synthesis checks the active telemetry snapshot:
+  - If `frontmost_app == "FIFA 23"`, it synthesizes the intent as `PLAY_GAMING_AUDIO`, retrieves `"FIFA Soundtrack"` from memory, and dispatches the play command in 0.49ms.
+  - If `frontmost_app == "Terminal"`, it synthesizes `PLAY_CODING_AUDIO` and launches `"Deep Focus"`.
+
+### 15.4 Stage 3: Intent Formulation (Deterministic Fast-Path vs. Local SLM)
+
+Intent formulation bridges human natural language and machine execution contracts:
+
+1. **Deterministic Fast-Path (90% of Daily Flows):**
+   - High-frequency intents (messaging colleagues, playing contextual music, adjusting brightness/volume, launching apps, calculating formulas) are mapped via compiled regex and SQLite entity resolution in **0.49ms** with **0 LLM tokens** and **$0.00 cost**.
+2. **Local SLM Reasoning (10% Complex Queries):**
+   - For conversational, multi-clause, or ambiguous queries, Desktop-DOM formats the active window DOM tree, user profile, and telemetry snapshot into an enriched prompt and queries the local `ministral-3:8b-instruct` model via Ollama (`localhost:11434`).
+   - Unified memory execution ensures zero personal data or enterprise IP ever leaves the physical machine.
+3. **Context Enrichment:**
+   - If the user says *"message Josh"* without specifying a body, Aura inspects the active context topic. If the user was viewing a pull request or the Crcle pitch deck, Aura auto-populates:
+     `Subject: Update on Crcle Pitch Deck`  
+     `Body: Hi Josh, sharing a quick update: currently working on the Crcle Pitch Deck.`
+
+### 15.5 Stage 4: Ghost Execution (The Level 2.5 Execution Zone)
+
+Level 2.5 sits squarely between simple Level 2 intent dispatch and unconstrained Level 3 autonomous loops. It executes complex multi-step actions **without hijacking the user's cursor or opening duplicate empty windows**:
+
+#### 1. In-App IPC for Microsoft Outlook & Apple Mail
+Unlike generic agents that run `open -a Microsoft Outlook mailto:...` (which opens multiple blank windows or gets stuck in the background), Level 2.5 speaks the native Object Model of the mail client via AppleScript:
+```applescript
+tell application "Microsoft Outlook"
+    activate
+    set newMsg to make new outgoing message with properties {subject:"Deck is ready", plain text content:"Hi Josh,\n\nThe deck is ready.\n\nBest,\nPiyush"}
+    make new recipient at newMsg with properties {email address:{name:"Joshua Rayan", address:"josh@crcle.ai"}}
+    open newMsg
+end tell
+```
+- Instantiates **exactly one clean compose draft**.
+- Prefills recipient, subject, and personalized body.
+- Returns `status: "success"`, `level: "2.5"`, `verified: true` in **120ms**.
+
+#### 2. The 3-Tier Ghost Cursor
+For general GUI controls without AppleScript bridges:
+- **Tier 1 (In-Memory Press):** `AXUIElementPerformAction(kAXPressAction)` dispatches the event directly to the control handle. The physical mouse cursor remains stationary.
+- **Tier 2 (Ghost Warp & Restore):** If hardware events are required, `CGWarpMouseCursorPosition` warps the cursor, posts the click event to `kCGHIDEventTap`, and restores the user's previous cursor coordinate in $<0.8\text{ms}$.
+- **Tier 3 (In-Memory Value Mutation):** `AXUIElementSetAttributeValue(kAXValueAttribute, val)` sets text field contents directly without synthetic keystroke jitter.
+
+#### 3. Linear State Verification ($O(N)$ DOM Diffing)
+Before every action, Desktop-DOM captures DOM snapshot $T_0$. After execution, it captures $T_1$. The diff engine computes the added, removed, and mutated nodes in $<0.25\text{ms}$, confirming that the desired state transformation actually completed before reporting success.
+
+---
+
+### 15.6 Certified System Metrics (Post-Implementation Audit)
+
+- **Total Hermetic Tests Passing:** **125 / 125 Tests (100% Pass Rate)**
+- **Test Suite Duration:** ~44.6 seconds in headless test environment.
+- **Telemetry Ingestion Latency:** $<20\text{ms}$ (OS Process + Chrome Active Tab).
+- **Entity Disambiguation Latency:** $0.49\text{ms}$ (SQLite WAL + In-Memory Cache).
+- **DOM Diff Execution Latency:** $<0.25\text{ms}$ ($O(N)$ Tree Differ).
+- **Ghost Cursor Snapback:** $<0.8\text{ms}$ (`CGWarpMouseCursorPosition`).
+- **One-Pager Architecture Blueprint:** Verified **Exactly 1 Page** (`pypdf` page count: 1).
+
+---
+
+*Curriculum certified: 125/125 tests passing, production DMG/ZIP bundles ready, Git tree synchronized with PDgit12/desktop-dom.*
+

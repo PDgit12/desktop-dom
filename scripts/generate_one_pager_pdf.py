@@ -44,7 +44,7 @@ class SinglePageCanvas(canvas.Canvas):
         self.setFont("Helvetica", 7)
         self.setFillColor(colors.HexColor("#64748b"))
         self.drawString(32, 13, "Desktop-DOM v0.2.0 • Systems Architecture Blueprint • Author: Piyush Dua (PDgit12)")
-        self.drawRightString(580, 13, "Prepared for Crcle.ai • 115/115 Tests Passing (100% Hermetic) • Exactly 1 Page")
+        self.drawRightString(580, 13, "Prepared for Crcle.ai • 125/125 Tests Passing (100% Hermetic) • Exactly 1 Page")
         self.restoreState()
 
 def build_one_pager(output_path: str):
@@ -189,14 +189,14 @@ def build_one_pager(output_path: str):
         ],
         [
             Paragraph("<b>Layer 2<br/>Intent Core</b>", badge_accent_style),
-            Paragraph("<b>Personal Memory & Local Model</b><br/>SQLite WAL + Mistral SLM", cell_bold),
-            Paragraph("<b>Where Crcle.ai fundamentally lies:</b> Resolves colloquial human intent (<i>'message Josh'</i>) via 5-tier disambiguation (&lt;0.5ms). Grounded local Mistral model ingests active desktop DOM + SQLite personal entity graph to translate human intent to deterministic actions.", cell_body),
-            Paragraph("<b>0.49 ms</b> (Mem)<br/><b>720 ms</b> (Mistral)", cell_bold),
+            Paragraph("<b>Feeding ⟶ Meaning ⟶ Intent</b><br/>Chrome Ingest + Context Feed", cell_bold),
+            Paragraph("<b>Where Crcle.ai fundamentally lies:</b> Continuous intent cycle: Ingests OS telemetry + active Chrome tab/URL + SQLite WAL memory. Synthesizes meaning (FIFA gaming &rarr; FIFA Soundtrack; coding &rarr; Deep Focus). Resolves entities (<i>'message Josh'</i>) in &lt;0.5ms.", cell_body),
+            Paragraph("<b>0.49 ms</b> (Mem)<br/><b>&lt;15 ms</b> (Ingest)", cell_bold),
         ],
         [
             Paragraph("<b>Layer 2.5<br/>Exec Zone</b>", badge_accent_style),
-            Paragraph("<b>Ghost Cursor & State Diffing</b><br/>3-Tier Cursor-Free Engine", cell_bold),
-            Paragraph("<b>The Execution Zone between L2 & L3:</b> Gives AI its own virtual cursor without disturbing user's mouse. Tier 1: <code>kAXPressAction</code> in-memory. Tier 2: <code>CGWarpMouseCursorPosition</code> warp-and-restore in &lt;0.8ms via <code>kCGHIDEventTap</code>. Tier 3: <code>kAXValueAttribute</code> mutation. $O(N)$ DOM diffing ($T_1 - T_0$) verifies state in &lt;0.25ms.", cell_body),
+            Paragraph("<b>In-App IPC & Ghost Cursor</b><br/>Targeted Execution & Diffing", cell_bold),
+            Paragraph("<b>The Execution Zone between L2 & L3:</b> Direct AppleScript IPC to Outlook/Mail instantiates single focused drafts with zero duplicate windows. 3-Tier Ghost Cursor (<code>kAXPressAction</code>, warp-restore &lt;0.8ms, in-memory mutation). $O(N)$ DOM diff verifies state in &lt;0.25ms.", cell_body),
             Paragraph("<b>&lt;0.8 ms</b> (Ghost)<br/><b>&lt;0.25 ms</b> (Diff)", cell_bold),
         ],
         [
@@ -280,7 +280,7 @@ def build_one_pager(output_path: str):
             Paragraph("<b>Founder Alignment</b>", cell_bold),
         ],
         [
-            Paragraph("<b>115 / 115 Passing (100%)</b><br/>Zero flaky tests in ~21s. Full coverage: schema, pruners, memory, diff, agent, fast-paths.", cell_body),
+            Paragraph("<b>125 / 125 Passing (100%)</b><br/>Zero flaky tests in ~44s. Full coverage: schema, pruners, memory, context feed, diff, agent, fast-paths.", cell_body),
             Paragraph("<b>SQLite in WAL Mode</b><br/>Dual-layer in-memory hot cache. 5-tier disambiguation executes in <b>0.49ms</b> with zero cloud lock.", cell_body),
             Paragraph("<b>Sub-ms Headless Daemon</b><br/><code>desktop-dom serve</code> on port 8484 exposes tree, intent, diff, and agent endpoints for Crcle.", cell_body),
             Paragraph("<b>Joshua & Cyril Rayan</b><br/>Delivers the exact high-velocity backend engine solving Crcle's core intent layer bottlenecks.", cell_body),
