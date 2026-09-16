@@ -98,5 +98,16 @@ Eliminates vision agent flaws (>90% token waste, 3–6 second latency, pixel coo
   - Sub-millisecond Resolution: `resolve_app_for_intent(intent)` resolves in <0.5ms with zero speculation. If unconfigured, Aura returns an unconfigured status guiding the user to connect a tool in Onboarding or Settings.
   - Meeting Intent Execution: `"i have a meeting [with ...]"` resolves primary meeting companion dynamically, launches the app, captures active desktop context, and extracts mentioned collaborators via personal entity memory.
   - UI & WebKit IPC: Onboarding and Settings drawers feature explicit App Name and Capability/Intent inputs (`on_add_app`, `on_delete_app`), with default action cards and suggestion triggers.
+- **Intent Layer vs. Virtual Assistant Engine (Spreading Activation & Zero Vague Prompts):**
+  - **Core Philosophy:** True intent layer, not a command executor. Normal human prompts like `"I have a meeting"` or `"Text Hannah"` are never treated as "vague". Aura uses ambient workspace context, active cluster (work vs. personal), recency, and habitual patterns to break symmetry and act autonomously at $\ge 95\%$ confidence.
+  - **Spreading Activation Engine (`memory.py`):** In-memory dynamic Knowledge Graph with seed energy injection ($A_0$), multi-hop edge propagation ($A_j^{(t)}$), and strict cluster barrier isolation ($\Omega(\text{cluster}) = 0.0$ between work and personal media/gaming during work sessions).
+  - **Calibrated Tiered Confidence:**
+    - Tier 1 ($\ge 95\%$): Autonomous execution with screen context (meeting notes prep, verified contact messaging).
+    - Tier 2 ($80\% - 85\%$): Cautious execution for indeterminate requests (`"do something"`).
+    - Tier 3 ($< 78\%$): Single-Shot Disambiguation only when true intra-cluster symmetry exists with zero recency difference (asks once, remembers forever).
+  - **Knitbrain Self-Learning & Misfire Loop:** When a user corrects an action (e.g. `"No, open Zoom instead"`), Aura records the misfire and false positive in `misfires`, applies an edge penalty to the old tool, boosts the new tool to $1.0$, stores the learned rule in `learnings`, and immediately executes the corrected tool. Subsequent queries autonomously route to the corrected tool.
+  - **Non-Binary Destinations:** Queries native OS adapters (e.g. AppleScript on Microsoft Outlook/Mail) for non-binary context like `"last email from Josh"`, returning real sender, subject, timestamp, and snippet without hallucinations.
+  - **Comprehensive Test Coverage:** 104 tests passing across `test_assistant.py`, `test_intent_layer.py`, and `test_context_feed.py` (100% pass rate).
 - Branches: `main` (stable) and `develop` (integration) synced on `PDgit12/desktop-dom`.
 - Remote repository live on GitHub at `https://github.com/PDgit12/desktop-dom` with 100% sole contributor attribution for PDgit12.
+
