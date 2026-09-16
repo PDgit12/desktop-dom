@@ -598,9 +598,10 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     let isDrawerOpen = false;
 
     const defaultActions = [
+      { iconType: "app", title: "Top Apps & Brain Onboarding", subtitle: "Discovered apps & knowledge graph topology", query: "/onboard", badge: "Brain" },
       { iconType: "app", title: "Message Josh", subtitle: "Draft update to Josh about Crcle", query: "message Josh the deck is ready", badge: "Intent" },
       { iconType: "screen", title: "What was I doing?", subtitle: "Summarize active desktop context & focus", query: "what was I doing?", badge: "Context" },
-      { iconType: "media", title: "Open YouTube", subtitle: "Contextual stream based on active task", query: "open youtube", badge: "Media" },
+      { iconType: "media", title: "Open YouTube", subtitle: "Clean YouTube Home stream", query: "open youtube", badge: "Media" },
       { iconType: "app", title: "Open My Repo", subtitle: "Active GitHub workspace & pull requests", query: "open my repo", badge: "Dev" },
       { iconType: "media", title: "Play Music", subtitle: "Play contextual focus or gaming playlist", query: "play playlist", badge: "Music" },
       { iconType: "math", title: "Quick Calculation", subtitle: "Evaluate arithmetic expression", query: "125 * 40 + 15", badge: "Math" }
@@ -614,6 +615,16 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       if (!q) {
         currentSuggestions = defaultActions;
       } else {
+        if (q.toLowerCase().includes("onboard") || q.toLowerCase().includes("top app") || q.toLowerCase().includes("most used") || q.toLowerCase().includes("graph")) {
+          currentSuggestions.push({
+            iconType: "app",
+            title: "Top Apps & Brain Topology",
+            subtitle: "Inspect discovered apps and semantic graph",
+            query: "/onboard",
+            badge: "Brain"
+          });
+        }
+
         if (q.startsWith("/model") || q === "models" || q === "status") {
           currentSuggestions.push({
             iconType: "model",

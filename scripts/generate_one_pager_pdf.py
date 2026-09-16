@@ -189,8 +189,8 @@ def build_one_pager(output_path: str):
         ],
         [
             Paragraph("<b>Layer 2<br/>Intent Core</b>", badge_accent_style),
-            Paragraph("<b>Feeding ⟶ Meaning ⟶ Intent</b><br/>Top Apps + Semantic Graph", cell_bold),
-            Paragraph("<b>Where Crcle.ai fundamentally lies:</b> Ambient app onboarding harvests running GUI apps, Dock plists, and persona telemetry into a semantic SQLite Knowledge Graph (work, apps, media). Anti-drift hysteresis isolates work from personal feeds (Diljit vs Josh). Zero misdirection guard ensures clean, intended navigation.", cell_body),
+            Paragraph("<b>Feeding ⟶ Meaning ⟶ Intent</b><br/>Pure Data + Semantic Graph", cell_bold),
+            Paragraph("<b>Where Crcle.ai fundamentally lies:</b> Verified Pure-Data Onboarding binds user identity, teammates, default apps, and habits into a 4-cluster disjoint Knowledge Graph (<code>work</code>, <code>apps</code>, <code>personal_media</code>, <code>gaming</code>). Zero speculation: work context strictly rejects media noise (Diljit/YouTube never leaks to Josh).", cell_body),
             Paragraph("<b>0.49 ms</b> (Mem)<br/><b>&lt;25 ms</b> (Ingest)", cell_bold),
         ],
         [
@@ -237,9 +237,9 @@ def build_one_pager(output_path: str):
         Spacer(1, 2),
         Paragraph("<b>Memory & Semantic Knowledge Graph:</b>", cell_bold),
         Paragraph(
-            "• <b>Semantic Knowledge Graph:</b> Weighted graph topology (<code>graph_edges</code>) stores work, app, and media clusters. Disjoint topology prevents personal media leaks in work drafts.<br/>"
-            "• <b>Ambient App Onboarding:</b> Multi-factor scoring (Running +15, Dock +10, Installed +5) discovers top apps and hydrates default handlers in &lt;50ms.<br/>"
-            "• <b>Anti-Drift Habit Engine:</b> Hysteresis confidence gating protects explicit user choices against transient telemetry drift.",
+            "• <b>Pure-Data Verified Onboarding:</b> User declarations seal identity, team, apps, and habits with <code>confidence=1.0</code> (no drift/speculation).<br/>"
+            "• <b>Disjoint Graph Topology:</b> Weighted graph edges enforce infinite distance between work and personal media; prevents context leaks.<br/>"
+            "• <b>Zero-Assumption Intent Router:</b> Direct mappings (<code>open browser</code>&rarr;Chrome, <code>open mail</code>&rarr;Outlook, <code>open youtube</code>&rarr;Home) eliminate misdirection.",
             cell_body
         ),
     ]

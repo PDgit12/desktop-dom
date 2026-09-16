@@ -720,10 +720,9 @@ def test_brain_onboard_and_most_used_apps_intents(mock_memory):
     res_onboard = brain.execute_intent("/onboard")
     assert res_onboard["status"] == "success"
     assert res_onboard["action"] == "onboard"
-    assert "Ambient Onboarding Complete" in res_onboard["response"]
+    assert "Onboarded" in res_onboard["response"]
     assert "Piyush Dua" in res_onboard["response"]
     assert "Knowledge Graph" in res_onboard["response"]
-    assert len(res_onboard.get("top_apps", [])) > 0
 
     # 2. Most-used apps query
     res_apps = brain.execute_intent("most used apps")
@@ -774,6 +773,124 @@ def test_intent_guard_native_app_over_web_and_category_aliases(mock_memory):
         assert res_mail["status"] == "success"
         assert res_mail["action"] == "open_app"
         assert res_mail["target"] == "Microsoft Outlook"
+
+
+def test_verified_onboarding_pure_user_data(mock_memory):
+    profile_data = {
+        "user_name": "Piyush Dua",
+        "user_email": "piyush@crcle.ai",
+        "user_role": "Staff Backend Engineer",
+        "user_company": "Crcle.ai",
+        "collaborators": [
+            {"name": "Joshua Rayan", "role": "Founder / CTO", "company": "Crcle.ai", "email": "josh@crcle.ai"},
+            {"name": "Cyril Rayan", "role": "Founder / CEO", "company": "Crcle.ai", "email": "cyril@crcle.ai"},
+        ],
+        "app_bindings": {
+            "browser": "Google Chrome",
+            "mail": "Microsoft Outlook",
+            "terminal": "Terminal",
+            "ai": "ChatGPT",
+            "music": "Spotify",
+        },
+        "playlists": {
+            "focus": "Deep Focus",
+            "gaming": "FIFA Soundtrack",
+            "personal": "Diljit Dosanjh",
+        },
+        "work_repos": ["desktop-dom"],
+    }
+
+    res = mock_memory.complete_verified_onboarding(profile_data)
+    assert res["status"] == "success"
+    assert res["verified"] is True
+    assert res["mode"] == "pure_user_data"
+    assert res["user_name"] == "Piyush Dua"
+    assert res["user_role"] == "Staff Backend Engineer"
+    assert res["collaborators_count"] == 2
+    assert mock_memory.is_onboarding_verified() is True
+
+    # Check habit confidence is 1.0 (pure user ground truth, zero drift)
+    with mock_memory._lock, mock_memory._get_connection() as conn:
+        row = conn.execute("SELECT confidence, is_explicit FROM habits WHERE habit_key = 'spotify.favorite_playlist';").fetchone()
+        assert row is not None
+        assert row["confidence"] == 1.0
+        assert row["is_explicit"] == 1
+
+    # Check cluster isolation: Work vs Personal Media strictly disjoint
+    isolation = mock_memory.find_shared_context("Joshua Rayan", "Diljit Dosanjh")
+    assert isolation["status"] == "disjoint"
+    assert isolation["distance"] == float("inf")
+
+
+def test_onboard_intent_response(mock_memory):
+    brain = AssistantBrain(memory=mock_memory)
+    res = brain.execute_intent("/onboard")
+    assert res["status"] == "success"
+    assert res["action"] == "onboard"
+    assert res["verified"] is True
+    assert "Knowledge Graph & Intent Engine Onboarded" in res["response"]
+    assert "Strictly Disjoint" in res["response"] or "STRICT_DISJOINT" in res["response"]
+
+
+def test_natural_language_profile_declarations(mock_memory):
+    brain = AssistantBrain(memory=mock_memory)
+
+    # 1. Update role
+    res_role = brain.execute_intent("set my role to Lead Systems Engineer")
+    assert res_role["status"] == "success"
+    assert res_role["field"] == "role"
+    assert mock_memory.get_preference("user.role") == "Lead Systems Engineer"
+
+    # 2. Update company
+    res_comp = brain.execute_intent("set my company to Acme Corp")
+    assert res_comp["status"] == "success"
+    assert res_comp["field"] == "company"
+    assert mock_memory.get_preference("user.company") == "Acme Corp"
+
+    # 3. Update focus playlist
+    res_play = brain.execute_intent("set my focus playlist to Synthwave Chill")
+    assert res_play["status"] == "success"
+    assert res_play["field"] == "playlist"
+    assert mock_memory.get_preference("spotify.favorite_playlist") == "Synthwave Chill"
+
+    # 4. Add collaborator
+    res_collab = brain.execute_intent("add collaborator Alex Rivera alex@acme.com")
+    assert res_collab["status"] == "success"
+    assert res_collab["action"] == "add_collaborator"
+    assert res_collab["name"] == "Alex Rivera"
+    assert mock_memory.resolve_entity("Alex Rivera") is not None
+
+
+def test_email_draft_strictly_isolates_work_from_personal_media(mock_memory):
+    brain = AssistantBrain(memory=mock_memory)
+    mock_memory.complete_verified_onboarding()
+
+    # Simulate user being on YouTube watching Diljit Dosanjh
+    with patch.object(brain.context_feed, "capture_active_context") as mock_cap:
+        mock_cap.return_value = ActiveContextSnapshot(
+            timestamp=time.time(),
+            frontmost_app="Google Chrome",
+            window_title="(6) Diljit Dosanjh latest - YouTube",
+            activity_category="Media",
+            focused_topic="(6) Diljit Dosanjh latest - YouTube",
+            suggested_playlist="Deep Focus",
+            suggested_genre="Focus Beats",
+            browser_name="Google Chrome",
+            browser_url="https://youtube.com/watch?v=123",
+            browser_title="(6) Diljit Dosanjh latest - YouTube",
+        )
+        with patch("subprocess.run") as mock_sub:
+            mock_sub.return_value = MagicMock(returncode=0, stdout="", stderr="")
+            res = brain.execute_intent("message Josh")
+            assert res["status"] == "success"
+            assert res["recipient"] == "Joshua Rayan"
+            assert res["email"] == "josh@crcle.ai"
+            # Crucial invariant: Diljit Dosanjh or YouTube MUST NOT be the work_topic!
+            assert "Diljit" not in res["subject"]
+            assert "YouTube" not in res["subject"]
+            assert "desktop-dom" in res["subject"] or "Crcle" in res["subject"]
+            assert "PDgit12" not in res.get("response", "")
+
 
 
 
