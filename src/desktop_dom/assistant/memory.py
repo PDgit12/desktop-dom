@@ -209,6 +209,15 @@ class AuraMemory:
             ("user.name", "Piyush Dua", "user", now),
             ("user.company", "Crcle.ai", "user", now),
             ("user.role", "Backend Engineer", "user", now),
+            ("youtube.favorite_channel.tech", "ThePrimeagen", "media", now),
+            ("youtube.favorite_channel.gaming", "EA SPORTS FC", "media", now),
+            ("youtube.favorite_channel.general", "Fireship", "media", now),
+            ("youtube.watch_history", json.dumps([
+                {"channel": "ThePrimeagen", "topic": "Vim, Rust & Systems Architecture", "category": "Engineering", "timestamp": now - 1800},
+                {"channel": "Fireship", "topic": "100 Seconds of Code", "category": "Engineering", "timestamp": now - 7200},
+                {"channel": "EA SPORTS FC", "topic": "FIFA 23 Skill Moves & Gameplay", "category": "Gaming", "timestamp": now - 86400}
+            ]), "media", now),
+            ("github.default_repo", "PDgit12/desktop-dom", "developer", now),
         ]
 
         cursor.executemany("""
@@ -546,7 +555,36 @@ class AuraMemory:
                 "response": f"Remembered your favorite Spotify playlist is '{playlist_name}'.",
             }
 
-        # 3. User Preference / Attribute Pattern (e.g. "my role is Backend Engineer")
+        # 3. YouTube Favorite Channel Pattern ("my favorite youtube channel is Fireship", "my gaming channel is EA SPORTS FC")
+        yt_match = re.match(r"^(?:my\s+)?(?:favorite\s+|favourite\s+)?(?:youtube\s+)?(?:channel(?:\s+for\s+(tech|gaming|code|general))?)\s+is\s+(.+)$", clean, re.IGNORECASE)
+        if yt_match:
+            raw_cat = (yt_match.group(1) or "general").lower()
+            cat = "tech" if raw_cat == "code" else raw_cat
+            ch_name = yt_match.group(2).strip().strip('"\'')
+            pref_key = f"youtube.favorite_channel.{cat}"
+            self.set_preference(pref_key, ch_name, category="media")
+            return {
+                "status": "success",
+                "action": "remember_preference",
+                "key": pref_key,
+                "value": ch_name,
+                "response": f"Remembered your favorite YouTube channel for {cat} is '{ch_name}'.",
+            }
+
+        # 4. GitHub Default Repo Pattern ("my repo is PDgit12/desktop-dom")
+        repo_match = re.match(r"^(?:my\s+)?(?:default\s+)?(?:github\s+)?repo(?:sitory)?\s+is\s+([a-zA-Z0-9_\-\.\/]+)$", clean, re.IGNORECASE)
+        if repo_match:
+            repo_name = repo_match.group(1).strip()
+            self.set_preference("github.default_repo", repo_name, category="developer")
+            return {
+                "status": "success",
+                "action": "remember_preference",
+                "key": "github.default_repo",
+                "value": repo_name,
+                "response": f"Remembered your default GitHub repository is '{repo_name}'.",
+            }
+
+        # 5. User Preference / Attribute Pattern (e.g. "my role is Backend Engineer")
         pref_match = re.match(r"^(?:my\s+)([a-zA-Z0-9_\s]+?)\s+is\s+(.+)$", clean, re.IGNORECASE)
         if pref_match:
             attr = pref_match.group(1).strip().lower().replace(" ", "_")
@@ -621,6 +659,101 @@ class AuraMemory:
                 },
                 "db_path": str(self.db_path),
             }
+
+    # -------------------------------------------------------------------------
+    # Media & Developer Intent Synthesis (YouTube, GitHub)
+    # -------------------------------------------------------------------------
+
+    def get_youtube_recommendation(self, context_category: str = "General", channel_query: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Synthesizes a personalized YouTube recommendation based on active context category,
+        stored channel preferences, and watch history.
+        """
+        cat_low = (context_category or "general").lower()
+        import urllib.parse
+
+        # 1. Explicit channel query override (e.g. "watch fireship")
+        if channel_query:
+            clean_ch = channel_query.strip()
+            if "prime" in clean_ch.lower():
+                channel = "ThePrimeagen"
+                url = "https://www.youtube.com/@ThePrimeagen/videos"
+                topic = "Systems & Developer Culture"
+            elif "fireship" in clean_ch.lower():
+                channel = "Fireship"
+                url = "https://www.youtube.com/@Fireship/videos"
+                topic = "High-velocity Tech News"
+            elif any(g in clean_ch.lower() for g in ["fifa", "ea sports", "fc"]):
+                channel = "EA SPORTS FC"
+                url = "https://www.youtube.com/results?search_query=FIFA+23+Ultimate+Team+Gameplay"
+                topic = "FIFA Gameplay & Tactics"
+            else:
+                channel = clean_ch.title()
+                encoded = urllib.parse.quote(f"{clean_ch} latest")
+                url = f"https://www.youtube.com/results?search_query={encoded}"
+                topic = f"{clean_ch} Videos"
+
+            self.record_youtube_watch(channel, topic, context_category)
+            return {
+                "channel": channel,
+                "topic": topic,
+                "url": url,
+                "category": context_category,
+                "source": "explicit_request",
+            }
+
+        # 2. Contextual matching
+        if cat_low == "gaming":
+            fav_channel = self.get_preference("youtube.favorite_channel.gaming", "EA SPORTS FC")
+            topic = "FIFA Tactics & Highlights"
+            url = f"https://www.youtube.com/results?search_query={urllib.parse.quote(fav_channel + ' FIFA 23 tactics')}"
+        elif cat_low == "engineering":
+            fav_channel = self.get_preference("youtube.favorite_channel.tech", "ThePrimeagen")
+            topic = "Systems & Software Engineering"
+            url = f"https://www.youtube.com/@{fav_channel}/videos" if fav_channel in ["ThePrimeagen", "Fireship"] else f"https://www.youtube.com/results?search_query={urllib.parse.quote(fav_channel + ' latest')}"
+        else:
+            fav_channel = self.get_preference("youtube.favorite_channel.general", "Fireship")
+            topic = "Tech & Developer Insights"
+            url = f"https://www.youtube.com/@{fav_channel}/videos" if fav_channel in ["ThePrimeagen", "Fireship"] else f"https://www.youtube.com/results?search_query={urllib.parse.quote(fav_channel)}"
+
+        self.record_youtube_watch(fav_channel, topic, context_category)
+        return {
+            "channel": fav_channel,
+            "topic": topic,
+            "url": url,
+            "category": context_category,
+            "source": "contextual_history",
+        }
+
+    def record_youtube_watch(self, channel: str, topic: str, category: str):
+        """Records a video interaction into SQLite watch history."""
+        now = time.time()
+        try:
+            raw_hist = self.get_preference("youtube.watch_history", "[]")
+            hist = json.loads(raw_hist)
+        except Exception:
+            hist = []
+        hist.insert(0, {
+            "channel": channel,
+            "topic": topic,
+            "category": category,
+            "timestamp": now,
+        })
+        hist = hist[:20]
+        self.set_preference("youtube.watch_history", json.dumps(hist), category="media")
+
+    def get_developer_repo(self) -> str:
+        """Resolves the user's active developer GitHub repository."""
+        try:
+            res = subprocess.run(["git", "config", "--get", "remote.origin.url"], capture_output=True, text=True, timeout=1.0)
+            if res.returncode == 0 and res.stdout.strip():
+                url = res.stdout.strip()
+                m = re.search(r"github\.com[:/]([^/]+/[^/.]+)", url)
+                if m:
+                    return m.group(1)
+        except Exception:
+            pass
+        return self.get_preference("github.default_repo", "PDgit12/desktop-dom")
 
     # -------------------------------------------------------------------------
     # Multi-Source Ingestion (macOS Contacts)

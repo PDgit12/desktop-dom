@@ -194,3 +194,113 @@ def test_brain_email_josh_context_enrichment(mock_memory):
             assert res.get("email") == "josh@crcle.ai"
             assert "Crcle Deck v2" in res.get("subject")
             assert res.get("verified") is True
+
+
+def test_youtube_recommendation_engineering_context(mock_memory):
+    brain = AssistantBrain(memory=mock_memory)
+    with patch.object(brain.context_feed, "capture_active_context") as mock_cap:
+        mock_cap.return_value = ActiveContextSnapshot(
+            timestamp=time.time(),
+            frontmost_app="Visual Studio Code",
+            window_title="desktop-dom - brain.py",
+            activity_category="Engineering",
+            focused_topic="Systems Development",
+            suggested_playlist="Deep Focus",
+            suggested_genre="Focus Beats",
+            browser_name=None,
+            browser_url=None,
+            browser_title=None,
+        )
+        with patch("webbrowser.open") as mock_open:
+            res = brain.execute_intent("open youtube")
+            assert res.get("status") == "success"
+            assert res.get("action") == "youtube_intent"
+            assert res.get("level") == "2.0"
+            assert res.get("channel") == "ThePrimeagen"
+            assert res.get("category") == "Engineering"
+            assert "youtube.com" in res.get("url")
+
+
+def test_youtube_recommendation_gaming_context(mock_memory):
+    brain = AssistantBrain(memory=mock_memory)
+    with patch.object(brain.context_feed, "capture_active_context") as mock_cap:
+        mock_cap.return_value = ActiveContextSnapshot(
+            timestamp=time.time(),
+            frontmost_app="FIFA 23",
+            window_title="Matchday",
+            activity_category="Gaming",
+            focused_topic="FIFA Gaming Session",
+            suggested_playlist="FIFA Soundtrack",
+            suggested_genre="Gaming Energy",
+            browser_name=None,
+            browser_url=None,
+            browser_title=None,
+        )
+        with patch("webbrowser.open") as mock_open:
+            res = brain.execute_intent("watch youtube")
+            assert res.get("status") == "success"
+            assert res.get("action") == "youtube_intent"
+            assert res.get("level") == "2.0"
+            assert res.get("channel") == "EA SPORTS FC"
+            assert res.get("category") == "Gaming"
+
+
+def test_youtube_explicit_watch_fireship(mock_memory):
+    brain = AssistantBrain(memory=mock_memory)
+    with patch("webbrowser.open") as mock_open:
+        res = brain.execute_intent("watch fireship")
+        assert res.get("status") == "success"
+        assert res.get("action") == "youtube_intent"
+        assert res.get("level") == "2.0"
+        assert res.get("channel") == "Fireship"
+        assert "@Fireship" in res.get("url")
+
+
+def test_youtube_remember_favorite_channel(mock_memory):
+    brain = AssistantBrain(memory=mock_memory)
+    res_rem = brain.execute_intent("remember my favorite youtube channel for tech is Fireship")
+    assert res_rem.get("status") == "success"
+    assert mock_memory.get_preference("youtube.favorite_channel.tech") == "Fireship"
+
+    with patch.object(brain.context_feed, "capture_active_context") as mock_cap:
+        mock_cap.return_value = ActiveContextSnapshot(
+            timestamp=time.time(),
+            frontmost_app="Terminal",
+            window_title="zsh",
+            activity_category="Engineering",
+            focused_topic="Software Engineering",
+            suggested_playlist="Deep Focus",
+            suggested_genre="Focus Beats",
+            browser_name=None,
+            browser_url=None,
+            browser_title=None,
+        )
+        with patch("webbrowser.open") as mock_open:
+            res = brain.execute_intent("open youtube")
+            assert res.get("channel") == "Fireship"
+
+
+def test_github_developer_repo_intent(mock_memory):
+    brain = AssistantBrain(memory=mock_memory)
+    with patch("webbrowser.open") as mock_open:
+        res = brain.execute_intent("open my repo")
+        assert res.get("status") == "success"
+        assert res.get("action") == "open_github_repo"
+        assert res.get("level") == "2.0"
+        assert "PDgit12/desktop-dom" in res.get("repo")
+        assert "github.com/PDgit12/desktop-dom" in res.get("url")
+
+        res_pr = brain.execute_intent("open pull requests")
+        assert res_pr.get("status") == "success"
+        assert "/pulls" in res_pr.get("url")
+
+
+def test_calendar_schedule_intent(mock_memory):
+    brain = AssistantBrain(memory=mock_memory)
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0)
+        res = brain.execute_intent("check my schedule")
+        assert res.get("status") == "success"
+        assert res.get("action") == "open_calendar"
+        assert res.get("level") == "2.0"
+

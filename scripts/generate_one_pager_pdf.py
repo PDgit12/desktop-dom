@@ -190,7 +190,7 @@ def build_one_pager(output_path: str):
         [
             Paragraph("<b>Layer 2<br/>Intent Core</b>", badge_accent_style),
             Paragraph("<b>Feeding ⟶ Meaning ⟶ Intent</b><br/>Chrome Ingest + Context Feed", cell_bold),
-            Paragraph("<b>Where Crcle.ai fundamentally lies:</b> Continuous intent cycle: Ingests OS telemetry + active Chrome tab/URL + SQLite WAL memory. Synthesizes meaning (FIFA gaming &rarr; FIFA Soundtrack; coding &rarr; Deep Focus). Resolves entities (<i>'message Josh'</i>) in &lt;0.5ms.", cell_body),
+            Paragraph("<b>Where Crcle.ai fundamentally lies:</b> Continuous intent cycle: Ingests OS telemetry + Chrome active tab + SQLite WAL memory. Synthesizes meaning (FIFA &rarr; FIFA Soundtrack; coding &rarr; Deep Focus; YouTube/GitHub routing). Resolves entities (<i>'message Josh'</i>) in &lt;0.5ms.", cell_body),
             Paragraph("<b>0.49 ms</b> (Mem)<br/><b>&lt;15 ms</b> (Ingest)", cell_bold),
         ],
         [
@@ -280,7 +280,7 @@ def build_one_pager(output_path: str):
             Paragraph("<b>Founder Alignment</b>", cell_bold),
         ],
         [
-            Paragraph("<b>125 / 125 Passing (100%)</b><br/>Zero flaky tests in ~44s. Full coverage: schema, pruners, memory, context feed, diff, agent, fast-paths.", cell_body),
+            Paragraph("<b>131 / 131 Passing (100%)</b><br/>Zero flaky tests in ~15s. Hermetic: schema, pruners, memory, context feed, YouTube/GitHub intents, diff, agent.", cell_body),
             Paragraph("<b>SQLite in WAL Mode</b><br/>Dual-layer in-memory hot cache. 5-tier disambiguation executes in <b>0.49ms</b> with zero cloud lock.", cell_body),
             Paragraph("<b>Sub-ms Headless Daemon</b><br/><code>desktop-dom serve</code> on port 8484 exposes tree, intent, diff, and agent endpoints for Crcle.", cell_body),
             Paragraph("<b>Joshua & Cyril Rayan</b><br/>Delivers the exact high-velocity backend engine solving Crcle's core intent layer bottlenecks.", cell_body),

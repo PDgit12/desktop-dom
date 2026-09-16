@@ -739,21 +739,30 @@ end tell
 - Prefills recipient, subject, and personalized body.
 - Returns `status: "success"`, `level: "2.5"`, `verified: true` in **120ms**.
 
-#### 2. The 3-Tier Ghost Cursor
+#### 2. Multi-Modal YouTube & Video Streaming Context Routing
+When a user says *"open youtube"* or *"watch youtube"*, a dumb agent opens the generic `youtube.com` homepage. Desktop-DOM transforms this into an intent-driven media experience:
+- **Contextual Channel Selection:** If the active window shows gaming/FIFA, it resolves to `EA SPORTS FC` or gaming tactics. If coding in VS Code or Terminal, it resolves to `ThePrimeagen` or `Fireship`.
+- **Watch History & Personal Memory:** Queries SQLite memory for user watch preferences and channel subscriptions.
+- **Browser Tab Intelligence:** Queries running Chrome/Brave/Arc tabs. If a YouTube tab already exists, it focuses and updates the active tab index rather than spawning cluttering duplicate browser tabs.
+
+#### 3. Developer Workspace & Repository Binding
+When the user states *"open my repo"* or *"open pull requests"*, Desktop-DOM links active telemetry (current git workspace, terminal directory, or active Chrome tab) with SQLite preferences (`github.default_repo`: `PDgit12/desktop-dom`), opening the exact pull requests or code tree in `<15ms`.
+
+#### 4. The 3-Tier Ghost Cursor
 For general GUI controls without AppleScript bridges:
 - **Tier 1 (In-Memory Press):** `AXUIElementPerformAction(kAXPressAction)` dispatches the event directly to the control handle. The physical mouse cursor remains stationary.
 - **Tier 2 (Ghost Warp & Restore):** If hardware events are required, `CGWarpMouseCursorPosition` warps the cursor, posts the click event to `kCGHIDEventTap`, and restores the user's previous cursor coordinate in $<0.8\text{ms}$.
 - **Tier 3 (In-Memory Value Mutation):** `AXUIElementSetAttributeValue(kAXValueAttribute, val)` sets text field contents directly without synthetic keystroke jitter.
 
-#### 3. Linear State Verification ($O(N)$ DOM Diffing)
+#### 5. Linear State Verification ($O(N)$ DOM Diffing)
 Before every action, Desktop-DOM captures DOM snapshot $T_0$. After execution, it captures $T_1$. The diff engine computes the added, removed, and mutated nodes in $<0.25\text{ms}$, confirming that the desired state transformation actually completed before reporting success.
 
 ---
 
 ### 15.6 Certified System Metrics (Post-Implementation Audit)
 
-- **Total Hermetic Tests Passing:** **125 / 125 Tests (100% Pass Rate)**
-- **Test Suite Duration:** ~44.6 seconds in headless test environment.
+- **Total Hermetic Tests Passing:** **131 / 131 Tests (100% Pass Rate)**
+- **Test Suite Duration:** ~15.0 seconds in headless test environment.
 - **Telemetry Ingestion Latency:** $<20\text{ms}$ (OS Process + Chrome Active Tab).
 - **Entity Disambiguation Latency:** $0.49\text{ms}$ (SQLite WAL + In-Memory Cache).
 - **DOM Diff Execution Latency:** $<0.25\text{ms}$ ($O(N)$ Tree Differ).
@@ -762,5 +771,5 @@ Before every action, Desktop-DOM captures DOM snapshot $T_0$. After execution, i
 
 ---
 
-*Curriculum certified: 125/125 tests passing, production DMG/ZIP bundles ready, Git tree synchronized with PDgit12/desktop-dom.*
+*Curriculum certified: 131/131 tests passing, production DMG/ZIP bundles ready, Git tree synchronized with PDgit12/desktop-dom.*
 

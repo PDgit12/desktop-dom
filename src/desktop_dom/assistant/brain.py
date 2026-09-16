@@ -491,7 +491,100 @@ class AssistantBrain:
                 "response": summary,
             }
 
-        # 5. Screen Introspection & Active Window Reading
+        # 5. YouTube & Video Streaming Intent Flow ("open youtube", "watch youtube", "watch something", "watch fireship", "watch primeagen")
+        yt_direct_match = re.match(r"^(?:open|watch|play|go\s+to)\s+(?:my\s+)?(?:youtube|videos?)(?:\s+(?:video|channel))?$", raw_prompt.strip(), re.IGNORECASE)
+        yt_watch_match = re.match(r"^(?:watch|open\s+youtube\s+for)\s+(.+)$", raw_prompt.strip(), re.IGNORECASE)
+        if yt_direct_match or (yt_watch_match and not any(w in prompt for w in ["netflix", "movie", "tv", "song", "track", "spotify"])):
+            channel_query = None
+            if yt_watch_match:
+                cand = yt_watch_match.group(1).strip()
+                if cand.lower() not in ["youtube", "video", "videos", "something", "a video", "my youtube"]:
+                    channel_query = cand
+            snapshot = self.context_feed.capture_active_context(record=True)
+            self._current_context_snapshot = snapshot
+
+            rec = self.memory.get_youtube_recommendation(context_category=snapshot.activity_category, channel_query=channel_query)
+            dest_url = rec["url"]
+            channel_name = rec["channel"]
+            topic_name = rec["topic"]
+            cat_name = rec["category"]
+
+            self._notify_action("executing", f"Opening YouTube: {channel_name} ({topic_name})")
+
+            # Level 2.5: Browser Tab Intelligence (bring existing tab to front or open new)
+            handled = False
+            if sys.platform == "darwin":
+                try:
+                    osa = f'''
+                    tell application "Google Chrome"
+                        if running then
+                            repeat with w in windows
+                                set tabIdx to 0
+                                repeat with t in tabs of w
+                                    set tabIdx to tabIdx + 1
+                                    if URL of t contains "youtube.com" then
+                                        set active tab index of w to tabIdx
+                                        set URL of t to "{dest_url}"
+                                        set index of w to 1
+                                        activate
+                                        return true
+                                    end if
+                                end repeat
+                            end repeat
+                        end if
+                    end tell
+                    return false
+                    '''
+                    res = subprocess.run(["osascript", "-e", osa], capture_output=True, text=True, timeout=1.2)
+                    if "true" in res.stdout.lower():
+                        handled = True
+                except Exception:
+                    pass
+
+            if not handled:
+                webbrowser.open(dest_url)
+
+            return {
+                "status": "success",
+                "action": "youtube_intent",
+                "level": "2.0",
+                "channel": channel_name,
+                "topic": topic_name,
+                "category": cat_name,
+                "url": dest_url,
+                "response": f"Opening {channel_name} ({topic_name}) on YouTube based on your active {cat_name} context and viewing history.",
+            }
+
+        # 6. GitHub & Developer Workspace Intent Flow ("open my repo", "open github", "open pull requests", "open prs")
+        gh_match = re.match(r"^(?:open|show|go\s+to)\s+(?:my\s+)?(?:github|repo|repository|pull\s+requests?|prs?)(?:\s+(?:repo|page))?$", raw_prompt.strip(), re.IGNORECASE)
+        if gh_match:
+            repo = self.memory.get_developer_repo()
+            is_pr = any(w in prompt for w in ["pull request", "pull requests", "prs", "pr"])
+            dest_url = f"https://github.com/{repo}/pulls" if is_pr else f"https://github.com/{repo}"
+            self._notify_action("executing", f"Opening {repo} on GitHub")
+            webbrowser.open(dest_url)
+            return {
+                "status": "success",
+                "action": "open_github_repo",
+                "level": "2.0",
+                "repo": repo,
+                "url": dest_url,
+                "response": f"Opening {repo}{' Pull Requests' if is_pr else ''} on GitHub in browser.",
+            }
+
+        # 7. Calendar & Daily Schedule Intent ("check my schedule", "calendar", "what's my schedule")
+        if any(p in prompt for p in ["check my schedule", "what is my schedule", "what's my schedule", "show schedule", "open my calendar"]):
+            self._notify_action("executing", "Opening Calendar")
+            if sys.platform == "darwin":
+                subprocess.run(["open", "-a", "Calendar"], capture_output=True)
+            return {
+                "status": "success",
+                "action": "open_calendar",
+                "level": "2.0",
+                "response": "Opened your Calendar for today's schedule.",
+            }
+
+        # 8. Screen Introspection & Active Window Reading
         if any(p in prompt for p in ["what is on my screen", "what's on my screen", "inspect screen", "read screen", "inspect active window", "read active window", "summarize screen", "what is on screen"]):
             return self._control_inspect_screen(prompt)
 
@@ -653,13 +746,16 @@ class AssistantBrain:
                     "response": f"Opened {clean_folder.capitalize()} in Finder.",
                 }
 
+            if target_lower in ["youtube", "yt"]:
+                return self.execute_intent("open youtube")
+            if target_lower in ["github", "repo", "repository"]:
+                return self.execute_intent("open my repo")
+
             self._notify_action("executing", f"Opening {app_target}")
 
             web_map = {
                 "gmail": "https://mail.google.com",
                 "google mail": "https://mail.google.com",
-                "youtube": "https://www.youtube.com",
-                "github": "https://github.com",
                 "google": "https://www.google.com",
                 "twitter": "https://x.com",
                 "x": "https://x.com",
