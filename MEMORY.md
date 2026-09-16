@@ -52,9 +52,16 @@ Eliminates vision agent flaws (>90% token waste, 3–6 second latency, pixel coo
    - CI/CD workflows: `.github/workflows/ci.yml` (multi-OS test matrix) and `.github/workflows/publish.yml` (tag release automation).
 
 ## Test & Integration Status
-- **135 unit and integration tests passing** (`pytest` in 16.55s, 100% pass rate, 100% hermetic).
+- **158 unit and integration tests passing** (`pytest` in 25.02s, 100% pass rate, 100% hermetic).
+- **Pure-Data Verified Onboarding Architecture & Disjoint Knowledge Graph Isolation:**
+  - Zero Speculation & Zero Hallucination: User declarations during onboarding (`desktop-dom onboard --interactive` or `/onboard verify`) explicitly seal user identity (`Piyush Dua | Backend Engineer @ Crcle.ai`), key collaborators (`Joshua Rayan [CTO]`, `Cyril Rayan [CEO]`), app bindings (Chrome, Outlook, Terminal, ChatGPT, Spotify), and habits into SQLite Knowledge Graph (`graph_edges`).
+  - 4 Strictly Disjoint Subgraphs: `work`, `apps`, `personal_media`, and `gaming`.
+  - Cluster Isolation Guarantee: Graph distance between work nodes (Joshua Rayan) and personal media (Diljit Dosanjh / YouTube) is verified to be $\infty$.
+  - Anti-Drift Habit Protection: Verified user habits are locked with `is_explicit=1` and `confidence=1.0`, preventing telemetry or random browsing from hijacking habits.
+  - Context Bleed Elimination: Outgoing work emails in Microsoft Outlook strictly resolve work topics from the `work` cluster (e.g. `desktop-dom`, `Crcle.ai`), eliminating accidental leaks of open YouTube tabs or Spotify tracks into work drafts.
 - **Zero-Touch Local Persona & Machine Ingestion (`local_ingest.py`):**
   - Replaces synthetic demo mocks with real user data: ingests actual Chrome SQLite history (`~/Library/Application Support/Google/Chrome/Default/History`), actual top visited web apps (`bloom.diy`, `luna.amazon.com`, `crcle.ai`), actual YouTube watch history, and local Git identity (`PDgit12 <piyushdua01@gmail.com>`).
+
 - **Level 1 Polish & Dynamic OS Catalog (`src/desktop_dom/assistant/brain.py`):**
   - Dynamic application scanner indexes 100+ native apps across `/Applications`, `/System/Applications`, `/System/Applications/Utilities`, `~/Applications`.
   - `SequenceMatcher` typo tolerance (&ge;0.68) resolves typos (`spotfy` &rarr; Spotify, `safri` &rarr; Safari, `crome` &rarr; Google Chrome, `calc` &rarr; Calculator, `notse` &rarr; Notes) without erroneous browser fallbacks.
