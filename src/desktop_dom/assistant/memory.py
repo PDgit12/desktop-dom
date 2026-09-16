@@ -53,6 +53,9 @@ class AuraMemory:
         self._graph_edges: List[Dict[str, Any]] = []
         self._graph_adj: Dict[int, List[Dict[str, Any]]] = {}
         self._graph_incoming_adj: Dict[int, List[Dict[str, Any]]] = {}
+        self._learnings_cache: List[Dict[str, Any]] = []
+        self._disambiguations_cache: Dict[str, Dict[str, Any]] = {}
+        self._misfires_cache: List[Dict[str, Any]] = []
         
         self._init_db()
         self._reload_cache()
@@ -172,6 +175,60 @@ class AuraMemory:
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_graph_edges_target ON graph_edges(target_id);")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_graph_edges_cluster ON graph_edges(cluster);")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_graph_edges_relation ON graph_edges(relation);")
+
+            # 6. Self-Learning Knowledge Engine Table (Learnings & Patterns)
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS learnings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                pattern TEXT NOT NULL,
+                intent TEXT NOT NULL,
+                target_entity_id INTEGER,
+                target_action TEXT NOT NULL,
+                context_signature TEXT DEFAULT '',
+                confidence REAL DEFAULT 1.0,
+                outcome_count INTEGER DEFAULT 1,
+                positive_feedback INTEGER DEFAULT 1,
+                negative_feedback INTEGER DEFAULT 0,
+                metadata TEXT DEFAULT '{}',
+                created_at REAL NOT NULL,
+                updated_at REAL NOT NULL,
+                FOREIGN KEY (target_entity_id) REFERENCES entities(id) ON DELETE SET NULL,
+                UNIQUE(pattern, intent, target_action, context_signature)
+            );
+            """)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_learnings_pattern ON learnings(pattern);")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_learnings_intent ON learnings(intent);")
+
+            # 7. Misfire & Self-Correction Feedback Loop Table
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS misfires (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                query TEXT NOT NULL,
+                intended_intent TEXT,
+                actual_intent TEXT,
+                false_positive_target TEXT NOT NULL,
+                corrected_target TEXT,
+                context_snapshot TEXT DEFAULT '{}',
+                resolved INTEGER DEFAULT 0,
+                timestamp REAL NOT NULL
+            );
+            """)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_misfires_query ON misfires(query);")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_misfires_timestamp ON misfires(timestamp DESC);")
+
+            # 8. Single-Shot Disambiguations Table (Ask once, remember forever)
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS disambiguations (
+                ambiguous_key TEXT PRIMARY KEY,
+                chosen_entity_id INTEGER NOT NULL,
+                chosen_target TEXT NOT NULL,
+                usage_count INTEGER DEFAULT 1,
+                last_used REAL NOT NULL,
+                metadata TEXT DEFAULT '{}',
+                FOREIGN KEY (chosen_entity_id) REFERENCES entities(id) ON DELETE CASCADE
+            );
+            """)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_disambiguations_key ON disambiguations(ambiguous_key);")
 
             # Check if seeding is required
             cursor.execute("SELECT COUNT(*) as count FROM entities;")
@@ -371,24 +428,71 @@ class AuraMemory:
             self._graph_adj = adj
             self._graph_incoming_adj = incoming_adj
 
+            # Load Learnings
+            cursor.execute("SELECT * FROM learnings ORDER BY outcome_count DESC, confidence DESC;")
+            learnings = []
+            for r in cursor.fetchall():
+                item = dict(r)
+                try:
+                    item["metadata"] = json.loads(item.get("metadata") or "{}")
+                except Exception:
+                    item["metadata"] = {}
+                learnings.append(item)
+            self._learnings_cache = learnings
+
+            # Load Disambiguations
+            cursor.execute("SELECT * FROM disambiguations;")
+            disambiguations = {}
+            for r in cursor.fetchall():
+                d = dict(r)
+                try:
+                    d["metadata"] = json.loads(d.get("metadata") or "{}")
+                except Exception:
+                    d["metadata"] = {}
+                disambiguations[d["ambiguous_key"].lower()] = d
+            self._disambiguations_cache = disambiguations
+
+            # Load recent Misfires
+            cursor.execute("SELECT * FROM misfires ORDER BY timestamp DESC LIMIT 100;")
+            misfires = []
+            for r in cursor.fetchall():
+                m = dict(r)
+                try:
+                    m["context_snapshot"] = json.loads(m.get("context_snapshot") or "{}")
+                except Exception:
+                    m["context_snapshot"] = {}
+                misfires.append(m)
+            self._misfires_cache = misfires
+
     # -------------------------------------------------------------------------
     # Entity Resolution & Disambiguation Engine (<0.5ms)
     # -------------------------------------------------------------------------
 
-    def resolve_entity(self, query: str) -> Optional[Dict[str, Any]]:
+    def resolve_entity(self, query: str, context: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
         """
         Disambiguates and resolves natural language references (e.g. 'josh', 'joshua',
-        'cyril', 'piyush', 'ceo', 'founder', 'ciril') into a canonical Entity record using tiered matching:
-        1. Direct email match (Score: 100)
-        2. Exact alias, name, or token match (Score: 95-100)
-        3. Semantic role or title match (Score: 92)
-        4. Typo-tolerant edit distance (dist <= 1 -> 88, dist == 2 -> 80)
-        5. Substring & SequenceMatcher ratio (Score: 70+)
+        'cyril', 'hannah', 'piyush', 'ceo', 'founder', 'ciril') into a canonical Entity record using tiered matching:
+        1. Single-shot disambiguation cache (Instant Recall)
+        2. Direct email match (Score: 100)
+        3. Exact alias, name, or token match (Score: 95-100)
+        4. Context & Cluster affinity boosting (Work vs Personal symmetry breaking)
+        5. Semantic role or title match (Score: 92)
+        6. Typo-tolerant edit distance (dist <= 1 -> 88, dist == 2 -> 80)
         Ranked by confidence score + interaction recency/frequency + priority boost.
         """
         clean = query.strip().lower()
         if not clean:
             return None
+
+        # 0. Check Single-Shot Disambiguation Memory First
+        with self._lock:
+            for amb_key, d_info in self._disambiguations_cache.items():
+                if amb_key == clean or clean in amb_key:
+                    chosen_id = d_info.get("chosen_entity_id")
+                    if chosen_id:
+                        for ent in self._entity_cache:
+                            if ent["id"] == chosen_id:
+                                return ent
 
         # Clean noise words (e.g., 'to josh', 'shoot an email to josh', 'ping cyril', 'email the ceo')
         clean = re.sub(
@@ -476,6 +580,26 @@ class AuraMemory:
                     meta = ent.get("metadata") or {}
                     if isinstance(meta, dict) and meta.get("priority"):
                         score += float(meta["priority"]) * 0.3
+
+                    # Cluster & Context Affinity Boosting (Symmetry Breaking)
+                    user_co = self.get_preference("user.company", "Crcle.ai").lower()
+                    is_work_ent = ent.get("category") in {"colleague", "founder", "work"} or (ent.get("company", "").lower() == user_co and user_co)
+                    if context:
+                        front = (context.get("frontmost_app") or "") if isinstance(context.get("frontmost_app"), str) else ""
+                        act_cat = (context.get("activity_category") or "") if isinstance(context.get("activity_category"), str) else ""
+                        is_work_ctx = any(w in front.lower() for w in ["code", "zed", "terminal", "slack", "outlook", "chrome", "calendar"]) or act_cat == "work"
+                        if is_work_ctx:
+                            if is_work_ent:
+                                score += 25.0
+                            elif ent.get("category") in {"personal", "family", "friend"}:
+                                score -= 20.0
+                        else:
+                            if ent.get("category") in {"personal", "family", "friend"}:
+                                score += 20.0
+                    else:
+                        # Baseline affinity for primary work colleagues on dev machine
+                        if is_work_ent:
+                            score += 15.0
 
                     if score > best_score:
                         best_score = score
@@ -690,8 +814,8 @@ class AuraMemory:
         with self._lock, self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "SELECT id, interaction_count, metadata FROM entities WHERE LOWER(name) = ? AND LOWER(category) = ?;",
-                (name.strip().lower(), category.strip().lower())
+                "SELECT id, interaction_count, metadata, aliases FROM entities WHERE LOWER(name) = ? OR (email IS NOT NULL AND email != '' AND LOWER(email) = ?);",
+                (name.strip().lower(), (email.strip().lower() if email else "___none___"))
             )
             existing = cursor.fetchone()
             if existing:
@@ -702,18 +826,25 @@ class AuraMemory:
                 except Exception:
                     prev_meta = {}
                 prev_meta.update(meta_dict)
+                try:
+                    prev_aliases = json.loads(existing[3]) if existing[3] else []
+                except Exception:
+                    prev_aliases = []
+                merged_aliases = list(set(prev_aliases + alias_list))
                 cursor.execute("""
                 UPDATE entities SET
                     aliases = ?, email = COALESCE(NULLIF(?, ''), email), phone = COALESCE(NULLIF(?, ''), phone),
                     company = COALESCE(NULLIF(?, ''), company), role = COALESCE(NULLIF(?, ''), role),
+                    category = COALESCE(NULLIF(?, ''), category),
                     interaction_count = ?, last_interaction = ?, metadata = ?, updated_at = ?
                 WHERE id = ?;
                 """, (
-                    json.dumps(alias_list),
+                    json.dumps(merged_aliases),
                     email.strip() if email else "",
                     phone.strip(),
                     company.strip(),
                     role.strip(),
+                    category.strip(),
                     prev_count + 1,
                     now,
                     json.dumps(prev_meta),
@@ -2671,5 +2802,654 @@ class AuraMemory:
         self._reload_cache()
         return {"status": "success", "action": action_type, "entity": entity_name}
 
+    # -------------------------------------------------------------------------
+    # Spreading Activation & Dynamic Node Ignition Engine (<1.0ms)
+    # -------------------------------------------------------------------------
 
+    def ignite_graph(
+        self,
+        query: str,
+        context: Optional[Dict[str, Any]] = None,
+        max_hops: int = 2,
+    ) -> Dict[str, Any]:
+        """
+        Spreading Activation & Node Ignition Engine.
+        Injects activation energy into seed entities based on query and screen context,
+        then propagates energy across Knowledge Graph edges with cluster boundaries.
+        Calculates a dynamic, non-binary calibrated confidence score based on:
+        - Peak activation energy and margin over runner-up
+        - Screen context concordance (boosts professional tasks in work context to 95-96%)
+        - Specificity evaluation (vague prompts like "meeting someone" drop to 80-85%)
+        - Past misfire penalties and recorded learnings.
+        """
+        clean_q = query.strip().lower()
+        if not clean_q:
+            return {"status": "empty", "confidence": 0.0, "tier": "disambiguation", "ignited_nodes": []}
 
+        start_t = time.time()
+        learned_boost = False
+        misfire_penalty_applied = False
+        disambiguated = False
+
+        with self._lock:
+            # 1. Check Single-Shot Disambiguation Memory
+            disambig_entity_id: Optional[int] = None
+            for amb_key, d_info in self._disambiguations_cache.items():
+                if amb_key in clean_q or clean_q in amb_key:
+                    disambig_entity_id = d_info.get("chosen_entity_id")
+                    disambiguated = True
+                    break
+
+            # 2. Check Learnings Cache for learned pattern matches
+            learned_target_action: Optional[str] = None
+            for learn in self._learnings_cache:
+                pat = learn["pattern"].lower()
+                if pat in clean_q or clean_q in pat:
+                    learned_target_action = learn["target_action"]
+                    learned_boost = True
+                    break
+
+            # 3. Check Misfire Cache for false positive penalties
+            misfire_false_positives: List[str] = []
+            misfire_corrections: List[str] = []
+            for mis in self._misfires_cache:
+                mis_q = mis["query"].lower()
+                if (mis_q in clean_q or clean_q in mis_q) and not mis.get("resolved"):
+                    misfire_false_positives.append(mis["false_positive_target"].lower())
+                    if mis.get("corrected_target"):
+                        misfire_corrections.append(mis["corrected_target"].lower())
+                    misfire_penalty_applied = True
+
+            # 4. Seed Activation Energy Injection (A_0)
+            activations: Dict[int, float] = {}
+            intent_keywords = {
+                "meeting": ["meeting", "meet", "sync", "call", "huddle", "standup"],
+                "design": ["design", "mockup", "wireframe", "figma", "sketch", "ui", "ux"],
+                "tasks": ["task", "tasks", "ticket", "tickets", "issue", "issues", "sprint", "linear", "jira"],
+                "notes": ["note", "notes", "memo", "doc", "docs", "notion", "obsidian"],
+                "mail": ["mail", "email", "inbox", "draft", "outlook"],
+                "terminal": ["terminal", "shell", "console", "command line", "bash", "zsh", "iterm"],
+                "code": ["code", "develop", "repo", "branch", "git", "commit", "zed", "vscode"],
+                "music": ["music", "song", "songs", "playlist", "spotify", "listen"],
+            }
+
+            for ent in self._entity_cache:
+                eid = ent["id"]
+                name_lower = ent["name"].lower()
+                aliases = [a.lower() for a in ent.get("aliases", [])]
+                cat = (ent.get("category") or "").lower()
+                role = (ent.get("role") or "").lower()
+                company = (ent.get("company") or "").lower()
+                meta = ent.get("metadata") or {}
+
+                score = 0.0
+
+                # Direct token / alias match
+                if name_lower in clean_q or any(a in clean_q for a in aliases if len(a) > 2):
+                    score = max(score, 1.0)
+                elif any(part in clean_q for part in name_lower.split() if len(part) > 3):
+                    score = max(score, 0.85)
+
+                # Role / Company match
+                if role and role in clean_q:
+                    score = max(score, 0.75)
+                if company and company in clean_q:
+                    score = max(score, 0.70)
+
+                # Intent Keyword match
+                for intent_name, kws in intent_keywords.items():
+                    if any(re.search(rf"\b{kw}\b", clean_q) for kw in kws):
+                        # Does this entity handle this intent?
+                        handles_intent = (
+                            cat == intent_name
+                            or meta.get("intent") == intent_name
+                            or any(e["relation"] == f"handles_{intent_name}_intent" for e in self._graph_incoming_adj.get(eid, []))
+                            or any(e["relation"] == f"handles_{intent_name}_intent" for e in self._graph_adj.get(eid, []))
+                        )
+                        if handles_intent:
+                            score = max(score, 0.94)
+
+                # Single-shot disambiguation boost
+                if disambig_entity_id == eid:
+                    score = max(score, 1.0)
+
+                # Learned target boost
+                if learned_target_action and (learned_target_action.lower() in name_lower or name_lower in learned_target_action.lower()):
+                    score = max(score, 1.0)
+
+                # Context seed boost & Work Cluster Affinity
+                user_co = self.get_preference("user.company", "Crcle.ai").lower()
+                ent_cluster = meta.get("cluster", "work").lower()
+                is_work_ent = cat in {"colleague", "founder", "work"} or (company and company.lower() == user_co) or ent_cluster == "work"
+                if context:
+                    front_val = context.get("frontmost_app")
+                    front = front_val.lower() if isinstance(front_val, str) else ""
+                    if front and (front in name_lower or name_lower in front):
+                        score = max(score, score + 0.35)
+                    act_cat_val = context.get("activity_category")
+                    act_cat = act_cat_val.lower() if isinstance(act_cat_val, str) else ""
+                    if act_cat and ent_cluster == act_cat:
+                        score = max(score, score + 0.15)
+
+                    is_work_ctx_local = not (any(p in front for p in ["spotify", "music", "facetime"]) or act_cat in ["personal", "media", "entertainment", "gaming"])
+                    if is_work_ctx_local:
+                        if is_work_ent and score > 0:
+                            score += 0.35
+                        elif (cat in {"personal", "family", "friend"} or ent_cluster == "personal") and score > 0:
+                            score = max(0.0, score - 0.45)
+
+                # Misfire correction boost vs penalty
+                if misfire_corrections and any(c in name_lower for c in misfire_corrections):
+                    score = max(score, 1.0)
+                if misfire_false_positives and any(fp in name_lower for fp in misfire_false_positives):
+                    score = max(0.0, score - 0.75)
+
+                if score > 0.05:
+                    activations[eid] = min(1.0, score)
+
+            # Context-Conditioned Cluster Isolation Flag
+            is_work_ctx = True
+            if context:
+                front = (context.get("frontmost_app") or "") if isinstance(context.get("frontmost_app"), str) else ""
+                act_cat = (context.get("activity_category") or "") if isinstance(context.get("activity_category"), str) else ""
+                if any(p in front.lower() for p in ["spotify", "music", "facetime"]) or act_cat.lower() in ["personal", "media", "entertainment", "gaming"]:
+                    is_work_ctx = False
+
+            # 5. Spreading Activation Energy Propagation
+            decay = 0.35
+            for _ in range(max_hops):
+                incoming_flow: Dict[int, float] = {}
+                for node_id, cur_energy in list(activations.items()):
+                    if cur_energy < 0.10:
+                        continue
+
+                    # Outgoing edges
+                    for edge in self._graph_adj.get(node_id, []):
+                        target_id = edge["target_id"]
+                        w = edge.get("weight", 1.0)
+                        rel = edge.get("relation", "")
+                        c_edge = edge.get("cluster", "work")
+
+                        source_ent = next((e for e in self._entity_cache if e["id"] == node_id), None)
+                        target_ent = next((e for e in self._entity_cache if e["id"] == target_id), None)
+                        s_cluster = (source_ent.get("metadata", {}).get("cluster") or c_edge) if source_ent else c_edge
+                        t_cluster = (target_ent.get("metadata", {}).get("cluster") or c_edge) if target_ent else c_edge
+
+                        cluster_mult = 1.0
+                        if is_work_ctx and (c_edge in ["gaming", "personal_media", "personal"] or "gaming" in t_cluster or "media" in t_cluster):
+                            cluster_mult = 0.0
+                        elif s_cluster != t_cluster:
+                            if ("media" in s_cluster or "gaming" in s_cluster) and "work" in t_cluster:
+                                cluster_mult = 0.0
+                            elif ("media" in t_cluster or "gaming" in t_cluster) and "work" in s_cluster:
+                                cluster_mult = 0.0
+                            else:
+                                cluster_mult = 0.30
+
+                        rel_mult = 1.2 if "handles_" in rel else (1.0 if "collaborates" in rel else 0.8)
+                        flow = cur_energy * w * rel_mult * cluster_mult * (1.0 - decay)
+                        incoming_flow[target_id] = incoming_flow.get(target_id, 0.0) + flow
+
+                    # Incoming edges (reverse flow)
+                    for edge in self._graph_incoming_adj.get(node_id, []):
+                        source_id = edge["source_id"]
+                        w = edge.get("weight", 1.0) * 0.70
+                        flow = cur_energy * w * (1.0 - decay)
+                        incoming_flow[source_id] = incoming_flow.get(source_id, 0.0) + flow
+
+                for nid, flow in incoming_flow.items():
+                    activations[nid] = min(1.0, activations.get(nid, 0.0) * decay + flow)
+
+            # 6. Node Ignition Filtering
+            ignition_threshold = 0.28
+            ignited: List[Dict[str, Any]] = []
+            for nid, energy in activations.items():
+                if energy >= ignition_threshold:
+                    ent = next((e for e in self._entity_cache if e["id"] == nid), None)
+                    if ent:
+                        ignited.append({
+                            "id": nid,
+                            "name": ent["name"],
+                            "category": ent.get("category", "entity"),
+                            "role": ent.get("role", ""),
+                            "company": ent.get("company", ""),
+                            "energy": round(energy, 3),
+                            "cluster": ent.get("metadata", {}).get("cluster", "work"),
+                            "metadata": ent.get("metadata", {}),
+                        })
+            ignited.sort(key=lambda x: x["energy"], reverse=True)
+
+            # 7. Actionable Candidate Selection & Confidence Calibration
+            actionable_roles = {"tool", "app", "action", "meeting", "design", "tasks", "notes", "contact"}
+            actionable = [n for n in ignited if n["category"] in actionable_roles]
+            top_node = actionable[0] if actionable else (ignited[0] if ignited else None)
+            second_node = actionable[1] if len(actionable) > 1 else None
+
+            e1 = top_node["energy"] if top_node else 0.0
+            e2 = second_node["energy"] if second_node else 0.0
+            margin = max(0.0, e1 - e2)
+
+            # Base Confidence calculation
+            if not top_node:
+                confidence = 0.25
+            elif not second_node or margin >= 0.35:
+                confidence = 0.90 + 0.04 * min(1.0, margin)
+            else:
+                confidence = 0.65 + 0.22 * (margin / 0.35)
+
+            # Check Specificity (Vague prompt calibration: 80-85% for truly indeterminate requests)
+            is_vague = bool(re.search(
+                r"\b(something|some stuff|do something|open something|any app)\b",
+                clean_q
+            ))
+            if is_vague:
+                confidence = min(0.85, max(0.80, confidence * 0.88))
+
+            # Check Professional Screen Context Concordance (Calibrated to 95-96%)
+            has_screen_context = False
+            concordance = False
+            if context and context.get("frontmost_app"):
+                front_val = context.get("frontmost_app")
+                front = front_val.lower() if isinstance(front_val, str) else ""
+                if front and any(w in front for w in ["chrome", "code", "zed", "terminal", "slack", "outlook", "calendar"]):
+                    has_screen_context = True
+                    concordance = True
+
+            is_professional_task = top_node and top_node.get("cluster") == "work"
+            if is_professional_task and has_screen_context and not is_vague:
+                confidence = max(0.95, min(0.965, confidence + 0.05))
+
+            if learned_boost:
+                confidence = max(confidence, 0.96)
+
+            # Single-shot disambiguation check: if two close candidates in same category and margin < 0.12
+            if not disambiguated and not learned_boost and second_node and top_node:
+                if top_node["category"] == second_node["category"] and margin < 0.12 and not is_vague:
+                    confidence = min(confidence, 0.72)
+
+            confidence = round(max(0.05, min(0.99, confidence)), 3)
+
+            # Tier assignment
+            if confidence >= 0.90:
+                tier = "autonomous"
+            elif confidence >= 0.78:
+                tier = "cautious"
+            else:
+                tier = "disambiguation"
+
+        latency_ms = round((time.time() - start_t) * 1000, 2)
+        return {
+            "status": "success",
+            "query": query,
+            "top_node": top_node,
+            "second_node": second_node,
+            "ignited_nodes": ignited,
+            "confidence": confidence,
+            "tier": tier,
+            "is_vague": is_vague,
+            "has_screen_context": has_screen_context,
+            "concordance": concordance,
+            "learned": learned_boost,
+            "misfire_adjusted": misfire_penalty_applied,
+            "disambiguated": disambiguated,
+            "latency_ms": latency_ms,
+        }
+
+    # -------------------------------------------------------------------------
+    # Self-Learning & Misfire Self-Correction Loop (Knitbrain Model)
+    # -------------------------------------------------------------------------
+
+    def record_learning(
+        self,
+        pattern: str,
+        intent: str,
+        target_action: str,
+        target_entity_id: Optional[int] = None,
+        context_signature: str = "",
+        confidence: float = 1.0,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Records an action pattern and intent destination in the Self-Learning engine.
+        Subsequent matching queries ignite this target with elevated confidence.
+        """
+        now = time.time()
+        meta_json = json.dumps(metadata or {})
+        with self._lock, self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+            INSERT INTO learnings (
+                pattern, intent, target_entity_id, target_action, context_signature,
+                confidence, outcome_count, positive_feedback, negative_feedback,
+                metadata, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, 1, 1, 0, ?, ?, ?)
+            ON CONFLICT(pattern, intent, target_action, context_signature) DO UPDATE SET
+                confidence = MIN(1.0, confidence + 0.05),
+                outcome_count = outcome_count + 1,
+                positive_feedback = positive_feedback + 1,
+                updated_at = ?;
+            """, (pattern.strip().lower(), intent.strip().lower(), target_entity_id, target_action.strip(),
+                  context_signature.strip(), confidence, meta_json, now, now, now))
+            conn.commit()
+
+        self._reload_cache()
+        return {
+            "status": "success",
+            "pattern": pattern,
+            "intent": intent,
+            "target_action": target_action,
+            "confidence": confidence,
+        }
+
+    def record_misfire(
+        self,
+        query: str,
+        false_positive_target: str,
+        corrected_target: str,
+        intended_intent: Optional[str] = None,
+        actual_intent: Optional[str] = None,
+        context_snapshot: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Records a misfire / false positive and automatically executes self-correction:
+        1. Logs the misfire with query, false positive, and user-corrected target.
+        2. Adjusts Knowledge Graph edge weights to penalize the false positive and elevate the correction.
+        3. Updates verified user preferences for that intent category.
+        4. Ingests a new high-confidence learning so the misfire never repeats.
+        """
+        now = time.time()
+        ctx_json = json.dumps(context_snapshot or {})
+        with self._lock, self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+            INSERT INTO misfires (
+                query, intended_intent, actual_intent, false_positive_target,
+                corrected_target, context_snapshot, resolved, timestamp
+            ) VALUES (?, ?, ?, ?, ?, ?, 0, ?);
+            """, (query.strip(), intended_intent, actual_intent, false_positive_target.strip(),
+                  corrected_target.strip(), ctx_json, now))
+            conn.commit()
+
+        # Apply graph self-correction
+        correction_res = self.apply_correction_to_graph(
+            false_positive_target=false_positive_target,
+            corrected_target=corrected_target,
+            intent=intended_intent or actual_intent,
+        )
+
+        # Ingest new high-confidence learning
+        self.record_learning(
+            pattern=query.strip().lower(),
+            intent=intended_intent or actual_intent or "general",
+            target_action=corrected_target.strip(),
+            confidence=1.0,
+            metadata={"misfire_corrected_from": false_positive_target},
+        )
+
+        self._reload_cache()
+        return {
+            "status": "success",
+            "query": query,
+            "false_positive": false_positive_target,
+            "corrected_to": corrected_target,
+            "graph_adjustment": correction_res,
+        }
+
+    def record_false_positive(
+        self,
+        query: str,
+        false_positive_target: str,
+        corrected_target: str,
+        intent: str = "",
+    ) -> Dict[str, Any]:
+        """Convenience wrapper matching knitbrain false-positive feedback API."""
+        return self.record_misfire(
+            query=query,
+            false_positive_target=false_positive_target,
+            corrected_target=corrected_target,
+            intended_intent=intent,
+        )
+
+    def apply_correction_to_graph(
+        self,
+        false_positive_target: str,
+        corrected_target: str,
+        intent: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Directly adjusts Knowledge Graph edge weights and user preferences
+        to eliminate false positive destinations and reinforce the corrected target.
+        """
+        now = time.time()
+        fp_name = false_positive_target.strip()
+        cor_name = corrected_target.strip()
+        intent_slug = intent.strip().lower() if intent else None
+
+        with self._lock, self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            # Find user entity
+            cursor.execute("SELECT id FROM entities WHERE category = 'user' LIMIT 1;")
+            user_row = cursor.fetchone()
+            user_id = user_row["id"] if user_row else 1
+
+            # Find false positive entity
+            cursor.execute("SELECT id FROM entities WHERE LOWER(name) = LOWER(?) LIMIT 1;", (fp_name,))
+            fp_row = cursor.fetchone()
+            if fp_row:
+                fp_id = fp_row["id"]
+                # Penalize edge weight
+                cursor.execute("""
+                UPDATE graph_edges
+                SET weight = MAX(0.1, weight - 0.40), updated_at = ?
+                WHERE source_id = ? AND target_id = ?;
+                """, (now, user_id, fp_id))
+
+            # Find or create corrected entity
+            cursor.execute("SELECT id FROM entities WHERE LOWER(name) = LOWER(?) LIMIT 1;", (cor_name,))
+            cor_row = cursor.fetchone()
+            if cor_row:
+                cor_id = cor_row["id"]
+            else:
+                cursor.execute("""
+                INSERT INTO entities (
+                    name, aliases, email, phone, company, role, category,
+                    interaction_count, last_interaction, metadata, created_at, updated_at
+                ) VALUES (?, ?, '', '', '', ?, 'tool', 5, ?, ?, ?, ?);
+                """, (cor_name, json.dumps([cor_name.lower()]), f"{intent_slug or 'Tool'} Capability",
+                      now, json.dumps({"intent": intent_slug or "utility", "cluster": "work"}), now, now))
+                cor_id = cursor.lastrowid
+
+            # Boost or insert edge to corrected entity
+            rel = f"handles_{intent_slug}_intent" if intent_slug else "uses"
+            cursor.execute("""
+            INSERT INTO graph_edges (source_id, target_id, relation, weight, cluster, metadata, created_at, updated_at)
+            VALUES (?, ?, ?, 1.0, 'work', '{}', ?, ?)
+            ON CONFLICT(source_id, target_id, relation) DO UPDATE SET
+                weight = 1.0,
+                updated_at = ?;
+            """, (user_id, cor_id, rel, now, now, now))
+
+            # Update primary preference if intent provided
+            if intent_slug:
+                clean_slug = intent_slug.replace("_intent", "")
+                cursor.execute("""
+                INSERT OR REPLACE INTO preferences (key, value, category, updated_at)
+                VALUES (?, ?, 'apps', ?);
+                """, (f"apps.primary_{clean_slug}", cor_name, now))
+                if clean_slug in ["meeting", "meetings"]:
+                    cursor.execute("""
+                    INSERT OR REPLACE INTO preferences (key, value, category, updated_at)
+                    VALUES (?, ?, 'apps', ?);
+                    """, ("apps.primary_meeting", cor_name, now))
+
+            conn.commit()
+
+        self._reload_cache()
+        return {
+            "status": "success",
+            "penalized": fp_name,
+            "reinforced": cor_name,
+            "intent": intent_slug,
+        }
+
+    def learning_outcome(self, pattern: str, outcome: str = "success") -> bool:
+        """Updates outcome feedback score for a recorded learning."""
+        now = time.time()
+        is_pos = outcome.lower() in {"success", "positive", "confirmed"}
+        with self._lock, self._get_connection() as conn:
+            cursor = conn.cursor()
+            if is_pos:
+                cursor.execute("""
+                UPDATE learnings
+                SET positive_feedback = positive_feedback + 1,
+                    confidence = MIN(1.0, confidence + 0.05),
+                    updated_at = ?
+                WHERE LOWER(pattern) = LOWER(?);
+                """, (now, pattern.strip()))
+            else:
+                cursor.execute("""
+                UPDATE learnings
+                SET negative_feedback = negative_feedback + 1,
+                    confidence = MAX(0.1, confidence - 0.15),
+                    updated_at = ?
+                WHERE LOWER(pattern) = LOWER(?);
+                """, (now, pattern.strip()))
+            conn.commit()
+        self._reload_cache()
+        return True
+
+    def get_learnings(self, query: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Returns recorded learnings, optionally filtered by pattern query."""
+        with self._lock:
+            if not query:
+                return list(self._learnings_cache)
+            q = query.strip().lower()
+            return [l for l in self._learnings_cache if q in l["pattern"].lower() or l["pattern"].lower() in q]
+
+    def get_misfires(self, limit: int = 20) -> List[Dict[str, Any]]:
+        """Returns recent misfire and self-correction records."""
+        with self._lock:
+            return list(self._misfires_cache[:limit])
+
+    def list_misfires(self, limit: int = 20) -> List[Dict[str, Any]]:
+        """Alias for get_misfires."""
+        return self.get_misfires(limit=limit)
+
+    def list_learnings(self, query: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Alias for get_learnings."""
+        return self.get_learnings(query=query)
+
+    # -------------------------------------------------------------------------
+    # Single-Shot Disambiguation Memory (Ask once, remember forever)
+    # -------------------------------------------------------------------------
+
+    def remember_disambiguation(
+        self,
+        ambiguous_key: str,
+        chosen_entity_id: int,
+        chosen_target: str,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Saves a user disambiguation choice (e.g. 'Text Hannah' -> Hannah Vance).
+        Increases the chosen entity's interaction rank and graph edge weight so subsequent queries
+        resolve immediately without ever asking again.
+        """
+        now = time.time()
+        clean_key = ambiguous_key.strip().lower()
+        meta_json = json.dumps(metadata or {})
+
+        with self._lock, self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+            INSERT INTO disambiguations (ambiguous_key, chosen_entity_id, chosen_target, usage_count, last_used, metadata)
+            VALUES (?, ?, ?, 1, ?, ?)
+            ON CONFLICT(ambiguous_key) DO UPDATE SET
+                chosen_entity_id = ?,
+                chosen_target = ?,
+                usage_count = usage_count + 1,
+                last_used = ?,
+                metadata = ?;
+            """, (clean_key, chosen_entity_id, chosen_target, now, meta_json,
+                  chosen_entity_id, chosen_target, now, meta_json))
+
+            # Touch chosen entity to raise its priority
+            cursor.execute("""
+            UPDATE entities
+            SET interaction_count = interaction_count + 10,
+                last_interaction = ?,
+                updated_at = ?
+            WHERE id = ?;
+            """, (now, now, chosen_entity_id))
+
+            # Find user entity
+            cursor.execute("SELECT id FROM entities WHERE category = 'user' LIMIT 1;")
+            urow = cursor.fetchone()
+            if urow:
+                uid = urow["id"]
+                cursor.execute("""
+                UPDATE graph_edges
+                SET weight = MIN(1.0, weight + 0.20), updated_at = ?
+                WHERE source_id = ? AND target_id = ?;
+                """, (now, uid, chosen_entity_id))
+
+            conn.commit()
+
+        self._reload_cache()
+        return {
+            "status": "success",
+            "ambiguous_key": clean_key,
+            "chosen_entity_id": chosen_entity_id,
+            "chosen_target": chosen_target,
+        }
+
+    def resolve_disambiguation(self, ambiguous_key: str) -> Optional[Dict[str, Any]]:
+        """Resolves an ambiguous prompt key from single-shot memory if previously disambiguated."""
+        clean_key = ambiguous_key.strip().lower()
+        with self._lock:
+            d = self._disambiguations_cache.get(clean_key)
+            if not d:
+                for k, val in self._disambiguations_cache.items():
+                    if k in clean_key or clean_key in k:
+                        d = val
+                        break
+            if d:
+                ent = self.get_entity(d["chosen_entity_id"])
+                return {
+                    "ambiguous_key": clean_key,
+                    "chosen_entity_id": d["chosen_entity_id"],
+                    "chosen_target": d["chosen_target"],
+                    "entity": ent,
+                }
+            return None
+
+    def evolve_graph_from_activity(self, app_name: str, domain_category: str, dwell_seconds: float = 60.0) -> None:
+        """
+        Continuous ingestion: reinforces high-dwell applications and active tools,
+        smoothly adapting edge weights as user behaviors change over time.
+        """
+        now = time.time()
+        with self._lock, self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, name FROM entities WHERE LOWER(name) = LOWER(?);", (app_name.strip(),))
+            row = cursor.fetchone()
+            if row:
+                aid = row["id"]
+                cursor.execute("""
+                UPDATE entities
+                SET interaction_count = interaction_count + ?,
+                    last_interaction = ?,
+                    updated_at = ?
+                WHERE id = ?;
+                """, (max(1, int(dwell_seconds // 30)), now, now, aid))
+
+                cursor.execute("""
+                UPDATE graph_edges
+                SET weight = MIN(1.0, weight + 0.02),
+                    updated_at = ?
+                WHERE target_id = ?;
+                """, (now, aid))
+                conn.commit()
+
+        self._reload_cache()
