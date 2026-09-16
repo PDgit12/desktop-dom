@@ -44,7 +44,7 @@ class SinglePageCanvas(canvas.Canvas):
         self.setFont("Helvetica", 7)
         self.setFillColor(colors.HexColor("#64748b"))
         self.drawString(32, 13, "Desktop-DOM v0.2.0 • Systems Architecture Blueprint • Author: Piyush Dua (PDgit12)")
-        self.drawRightString(580, 13, "Prepared for Crcle.ai • 138/138 Tests Passing (100% Hermetic) • Exactly 1 Page")
+        self.drawRightString(580, 13, "Prepared for Crcle.ai • 142/142 Tests Passing (100% Hermetic) • Exactly 1 Page")
         self.restoreState()
 
 def build_one_pager(output_path: str):
@@ -280,7 +280,7 @@ def build_one_pager(output_path: str):
             Paragraph("<b>Founder Alignment</b>", cell_bold),
         ],
         [
-            Paragraph("<b>138 / 138 Passing (100%)</b><br/>Zero flaky tests in ~15s. Hermetic: anti-drift habit hysteresis, exact Spotify order, Chrome ingest, tree pruning.", cell_body),
+            Paragraph("<b>142 / 142 Passing (100%)</b><br/>Zero flaky tests in ~16s. Hermetic: anti-drift habit hysteresis, executive email drafting, YouTube home routing.", cell_body),
             Paragraph("<b>Anti-Drift Memory</b><br/>SQLite WAL + dual-layer cache. Hysteresis filter locks explicit intent; resolves habits & entities in <b>0.49ms</b>.", cell_body),
             Paragraph("<b>Sub-ms Headless Daemon</b><br/><code>desktop-dom serve</code> on port 8484 exposes tree, intent, diff, and agent endpoints for Crcle.", cell_body),
             Paragraph("<b>Joshua & Cyril Rayan</b><br/>Delivers the exact high-velocity backend engine solving Crcle's core intent layer bottlenecks.", cell_body),

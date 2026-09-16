@@ -371,6 +371,46 @@ class AssistantBrain:
             self._notify_action("completed", mem_res.get("response", "Remembered."))
             return mem_res
 
+        # Personal Essentials & Self Profile ("who am i", "my profile", "show my profile", "my essentials")
+        clean_p = prompt.strip("?.!").lower()
+        if clean_p in {
+            "who am i", "my profile", "show my profile", "my essentials",
+            "what do you know about me", "tell me about myself", "what are my essentials"
+        }:
+            profile = self.memory.get_user_profile()
+            self._notify_action("completed", f"Profile: {profile['name']} ({profile['role']} at {profile['company']})")
+            resp_lines = [
+                f"You are {profile['name']}, {profile['role']} at {profile['company']} ({profile['email']}).",
+                f"• GitHub Default: {profile['github_repo']}",
+                f"• Preferred Mail: {profile['preferred_mail']}",
+                f"• Favorite Playlist: '{profile['favorite_playlist']}' (Exact Order: Enforced)",
+                f"• Gaming Soundtrack: '{profile['gaming_playlist']}'",
+            ]
+            if profile.get("core_contacts"):
+                contacts_str = ", ".join([f"{c['name']} ({c['role'] or 'Contact'})" for c in profile['core_contacts'][:3]])
+                resp_lines.append(f"• Key Collaborators: {contacts_str}")
+            return {
+                "status": "success",
+                "action": "user_profile",
+                "level": "2.0",
+                "profile": profile,
+                "response": "\n".join(resp_lines),
+            }
+
+        # Habits & Preferences Inspection ("what are my habits", "my habits", "show my habits", "what are my preferences")
+        if clean_p in {
+            "what are my habits", "my habits", "show my habits", "what are my preferences", "my preferences", "show my preferences"
+        }:
+            habits = self.memory.list_habits()
+            self._notify_action("completed", f"Loaded {len(habits)} habits")
+            return {
+                "status": "success",
+                "action": "list_habits",
+                "level": "2.0",
+                "habits": habits,
+                "response": f"You have {len(habits)} stabilized habits recorded in local SQLite memory with anti-drift protection.",
+            }
+
         # Contact Biography & Knowledge Query ("who is ...", "tell me about ...")
         who_match = re.match(r"^(?:who\s+is|tell\s+me\s+about)\s+([a-zA-Z0-9\s]+?)\??$", raw_prompt, re.IGNORECASE)
         if who_match:
@@ -1117,24 +1157,54 @@ class AssistantBrain:
 
         self._notify_action("executing", f"Composing message to {name} ({email}) in {client}")
 
-        user_name = "Piyush"
+        user_name = "Piyush Dua"
+        user_role = "Backend Engineer"
+        user_company = "Crcle.ai"
         try:
-            mem_summary = self.memory.get_summary()
-            user_name = mem_summary.get("user", {}).get("name", "Piyush")
+            profile = self.memory.get_user_profile()
+            user_name = profile.get("name") or user_name
+            user_role = profile.get("role") or user_role
+            user_company = profile.get("company") or user_company
         except Exception:
             pass
+
+        sig_lines = ["Best regards,", user_name]
+        if user_role and user_company:
+            sig_lines.append(f"{user_role} | {user_company}")
+        elif user_role:
+            sig_lines.append(user_role)
+        signature = "\n".join(sig_lines)
 
         first_name = name.split()[0] if name else "there"
         if content:
             clean_content = content.strip().strip('"\'')
-            if len(clean_content) < 50:
-                subject = clean_content.capitalize()
-                body = clean_content
+            clean_for_draft = re.sub(
+                r"^(?:that|saying\s+that|saying|about|with|to\s+tell\s+him\s+that|to\s+tell\s+her\s+that|to\s+let\s+him\s+know\s+that|to\s+let\s+them\s+know\s+that)\s+",
+                "",
+                clean_content,
+                flags=re.IGNORECASE
+            ).strip()
+
+            # Subject derivation
+            if clean_content.lower().startswith("meeting"):
+                subject = "Meeting tomorrow" if "tomorrow" in clean_content.lower() else "Meeting Update"
+            elif any(w in clean_for_draft.lower() for w in ["slide", "deck", "presentation"]):
+                subject = "Pitch Deck & Slides Ready"
+            elif any(w in clean_for_draft.lower() for w in ["pr", "pull request", "merge", "commit"]):
+                subject = "Pull Request Update"
+            elif any(w in clean_for_draft.lower() for w in ["benchmark", "test", "metric"]):
+                subject = "Benchmark & Performance Results"
+            elif len(clean_for_draft) < 50:
+                subject = clean_for_draft.capitalize()
             else:
-                subject = "Update"
-                body = clean_content
-            clean_for_draft = re.sub(r"^(?:that|saying|about|with)\s+", "", clean_content, flags=re.IGNORECASE).strip()
-            draft_body = f"Hi {first_name},\n\n{clean_for_draft.capitalize()}.\n\nBest,\n{user_name}"
+                subject = "Quick Update"
+
+            formatted_text = clean_for_draft.capitalize()
+            if not formatted_text.endswith((".", "!", "?")):
+                formatted_text += "."
+
+            body = clean_content
+            draft_body = f"Hi {first_name},\n\n{formatted_text}\n\n{signature}"
         else:
             snap = None
             try:
@@ -1142,13 +1212,13 @@ class AssistantBrain:
             except Exception:
                 pass
             if snap and snap.focused_topic and snap.focused_topic not in ["Desktop", "General", "Main Window"]:
-                subject = f"Update on {snap.focused_topic}"
+                subject = f"Update: {snap.focused_topic}"
                 body = f"Working on {snap.focused_topic}"
-                draft_body = f"Hi {first_name},\n\nSharing a quick update: currently working on {snap.focused_topic}.\n\nBest,\n{user_name}"
+                draft_body = f"Hi {first_name},\n\nSharing a quick update on {snap.focused_topic}. Let me know if you have a few minutes to connect on this today.\n\n{signature}"
             else:
-                subject = "Quick Note"
+                subject = "Quick Sync"
                 body = ""
-                draft_body = f"Hi {first_name},\n\nHope you are having a productive week! Wanted to connect briefly.\n\nBest,\n{user_name}"
+                draft_body = f"Hi {first_name},\n\nHope you are having a productive week! Wanted to connect briefly regarding our progress.\n\n{signature}"
 
         encoded_subject = urllib.parse.quote(subject)
         encoded_body = urllib.parse.quote(draft_body)
@@ -1180,6 +1250,8 @@ end tell'''
                         "client": "Microsoft Outlook",
                         "subject": subject,
                         "body": body,
+                        "draft_body": draft_body,
+                        "signature": signature,
                         "verified": True,
                         "response": f"Composed message in Microsoft Outlook to {name} ({email}) with subject '{subject}'.",
                     }
@@ -1187,7 +1259,7 @@ end tell'''
             # 2. Native Apple Mail outgoing draft via AppleScript
             if "mail" in client.lower():
                 escaped_subject = subject.replace('\\', '\\\\').replace('"', '\\"')
-                escaped_body = body.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
+                escaped_body = draft_body.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
                 escaped_name = name.replace('\\', '\\\\').replace('"', '\\"')
                 escaped_email = email.replace('\\', '\\\\').replace('"', '\\"')
                 osa_script = f'''tell application "Mail"
@@ -1209,6 +1281,9 @@ end tell'''
                         "role": entity.get("role", ""),
                         "client": "Mail",
                         "subject": subject,
+                        "body": body,
+                        "draft_body": draft_body,
+                        "signature": signature,
                         "verified": True,
                         "response": f"Composed message in Mail to {name} ({email}) with subject '{subject}'.",
                     }

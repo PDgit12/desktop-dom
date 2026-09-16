@@ -425,5 +425,91 @@ def test_playlist_recall_exact_order_and_explicit_priority(mock_memory):
         assert res_fav.get("context") == "Personal Favorite"
 
 
+def test_youtube_default_home_feed_no_fireship(mock_memory):
+    brain = AssistantBrain(memory=mock_memory)
+    with patch.object(brain.context_feed, "capture_active_context") as mock_cap, patch("webbrowser.open") as mock_open:
+        mock_cap.return_value = ActiveContextSnapshot(
+            timestamp=time.time(),
+            frontmost_app="Finder",
+            window_title="Desktop",
+            activity_category="General",
+            focused_topic="Desktop",
+            suggested_playlist=None,
+            suggested_genre=None,
+            browser_name=None,
+            browser_url=None,
+            browser_title=None,
+        )
+        res = brain.execute_intent("open youtube")
+        assert res.get("status") == "success"
+        assert res.get("action") == "youtube_intent"
+        # Must NOT force Fireship by default!
+        assert res.get("channel") == "YouTube"
+        assert res.get("url") == "https://www.youtube.com"
+        assert "Fireship" not in res.get("url")
+
+        # Explicit search for Diljit Dosanjh
+        res_music = brain.execute_intent("watch Diljit Dosanjh")
+        assert res_music.get("status") == "success"
+        assert res_music.get("channel") == "Diljit Dosanjh"
+        assert "Diljit" in res_music.get("url")
+
+
+def test_outlook_email_formatting_and_signature(mock_memory):
+    brain = AssistantBrain(memory=mock_memory)
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value.returncode = 0
+        # Command with colloquial phrasing and message content
+        res = brain.execute_intent("message josh that the deck is ready")
+        assert res.get("status") == "success"
+        assert res.get("level") == "2.5"
+        assert res.get("recipient") == "Joshua Rayan"
+        assert res.get("email") == "josh@crcle.ai"
+        assert res.get("client") == "Microsoft Outlook"
+        # Subject must be properly capitalized and formatted (not 'That the deck is ready')
+        assert "Pitch Deck" in res.get("subject", "") or "Deck" in res.get("subject", "")
+        # Body must have proper salutation, content, and professional signoff
+        draft_body = res.get("draft_body", "")
+        assert "Hi Joshua," in draft_body or "Hi Josh," in draft_body
+        assert "The deck is ready." in draft_body
+        assert "Best regards," in draft_body
+        assert "Piyush Dua" in draft_body
+        assert "Backend Engineer | Crcle.ai" in draft_body
+        # Verify AppleScript received the formatted draft body
+        args = mock_run.call_args[0][0]
+        script_sent = args[2]
+        assert "plain text content:" in script_sent
+        assert "Hi Joshua" in script_sent or "Hi Josh" in script_sent
+        assert "Piyush Dua" in script_sent
+
+
+def test_user_profile_and_essentials_inspection(mock_memory):
+    brain = AssistantBrain(memory=mock_memory)
+    res = brain.execute_intent("who am i?")
+    assert res.get("status") == "success"
+    assert res.get("action") == "user_profile"
+    assert res.get("level") == "2.0"
+    profile = res.get("profile", {})
+    assert profile.get("name") == "Piyush Dua"
+    assert profile.get("role") == "Backend Engineer"
+    assert profile.get("company") == "Crcle.ai"
+    assert profile.get("email") == "piyushdua01@gmail.com"
+    assert profile.get("preferred_mail") == "Microsoft Outlook"
+    assert profile.get("github_repo") == "PDgit12/desktop-dom"
+    assert profile.get("exact_track_order") is True
+    assert "Piyush Dua" in res.get("response", "")
+    assert "Crcle.ai" in res.get("response", "")
+
+
+def test_habits_and_preferences_inspection(mock_memory):
+    brain = AssistantBrain(memory=mock_memory)
+    res = brain.execute_intent("what are my habits?")
+    assert res.get("status") == "success"
+    assert res.get("action") == "list_habits"
+    assert res.get("level") == "2.0"
+    assert isinstance(res.get("habits"), list)
+    assert "anti-drift protection" in res.get("response", "")
+
+
 
 

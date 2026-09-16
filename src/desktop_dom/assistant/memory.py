@@ -224,12 +224,11 @@ class AuraMemory:
             ("user.name", "Piyush Dua", "user", now),
             ("user.company", "Crcle.ai", "user", now),
             ("user.role", "Backend Engineer", "user", now),
+            ("user.email", "piyushdua01@gmail.com", "user", now),
             ("youtube.favorite_channel.tech", "ThePrimeagen", "media", now),
             ("youtube.favorite_channel.gaming", "EA SPORTS FC", "media", now),
-            ("youtube.favorite_channel.general", "Fireship", "media", now),
             ("youtube.watch_history", json.dumps([
                 {"channel": "ThePrimeagen", "topic": "Vim, Rust & Systems Architecture", "category": "Engineering", "timestamp": now - 1800},
-                {"channel": "Fireship", "topic": "100 Seconds of Code", "category": "Engineering", "timestamp": now - 7200},
                 {"channel": "EA SPORTS FC", "topic": "FIFA 23 Skill Moves & Gameplay", "category": "Gaming", "timestamp": now - 86400}
             ]), "media", now),
             ("github.default_repo", "PDgit12/desktop-dom", "developer", now),
@@ -529,6 +528,17 @@ class AuraMemory:
                     return row["habit_value"]
             return default
 
+    def list_habits(self) -> List[Dict[str, Any]]:
+        """Returns all recorded habits with their confidence scores and explicit status."""
+        with self._lock, self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+            SELECT habit_key, habit_value, category, confidence, occurrence_count, is_explicit, last_confirmed
+            FROM habits
+            ORDER BY is_explicit DESC, confidence DESC, last_confirmed DESC;
+            """)
+            return [dict(row) for row in cursor.fetchall()]
+
     # -------------------------------------------------------------------------
     # Entity CRUD API
     # -------------------------------------------------------------------------
@@ -767,20 +777,94 @@ class AuraMemory:
                 {"name": e["name"], "email": e.get("email", ""), "count": e.get("interaction_count", 0)}
                 for e in self._entity_cache[:5]
             ]
-            favorite_playlist = self.get_preference("spotify.favorite_playlist", "Deep Focus")
+            favorite_playlist = self.resolve_habit("spotify.favorite_playlist") or self.get_preference("spotify.favorite_playlist", "Deep Focus")
             preferred_client = self.get_preference("mail.preferred_client", "Microsoft Outlook")
             user_name = self.get_preference("user.name", "Piyush Dua")
             user_role = self.get_preference("user.role", "Backend Engineer")
+            user_company = self.get_preference("user.company", "Crcle.ai")
+            user_email = self.get_preference("user.email", "piyushdua01@gmail.com")
+            default_repo = self.get_preference("github.default_repo", "PDgit12/desktop-dom")
+
+            habits = self.list_habits()
 
             return {
-                "user": {"name": user_name, "role": user_role},
+                "user": {
+                    "name": user_name,
+                    "role": user_role,
+                    "company": user_company,
+                    "email": user_email,
+                },
+                "github_default_repo": default_repo,
                 "contacts_count": contacts_count,
                 "top_contacts": top_contacts,
+                "habits_count": len(habits),
                 "preferences": {
                     "spotify.favorite_playlist": favorite_playlist,
                     "mail.preferred_client": preferred_client,
+                    "github.default_repo": default_repo,
                 },
                 "db_path": str(self.db_path),
+            }
+
+    def get_user_profile(self) -> Dict[str, Any]:
+        """
+        Returns the complete synthesized personal profile & essentials:
+        - Identity (name, email, role, company, github repo, signature)
+        - Communication (preferred mail client)
+        - Audio & Media (favorite playlist, exact order status, gaming soundtrack)
+        - Anti-Drift Habits (all locked and stabilized habits with confidence)
+        - Top web destinations (from Chrome history)
+        - Circles & Key collaborators (Founders, top contacts)
+        """
+        with self._lock:
+            name = self.get_preference("user.name", "Piyush Dua")
+            email = self.get_preference("user.email", "piyushdua01@gmail.com")
+            role = self.get_preference("user.role", "Backend Engineer")
+            company = self.get_preference("user.company", "Crcle.ai")
+            repo = self.get_preference("github.default_repo", "PDgit12/desktop-dom")
+            fav_playlist = self.resolve_habit("spotify.favorite_playlist") or self.get_preference("spotify.favorite_playlist", "Deep Focus")
+            gaming_playlist = self.resolve_habit("spotify.playlist.gaming") or self.get_preference("spotify.playlist.gaming", "FIFA Soundtrack")
+            mail_client = self.get_preference("mail.preferred_client", "Microsoft Outlook")
+
+            # Format professional signature
+            sig_lines = ["Best regards,", name]
+            if role and company:
+                sig_lines.append(f"{role} | {company}")
+            elif role:
+                sig_lines.append(role)
+            signature = "\n".join(sig_lines)
+
+            # Get habits
+            habits = self.list_habits()
+
+            # Top web sites
+            top_sites = []
+            try:
+                raw_sites = self.get_preference("browser.top_sites", "[]")
+                top_sites = json.loads(raw_sites)[:5]
+            except Exception:
+                pass
+
+            # Core contacts (e.g. Josh, Cyril)
+            core_contacts = [
+                {"name": e["name"], "email": e.get("email"), "role": e.get("role"), "company": e.get("company")}
+                for e in self._entity_cache if e.get("name") != name
+            ][:4]
+
+            return {
+                "name": name,
+                "email": email,
+                "role": role,
+                "company": company,
+                "github_repo": repo,
+                "preferred_mail": mail_client,
+                "favorite_playlist": fav_playlist,
+                "gaming_playlist": gaming_playlist,
+                "exact_track_order": True,
+                "signature": signature,
+                "habits": habits,
+                "top_sites": top_sites,
+                "core_contacts": core_contacts,
             }
 
     # -------------------------------------------------------------------------
@@ -789,8 +873,15 @@ class AuraMemory:
 
     def get_youtube_recommendation(self, context_category: str = "General", channel_query: Optional[str] = None) -> Dict[str, Any]:
         """
-        Synthesizes a personalized YouTube recommendation based on active context category,
-        stored channel preferences, and watch history.
+        Synthesizes a personalized YouTube recommendation:
+        1. If explicit query given (e.g. "watch fireship", "watch primeagen", "watch diljit dosanjh"):
+           routes directly to that creator or search.
+        2. If in Gaming context (e.g. FIFA 23):
+           routes to gaming tactics / highlights.
+        3. If in Engineering context with explicit preference:
+           routes to user's explicitly remembered tech channel.
+        4. Otherwise (default general):
+           routes cleanly to YouTube Home (https://www.youtube.com) WITHOUT forcing any arbitrary creator.
         """
         cat_low = (context_category or "general").lower()
         import urllib.parse
@@ -827,25 +918,57 @@ class AuraMemory:
 
         # 2. Contextual matching
         if cat_low == "gaming":
-            fav_channel = self.get_preference("youtube.favorite_channel.gaming", "EA SPORTS FC")
+            fav_channel = self.resolve_habit("youtube.favorite_channel.gaming") or self.get_preference("youtube.favorite_channel.gaming", "EA SPORTS FC")
             topic = "FIFA Tactics & Highlights"
             url = f"https://www.youtube.com/results?search_query={urllib.parse.quote(fav_channel + ' FIFA 23 tactics')}"
-        elif cat_low == "engineering":
-            fav_channel = self.get_preference("youtube.favorite_channel.tech", "ThePrimeagen")
-            topic = "Systems & Software Engineering"
-            url = f"https://www.youtube.com/@{fav_channel}/videos" if fav_channel in ["ThePrimeagen", "Fireship"] else f"https://www.youtube.com/results?search_query={urllib.parse.quote(fav_channel + ' latest')}"
-        else:
-            fav_channel = self.get_preference("youtube.favorite_channel.general", "Fireship")
-            topic = "Tech & Developer Insights"
-            url = f"https://www.youtube.com/@{fav_channel}/videos" if fav_channel in ["ThePrimeagen", "Fireship"] else f"https://www.youtube.com/results?search_query={urllib.parse.quote(fav_channel)}"
+            self.record_youtube_watch(fav_channel, topic, context_category)
+            return {
+                "channel": fav_channel,
+                "topic": topic,
+                "url": url,
+                "category": context_category,
+                "source": "contextual_gaming",
+            }
 
-        self.record_youtube_watch(fav_channel, topic, context_category)
+        if cat_low == "engineering":
+            tech_ch = self.resolve_habit("youtube.favorite_channel.tech") or self.get_preference("youtube.favorite_channel.tech")
+            if tech_ch:
+                topic = f"{tech_ch} Engineering"
+                url = f"https://www.youtube.com/@{tech_ch}/videos" if tech_ch in ["ThePrimeagen", "Fireship"] else f"https://www.youtube.com/results?search_query={urllib.parse.quote(tech_ch + ' latest')}"
+                self.record_youtube_watch(tech_ch, topic, context_category)
+                return {
+                    "channel": tech_ch,
+                    "topic": topic,
+                    "url": url,
+                    "category": context_category,
+                    "source": "explicit_tech_habit",
+                }
+
+        # 3. Explicit general channel habit if set
+        explicit_ch = self.resolve_habit("youtube.favorite_channel") or self.get_preference("youtube.favorite_channel.general")
+        if explicit_ch:
+            topic = f"{explicit_ch} Content"
+            url = f"https://www.youtube.com/@{explicit_ch}/videos" if explicit_ch in ["ThePrimeagen", "Fireship"] else f"https://www.youtube.com/results?search_query={urllib.parse.quote(explicit_ch)}"
+            self.record_youtube_watch(explicit_ch, topic, context_category)
+            return {
+                "channel": explicit_ch,
+                "topic": topic,
+                "url": url,
+                "category": context_category,
+                "source": "explicit_preference",
+            }
+
+        # 4. Default: Open YouTube Home Feed cleanly without forcing any channel!
+        topic = "YouTube Home Feed"
+        url = "https://www.youtube.com"
+        channel = "YouTube"
+        self.record_youtube_watch(channel, topic, context_category)
         return {
-            "channel": fav_channel,
+            "channel": channel,
             "topic": topic,
             "url": url,
             "category": context_category,
-            "source": "contextual_history",
+            "source": "home_feed",
         }
 
     def record_youtube_watch(self, channel: str, topic: str, category: str):

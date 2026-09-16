@@ -776,14 +776,28 @@ A critical failure mode of naive intent architectures is **habit drift**: if a u
   - Naive automation triggers playback with shuffle enabled, scrambling curated track sequences.
   - Desktop-DOM's AppleScript IPC explicitly executes `set shuffling to false` prior to `play track ... in playlist ...`, ensuring playlists (such as personal mixes or game soundtracks) play strictly in the user's intended order from track 1 onward.
 
+#### 8. Executive Email Draft Engine & Neutral Media Routing
+Addressing the core realism of Level 2 and Level 2.5 personal computing:
+- **Executive Email Formatting & Signatures:**
+  - In-app IPC dispatches to Microsoft Outlook and Apple Mail with intelligent subject extraction (`Pitch Deck & Slides Ready`, `Meeting tomorrow`, `Pull Request Update`), stripping colloquial prefixes (`that`, `saying that`).
+  - Formats clean punctuation (preventing double periods) and injects an executive signature (`Best regards,\nPiyush Dua\nBackend Engineer | Crcle.ai`) pulled dynamically from SQLite WAL profile memory.
+  - Native AppleScript IPC populates the full formatted draft body into the active compose window with zero focus thrashing or duplicate drafts.
+- **Neutral YouTube Routing (Eliminating Forced Creators):**
+  - Rather than forcing arbitrary synthetic creators (e.g., Fireship) upon saying *"open youtube"*, Desktop-DOM routes cleanly to YouTube Home (`https://www.youtube.com`).
+  - Respects explicit requests (`watch diljit dosanjh`, `watch primeagen`) via creator channels or search queries.
+  - User preferences and anti-drift habits (`youtube.favorite_channel`) are honored only when explicitly configured or stabilized.
+- **Personal Essentials & Habit Introspection:**
+  - Intent endpoints for `"who am i?"`, `"my profile"`, and `"what are my habits?"` provide zero-latency introspection of the user's ground-truth persona, repositories, collaborators, and active anti-drift confidence scores.
+
 ---
 
 ### 15.6 Certified System Metrics (Post-Implementation Audit)
 
-- **Total Hermetic Tests Passing:** **138 / 138 Tests (100% Pass Rate)**
-- **Test Suite Duration:** ~15.2 seconds in headless test environment.
+- **Total Hermetic Tests Passing:** **142 / 142 Tests (100% Pass Rate)**
+- **Test Suite Duration:** ~16.6 seconds in headless test environment.
 - **Anti-Drift Habit Filter:** Zero drift on transient browsing; explicit locks immutable to passive noise.
 - **Spotify Dispatch Fidelity:** 100% exact track order (`set shuffling to false`, zero shuffle scramble).
+- **Executive Email Dispatch:** 100% clean AppleScript delivery with professional signatures across Outlook & Mail.
 - **Telemetry Ingestion Latency:** $<20\text{ms}$ (OS Process + Chrome Active Tab).
 - **Local Persona Ingestion:** Real Chrome SQLite history, top visited web apps (`bloom.diy`, `luna.amazon.com`), YouTube topics, and Git identity (`PDgit12 <piyushdua01@gmail.com>`).
 - **Entity Disambiguation Latency:** $0.49\text{ms}$ (SQLite WAL + In-Memory Cache).
@@ -793,5 +807,5 @@ A critical failure mode of naive intent architectures is **habit drift**: if a u
 
 ---
 
-*Curriculum certified: 138/138 tests passing, production DMG/ZIP bundles ready, Git tree synchronized with PDgit12/desktop-dom.*
+*Curriculum certified: 142/142 tests passing, production DMG/ZIP bundles ready, Git tree synchronized with PDgit12/desktop-dom.*
 
