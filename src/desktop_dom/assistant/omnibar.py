@@ -1582,6 +1582,12 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         e.stopPropagation();
         closeDrawers();
       } else if (e.key === "Enter" && !e.shiftKey) {
+        if (e.target === onbNewAppName || e.target === onbNewAppCat) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (onbAddAppBtn) onbAddAppBtn.click();
+          return;
+        }
         e.preventDefault();
         onbConfirmBtn.click();
       }
@@ -1592,20 +1598,55 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         const appName = onbNewAppName ? onbNewAppName.value.trim() : "";
         const appCat = (onbNewAppCat && onbNewAppCat.value.trim()) ? onbNewAppCat.value.trim() : "developer";
         if (!appName) return;
-        const chip = document.createElement("div");
-        chip.className = "onb-chip active";
-        chip.setAttribute("data-app-name", appName);
-        chip.setAttribute("data-app-cat", appCat);
-        chip.title = "Click to toggle application binding";
-        const icon = { browser: "🌐", communication: "💬", developer: "💻", ai_assistant: "🤖", media: "🎵" }[appCat] || "📦";
-        chip.innerHTML = `<span>${icon}</span> <span>${escapeHtml(appName)}</span>`;
-        chip.addEventListener("click", () => {
-          chip.classList.toggle("active");
+
+        // Prevent duplicate chips
+        const existingChips = onbAppsChips.querySelectorAll(".onb-chip");
+        let alreadyExists = false;
+        existingChips.forEach(c => {
+          if ((c.getAttribute("data-app-name") || "").toLowerCase() === appName.toLowerCase()) {
+            alreadyExists = true;
+            c.classList.add("active");
+          }
         });
-        onbAppsChips.appendChild(chip);
-        if (onbNewAppName) onbNewAppName.value = "";
+
+        if (!alreadyExists) {
+          const chip = document.createElement("div");
+          chip.className = "onb-chip active";
+          chip.setAttribute("data-app-name", appName);
+          chip.setAttribute("data-app-cat", appCat);
+          chip.title = "Click to toggle application binding";
+          const icon = { browser: "🌐", communication: "💬", developer: "💻", ai_assistant: "🤖", media: "🎵", utility: "⚙️", productivity: "📝" }[appCat] || "📦";
+          chip.innerHTML = `<span>${icon}</span> <span>${escapeHtml(appName)}</span>`;
+          chip.addEventListener("click", () => {
+            chip.classList.toggle("active");
+          });
+          onbAppsChips.appendChild(chip);
+        }
+        if (onbNewAppName) {
+          onbNewAppName.value = "";
+          onbNewAppName.focus();
+        }
         if (onbNewAppCat) onbNewAppCat.value = "";
         notifyResize();
+      });
+    }
+
+    if (onbNewAppName) {
+      onbNewAppName.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          e.stopPropagation();
+          if (onbAddAppBtn) onbAddAppBtn.click();
+        }
+      });
+    }
+    if (onbNewAppCat) {
+      onbNewAppCat.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          e.stopPropagation();
+          if (onbAddAppBtn) onbAddAppBtn.click();
+        }
       });
     }
 
@@ -1861,9 +1902,79 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
           e.preventDefault();
           e.stopPropagation();
           closeDrawers();
+        } else if (e.key === "Enter" && !e.shiftKey) {
+          if (e.target === settingsNewAppName || e.target === settingsNewAppCat) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (settingsAddAppBtn) settingsAddAppBtn.click();
+            return;
+          }
+          if (e.target === settingsNewName || e.target === settingsNewEmail || e.target === settingsNewRole) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (settingsAddCollabBtn) settingsAddCollabBtn.click();
+            return;
+          }
         }
       });
     }
+
+    if (settingsNewAppName) {
+      settingsNewAppName.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          e.stopPropagation();
+          if (settingsAddAppBtn) settingsAddAppBtn.click();
+        }
+      });
+    }
+    if (settingsNewAppCat) {
+      settingsNewAppCat.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          e.stopPropagation();
+          if (settingsAddAppBtn) settingsAddAppBtn.click();
+        }
+      });
+    }
+    if (settingsNewName) {
+      settingsNewName.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          e.stopPropagation();
+          if (settingsAddCollabBtn) settingsAddCollabBtn.click();
+        }
+      });
+    }
+    if (settingsNewEmail) {
+      settingsNewEmail.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          e.stopPropagation();
+          if (settingsAddCollabBtn) settingsAddCollabBtn.click();
+        }
+      });
+    }
+    if (settingsNewRole) {
+      settingsNewRole.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          e.stopPropagation();
+          if (settingsAddCollabBtn) settingsAddCollabBtn.click();
+        }
+      });
+    }
+
+    window.updateOnboardingTag = function(isVerified) {
+      const footerOnbText = document.getElementById("footer-onb-text");
+      const footerDot = document.getElementById("onb-footer-dot");
+      if (footerOnbText) {
+        footerOnbText.innerText = isVerified ? "Brain: Verified" : "Brain: Setup Required";
+      }
+      if (footerDot) {
+        footerDot.className = isVerified ? "dot-green" : "dot-amber";
+      }
+    };
 
     window.updateModelStatus = function(status) {
       if (!status) return;
@@ -1898,6 +2009,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     setTimeout(() => {
       input.focus();
       window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({ action: "get_model_status" }));
+      window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({ action: "check_onboarding_status" }));
     }, 120);
   </script>
 </body>
@@ -1927,6 +2039,8 @@ class OmnibarScriptHandler:
                 self.controller.hide()
             elif action == "get_model_status":
                 self.controller.on_model_status_requested()
+            elif action == "check_onboarding_status":
+                self.controller.check_onboarding_status()
             elif action == "set_model":
                 model_name = payload.get("model", "")
                 self.controller.on_model_switch(model_name)
@@ -2127,6 +2241,8 @@ class FloatingOmnibar:
                             self.ctrl.hide()
                         elif act == "get_model_status":
                             self.ctrl.on_model_status_requested()
+                        elif act == "check_onboarding_status":
+                            self.ctrl.check_onboarding_status()
                         elif act == "set_model":
                             self.ctrl.on_model_switch(payload.get("model", ""))
                         elif act == "get_onboarding_data":
@@ -2305,7 +2421,16 @@ class FloatingOmnibar:
                 self._panel.makeFirstResponder_(self._webview)
             self._panel.setAlphaValue_(1.0)
             self._is_visible = True
-            self.evaluate_js("if (window.resetOmnibar) { window.resetOmnibar(); } else { const inp = document.getElementById('query-input'); if (inp) { inp.focus(); inp.select(); } }")
+            is_unverified = False
+            if self.brain and getattr(self.brain, "memory", None):
+                try:
+                    is_unverified = not self.brain.memory.is_onboarding_verified()
+                except Exception:
+                    is_unverified = False
+            if is_unverified:
+                self.on_get_onboarding_requested()
+            else:
+                self.evaluate_js("if (window.resetOmnibar) { window.resetOmnibar(); } else { const inp = document.getElementById('query-input'); if (inp) { inp.focus(); inp.select(); } }")
         self.dispatch_main(_do)
 
     def hide(self):
@@ -2367,6 +2492,18 @@ class FloatingOmnibar:
             status = self.brain.get_model_status()
             self.evaluate_js(f"window.displayModelDrawer({json.dumps(status)});")
             self.evaluate_js(f"window.updateModelStatus({json.dumps(status)});")
+
+    def check_onboarding_status(self):
+        """Checks if verified onboarding is complete, updates footer tag, and displays drawer if unverified."""
+        if not self.brain or not getattr(self.brain, "memory", None):
+            return
+        try:
+            is_ver = self.brain.memory.is_onboarding_verified()
+            self.evaluate_js(f"if (window.updateOnboardingTag) {{ window.updateOnboardingTag({json.dumps(is_ver)}); }}")
+            if not is_ver:
+                self.on_get_onboarding_requested()
+        except Exception as e:
+            logger.warning(f"Error checking onboarding status: {e}")
 
     def on_get_onboarding_requested(self):
         """Retrieves verified onboarding profile data and displays the interactive UI drawer."""

@@ -689,25 +689,57 @@ class AuraMemory:
 
         with self._lock, self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("""
-            INSERT INTO entities (
-                name, aliases, email, phone, company, role, category,
-                interaction_count, last_interaction, metadata, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?);
-            """, (
-                name.strip(),
-                json.dumps(alias_list),
-                email.strip() if email else "",
-                phone.strip(),
-                company.strip(),
-                role.strip(),
-                category.strip(),
-                now,
-                json.dumps(meta_dict),
-                now,
-                now,
-            ))
-            entity_id = cursor.lastrowid
+            cursor.execute(
+                "SELECT id, interaction_count, metadata FROM entities WHERE LOWER(name) = ? AND LOWER(category) = ?;",
+                (name.strip().lower(), category.strip().lower())
+            )
+            existing = cursor.fetchone()
+            if existing:
+                entity_id = existing[0]
+                prev_count = existing[1] or 1
+                try:
+                    prev_meta = json.loads(existing[2]) if existing[2] else {}
+                except Exception:
+                    prev_meta = {}
+                prev_meta.update(meta_dict)
+                cursor.execute("""
+                UPDATE entities SET
+                    aliases = ?, email = COALESCE(NULLIF(?, ''), email), phone = COALESCE(NULLIF(?, ''), phone),
+                    company = COALESCE(NULLIF(?, ''), company), role = COALESCE(NULLIF(?, ''), role),
+                    interaction_count = ?, last_interaction = ?, metadata = ?, updated_at = ?
+                WHERE id = ?;
+                """, (
+                    json.dumps(alias_list),
+                    email.strip() if email else "",
+                    phone.strip(),
+                    company.strip(),
+                    role.strip(),
+                    prev_count + 1,
+                    now,
+                    json.dumps(prev_meta),
+                    now,
+                    entity_id
+                ))
+            else:
+                cursor.execute("""
+                INSERT INTO entities (
+                    name, aliases, email, phone, company, role, category,
+                    interaction_count, last_interaction, metadata, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?);
+                """, (
+                    name.strip(),
+                    json.dumps(alias_list),
+                    email.strip() if email else "",
+                    phone.strip(),
+                    company.strip(),
+                    role.strip(),
+                    category.strip(),
+                    now,
+                    json.dumps(meta_dict),
+                    now,
+                    now,
+                ))
+                entity_id = cursor.lastrowid
             conn.commit()
 
         self._reload_cache()

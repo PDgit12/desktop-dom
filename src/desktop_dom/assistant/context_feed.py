@@ -248,7 +248,10 @@ class ContextFeedEngine:
         gaming_signals = ["fifa", "ea sports fc", "steam", "epic games", "fortnite", "game", "cyberpunk", "valorant", "league of legends"]
         if any(sig in combined_text for sig in gaming_signals):
             topic = "FIFA / Gaming Session" if ("fifa" in combined_text or "ea sports" in combined_text) else "Gaming Session"
-            return "Gaming", topic, "FIFA Soundtrack", "Gaming Energy"
+            suggested = "Gaming Soundtrack"
+            if self.memory:
+                suggested = self.memory.resolve_habit("spotify.playlist.gaming") or self.memory.get_preference("spotify.playlist.gaming", "Gaming Soundtrack")
+            return "Gaming", topic, suggested, "Gaming Energy"
 
         # 2. Software Engineering / Coding Context
         coding_apps = ["visual studio code", "code", "cursor", "xcode", "terminal", "iterm", "iterm2", "pycharm", "sublime text", "neovim", "docker"]

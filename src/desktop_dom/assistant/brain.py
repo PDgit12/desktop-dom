@@ -783,7 +783,7 @@ class AssistantBrain:
             if frontmost and any(g in frontmost.lower() for g in ["fifa", "steam", "game", "fortnite", "epic"]):
                 snapshot.frontmost_app = frontmost
                 snapshot.activity_category = "Gaming"
-                snapshot.suggested_playlist = "FIFA Soundtrack"
+                snapshot.suggested_playlist = self.memory.resolve_habit("spotify.playlist.gaming") or self.memory.get_preference("spotify.playlist.gaming", "Gaming Soundtrack")
                 snapshot.suggested_genre = "Gaming Energy"
             self._current_context_snapshot = snapshot
 
@@ -797,7 +797,7 @@ class AssistantBrain:
 
             if req_gaming or snapshot.activity_category == "Gaming":
                 contextual_genre = "Gaming Energy"
-                fav_playlist = self.memory.resolve_habit("spotify.playlist.gaming") or self.memory.get_preference("spotify.playlist.gaming", snapshot.suggested_playlist or "FIFA Soundtrack")
+                fav_playlist = self.memory.resolve_habit("spotify.playlist.gaming") or self.memory.get_preference("spotify.playlist.gaming", snapshot.suggested_playlist or "Gaming Soundtrack")
             elif req_coding:
                 contextual_genre = "Focus Beats"
                 fav_playlist = self.memory.resolve_habit("spotify.playlist.coding") or self.memory.get_preference("spotify.playlist.coding", snapshot.suggested_playlist or "Deep Focus")

@@ -34,8 +34,8 @@ def test_fresh_user_onboarding_and_zero_speculation_execution(tmp_path):
         },
         "playlists": {
             "focus": "Deep Focus",
-            "gaming": "FIFA Soundtrack",
-            "personal": "Diljit Dosanjh",
+            "gaming": "Gaming Soundtrack",
+            "personal": "Ambient Chill",
         },
         "collaborators": [
             {"name": "Joshua Rayan", "role": "Founder / CTO", "company": "Crcle.ai", "email": "josh@crcle.ai"},
@@ -85,7 +85,7 @@ def test_fresh_user_onboarding_and_zero_speculation_execution(tmp_path):
         assert "Backend Engineer | Crcle.ai" in email_res["signature"]
 
         # Anti-leakage check: absolutely no personal media in work email
-        assert "Diljit" not in email_res["draft_body"]
+        assert "Ambient Chill" not in email_res["draft_body"]
         assert "YouTube" not in email_res["draft_body"]
         assert "Fireship" not in email_res["draft_body"]
 
@@ -123,6 +123,6 @@ def test_fresh_user_onboarding_and_zero_speculation_execution(tmp_path):
         assert "ThePrimeagen" not in yt_home_res["url"]
 
     # 7. Test Disjoint Cluster Isolation
-    shared_ctx = mem.find_shared_context("Joshua Rayan", "Diljit Dosanjh")
+    shared_ctx = mem.find_shared_context("Joshua Rayan", "Ambient Chill")
     assert shared_ctx["status"] == "disjoint"
     assert shared_ctx["distance"] == float("inf")

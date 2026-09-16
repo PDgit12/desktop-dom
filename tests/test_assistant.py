@@ -605,15 +605,15 @@ def test_assistant_habitual_playlist(tmp_path):
         assert res2["playlist"] == "Lofi Beats"
         mock_spotify2.assert_called_with("Lofi Beats")
 
-    # Contextual gaming/FIFA playlist recall
-    with patch.object(brain, "_get_frontmost_app_name", return_value="FIFA 23"):
+    # Contextual gaming playlist recall
+    with patch.object(brain, "_get_frontmost_app_name", return_value="Steam"):
         with patch.object(brain, "_control_spotify_play") as mock_spotify3:
-            mock_spotify3.return_value = {"status": "success", "action": "spotify_play", "query": "FIFA Soundtrack"}
+            mock_spotify3.return_value = {"status": "success", "action": "spotify_play", "query": "Gaming Soundtrack"}
             res3 = brain.execute_intent("play my playlist")
             assert res3["status"] == "success"
-            assert res3["playlist"] == "FIFA Soundtrack"
+            assert res3["playlist"] == "Gaming Soundtrack"
             assert res3["context"] == "Gaming Energy"
-            mock_spotify3.assert_called_with("FIFA Soundtrack")
+            mock_spotify3.assert_called_with("Gaming Soundtrack")
 
 def test_assistant_memory_inspection_and_who_is(tmp_path):
     from desktop_dom.assistant.memory import AuraMemory
@@ -886,7 +886,7 @@ def test_omnibar_onboarding_e2e_storage_and_cluster_isolation(tmp_path):
         "user_name": "Piyush Dua",
         "user_role": "Backend Engineer",
         "user_company": "Crcle.ai",
-        "playlists": {"focus": "Synthwave Chill", "personal": "Diljit Dosanjh"},
+        "playlists": {"focus": "Synthwave Chill", "personal": "Ambient Chill"},
         "collaborators": [
             {"name": "Joshua Rayan", "email": "josh@crcle.ai", "role": "CTO"},
             {"name": "Cyril Rayan", "email": "cyril@crcle.ai", "role": "CEO"}
@@ -900,7 +900,7 @@ def test_omnibar_onboarding_e2e_storage_and_cluster_isolation(tmp_path):
     assert mem.get_preference("spotify.favorite_playlist") == "Synthwave Chill"
 
     # Verify cluster isolation
-    shared = mem.find_shared_context("Joshua Rayan", "Diljit Dosanjh")
+    shared = mem.find_shared_context("Joshua Rayan", "Ambient Chill")
     assert shared["status"] == "disjoint"
     assert shared["distance"] == float("inf")
 
@@ -909,7 +909,7 @@ def test_omnibar_onboarding_e2e_storage_and_cluster_isolation(tmp_path):
         mock_run.return_value.returncode = 0
         email_res = brain.execute_intent("write an email to josh about current progress")
         assert email_res["status"] == "success"
-        assert "Diljit" not in email_res["body"]
+        assert "Ambient Chill" not in email_res["body"]
         assert "YouTube" not in email_res["body"]
         assert "Joshua Rayan" in email_res["recipient"]
         assert "Piyush Dua" in email_res["draft_body"]

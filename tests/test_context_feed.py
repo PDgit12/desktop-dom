@@ -29,13 +29,21 @@ def test_context_feed_engine_initialization(mock_memory):
 def test_classify_activity_gaming(mock_memory):
     engine = ContextFeedEngine(memory=mock_memory)
     activity, topic, playlist, genre = engine.classify_activity(
-        frontmost_app="FIFA 23",
-        window_title="FIFA 23 - Ultimate Team",
+        frontmost_app="Steam",
+        window_title="Game Session",
     )
     assert activity == "Gaming"
-    assert "FIFA" in topic
-    assert playlist == "FIFA Soundtrack"
+    assert "Gaming" in topic
+    assert playlist == "Gaming Soundtrack"
     assert genre == "Gaming Energy"
+
+    # With user-configured gaming playlist in memory
+    mock_memory.set_preference("spotify.playlist.gaming", "Synthwave Energy", category="music")
+    _, _, custom_playlist, _ = engine.classify_activity(
+        frontmost_app="Steam",
+        window_title="Game Session",
+    )
+    assert custom_playlist == "Synthwave Energy"
 
 
 def test_classify_activity_coding(mock_memory):
@@ -393,17 +401,17 @@ def test_habit_anti_drift_passive_hysteresis(mock_memory):
 def test_playlist_recall_exact_order_and_explicit_priority(mock_memory):
     brain = AssistantBrain(memory=mock_memory)
     # Set explicit personal favorite playlist
-    mock_memory.record_habit_observation("spotify.favorite_playlist", "Diljit Dosanjh Essentials", is_explicit=True)
+    mock_memory.record_habit_observation("spotify.favorite_playlist", "Ambient Chill", is_explicit=True)
 
     with patch.object(brain.context_feed, "capture_active_context") as mock_cap, patch.object(brain, "_control_spotify_play") as mock_spot:
         # 1. Active gaming context routes to gaming playlist
         mock_cap.return_value = ActiveContextSnapshot(
             timestamp=time.time(),
-            frontmost_app="FIFA 23",
-            window_title="Matchday",
+            frontmost_app="Steam",
+            window_title="Game Session",
             activity_category="Gaming",
             focused_topic="Gaming Session",
-            suggested_playlist="FIFA Soundtrack",
+            suggested_playlist="Gaming Soundtrack",
             suggested_genre="Gaming Energy",
             browser_name=None,
             browser_url=None,
@@ -413,7 +421,7 @@ def test_playlist_recall_exact_order_and_explicit_priority(mock_memory):
 
         res_gaming = brain.execute_intent("open playlist")
         assert res_gaming.get("status") == "success"
-        assert res_gaming.get("playlist") == "FIFA Soundtrack"
+        assert res_gaming.get("playlist") == "Gaming Soundtrack"
         assert res_gaming.get("context") == "Gaming Energy"
         assert "exact track order" in res_gaming.get("response", "")
 
@@ -432,7 +440,7 @@ def test_playlist_recall_exact_order_and_explicit_priority(mock_memory):
         )
         res_fav = brain.execute_intent("open playlist")
         assert res_fav.get("status") == "success"
-        assert res_fav.get("playlist") == "Diljit Dosanjh Essentials"
+        assert res_fav.get("playlist") == "Ambient Chill"
         assert res_fav.get("context") == "Personal Favorite"
 
 
@@ -459,11 +467,11 @@ def test_youtube_default_home_feed_no_fireship(mock_memory):
         assert res.get("url") == "https://www.youtube.com"
         assert "Fireship" not in res.get("url")
 
-        # Explicit search for Diljit Dosanjh
-        res_music = brain.execute_intent("watch Diljit Dosanjh")
-        assert res_music.get("status") == "success"
-        assert res_music.get("channel") == "Diljit Dosanjh"
-        assert "Diljit" in res_music.get("url")
+        # Explicit search for 3Blue1Brown
+        res_math = brain.execute_intent("watch 3Blue1Brown")
+        assert res_math.get("status") == "success"
+        assert res_math.get("channel") == "3Blue1Brown"
+        assert "3Blue1Brown" in res_math.get("url")
 
 
 def test_outlook_email_formatting_and_signature(mock_memory):
@@ -811,8 +819,8 @@ def test_verified_onboarding_pure_user_data(mock_memory):
         },
         "playlists": {
             "focus": "Deep Focus",
-            "gaming": "FIFA Soundtrack",
-            "personal": "Diljit Dosanjh",
+            "gaming": "Gaming Soundtrack",
+            "personal": "Ambient Chill",
         },
         "work_repos": ["desktop-dom"],
     }
@@ -834,7 +842,7 @@ def test_verified_onboarding_pure_user_data(mock_memory):
         assert row["is_explicit"] == 1
 
     # Check cluster isolation: Work vs Personal Media strictly disjoint
-    isolation = mock_memory.find_shared_context("Joshua Rayan", "Diljit Dosanjh")
+    isolation = mock_memory.find_shared_context("Joshua Rayan", "Ambient Chill")
     assert isolation["status"] == "disjoint"
     assert isolation["distance"] == float("inf")
 
