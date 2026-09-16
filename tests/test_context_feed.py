@@ -212,17 +212,27 @@ def test_youtube_recommendation_engineering_context(mock_memory):
             browser_url=None,
             browser_title=None,
         )
+        # Default without explicit preference: opens YouTube Home cleanly (Zero Speculation)
+        with patch("webbrowser.open") as mock_open:
+            res_default = brain.execute_intent("watch youtube")
+            assert res_default.get("status") == "success"
+            assert res_default.get("channel") == "YouTube"
+            assert res_default.get("url") == "https://www.youtube.com"
+
+        # Explicit user preference set:
+        mock_memory.set_preference("youtube.favorite_channel.tech", "Go Conferences")
         with patch("webbrowser.open") as mock_open:
             res = brain.execute_intent("watch youtube")
             assert res.get("status") == "success"
             assert res.get("action") == "youtube_intent"
             assert res.get("level") == "2.0"
-            assert res.get("channel") == "ThePrimeagen"
+            assert res.get("channel") == "Go Conferences"
             assert res.get("category") == "Engineering"
             assert "youtube.com" in res.get("url")
 
 
 def test_youtube_recommendation_gaming_context(mock_memory):
+    mock_memory.set_preference("youtube.favorite_channel.gaming", "EA SPORTS FC")
     brain = AssistantBrain(memory=mock_memory)
     with patch.object(brain.context_feed, "capture_active_context") as mock_cap:
         mock_cap.return_value = ActiveContextSnapshot(
@@ -246,15 +256,15 @@ def test_youtube_recommendation_gaming_context(mock_memory):
             assert res.get("category") == "Gaming"
 
 
-def test_youtube_explicit_watch_fireship(mock_memory):
+def test_youtube_explicit_creator_search(mock_memory):
     brain = AssistantBrain(memory=mock_memory)
     with patch("webbrowser.open") as mock_open:
-        res = brain.execute_intent("watch fireship")
+        res = brain.execute_intent("watch python tutorial")
         assert res.get("status") == "success"
         assert res.get("action") == "youtube_intent"
         assert res.get("level") == "2.0"
-        assert res.get("channel") == "Fireship"
-        assert "@Fireship" in res.get("url")
+        assert "python" in res.get("url").lower()
+        assert "search_query" in res.get("url")
 
 
 def test_youtube_remember_favorite_channel(mock_memory):
@@ -557,8 +567,8 @@ def test_signature_uses_human_name_not_git_handle(mock_memory):
 
 def test_knowledge_graph_bootstrap_and_topology(mock_memory):
     summary = mock_memory.get_graph_summary()
-    assert summary["nodes_count"] >= 10
-    assert summary["edges_count"] >= 15
+    assert summary["nodes_count"] >= 9
+    assert summary["edges_count"] >= 14
     assert "work" in summary["clusters"]
     assert "personal_media" in summary["clusters"]
     assert "gaming" in summary["clusters"]

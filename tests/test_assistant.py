@@ -813,6 +813,109 @@ def test_assistant_mistral_standard_model_priority():
     b_def = AssistantBrain()
     assert any(sub in b_def.preferred_model.lower() for sub in ["mistral", "ministral"])
 
+def test_omnibar_onboarding_ui_and_ipc(tmp_path):
+    from desktop_dom.assistant.omnibar import FloatingOmnibar, OmnibarScriptHandler
+    from desktop_dom.assistant.memory import AuraMemory
+
+    db_file = tmp_path / "test_omnibar_aura.db"
+    mem = AuraMemory(db_path=str(db_file))
+    mem.auto_hydrate_environment()
+
+    brain = MagicMock()
+    brain.memory = mem
+    bar = FloatingOmnibar(brain=brain)
+    bar._webview = MagicMock()
+
+    # 1. Test on_get_onboarding_requested
+    bar.on_get_onboarding_requested()
+    assert bar._webview.evaluateJavaScript_completionHandler_.call_count == 1
+    eval_call_arg = bar._webview.evaluateJavaScript_completionHandler_.call_args[0][0]
+    assert "window.displayOnboardingDrawer" in eval_call_arg
+    assert "Piyush Dua" in eval_call_arg
+
+    # 2. Test on_save_onboarding
+    custom_profile = {
+        "user_name": "Piyush Dua",
+        "user_role": "Backend Engineer",
+        "user_company": "Crcle.ai",
+        "playlists": {"focus": "Lofi Coding Beats"},
+        "collaborators": [
+            {"name": "Joshua Rayan", "email": "josh@crcle.ai", "role": "Founder"},
+            {"name": "Cyril Rayan", "email": "cyril@crcle.ai", "role": "Founder"}
+        ]
+    }
+    bar.on_save_onboarding(custom_profile)
+    assert bar._webview.evaluateJavaScript_completionHandler_.call_count == 2
+    eval_saved_arg = bar._webview.evaluateJavaScript_completionHandler_.call_args[0][0]
+    assert "window.auraOnboardingSaved" in eval_saved_arg
+    assert "Lofi Coding Beats" in eval_saved_arg
+
+    # 3. Test on_query_submitted intercepts /onboard
+    bar._webview.reset_mock()
+    bar.on_query_submitted("/onboard")
+    assert bar._webview.evaluateJavaScript_completionHandler_.call_count == 1
+    assert "window.displayOnboardingDrawer" in bar._webview.evaluateJavaScript_completionHandler_.call_args[0][0]
+
+    # 4. Test OmnibarScriptHandler bridge
+    handler = OmnibarScriptHandler(bar)
+    mock_msg_get = MagicMock()
+    mock_msg_get.body.return_value = json.dumps({"action": "get_onboarding_data"})
+    bar._webview.reset_mock()
+    handler.userContentController_didReceiveScriptMessage_(None, mock_msg_get)
+    assert "window.displayOnboardingDrawer" in bar._webview.evaluateJavaScript_completionHandler_.call_args[0][0]
+
+    mock_msg_save = MagicMock()
+    mock_msg_save.body.return_value = json.dumps({"action": "save_onboarding", "profile": custom_profile})
+    bar._webview.reset_mock()
+    handler.userContentController_didReceiveScriptMessage_(None, mock_msg_save)
+    assert "window.auraOnboardingSaved" in bar._webview.evaluateJavaScript_completionHandler_.call_args[0][0]
+
+def test_omnibar_onboarding_e2e_storage_and_cluster_isolation(tmp_path):
+    from desktop_dom.assistant.memory import AuraMemory
+    from desktop_dom.assistant.brain import AssistantBrain
+    from desktop_dom.assistant.omnibar import FloatingOmnibar
+
+    db_file = tmp_path / "e2e_onboarding_aura.db"
+    mem = AuraMemory(db_path=str(db_file))
+    brain = AssistantBrain(preferred_model="ministral-3:8b", memory=mem)
+    bar = FloatingOmnibar(brain=brain)
+    bar._webview = MagicMock()
+
+    # Save verified onboarding state through Omnibar IPC
+    bar.on_save_onboarding({
+        "user_name": "Piyush Dua",
+        "user_role": "Backend Engineer",
+        "user_company": "Crcle.ai",
+        "playlists": {"focus": "Synthwave Chill", "personal": "Diljit Dosanjh"},
+        "collaborators": [
+            {"name": "Joshua Rayan", "email": "josh@crcle.ai", "role": "CTO"},
+            {"name": "Cyril Rayan", "email": "cyril@crcle.ai", "role": "CEO"}
+        ]
+    })
+
+    # Verify Knowledge Graph DB state
+    assert mem.is_onboarding_verified()
+    assert mem.get_preference("user.name") == "Piyush Dua"
+    assert mem.get_preference("user.company") == "Crcle.ai"
+    assert mem.get_preference("spotify.favorite_playlist") == "Synthwave Chill"
+
+    # Verify cluster isolation
+    shared = mem.find_shared_context("Joshua Rayan", "Diljit Dosanjh")
+    assert shared["status"] == "disjoint"
+    assert shared["distance"] == float("inf")
+
+    # Verify intent execution respects verified onboarding without hallucination or leakage
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value.returncode = 0
+        email_res = brain.execute_intent("write an email to josh about current progress")
+        assert email_res["status"] == "success"
+        assert "Diljit" not in email_res["body"]
+        assert "YouTube" not in email_res["body"]
+        assert "Joshua Rayan" in email_res["recipient"]
+        assert "Piyush Dua" in email_res["draft_body"]
+        assert "Backend Engineer | Crcle.ai" in email_res["signature"]
+
+
 
 
 

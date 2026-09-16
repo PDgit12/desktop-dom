@@ -672,8 +672,11 @@ class AssistantBrain:
                     "response": f"I don't have '{target}' in personal memory yet. You can say 'remember {target} is {target.lower()}@domain.com' to save them.",
                 }
 
-        # 2. Habitual Playlist Recall ("open my playlist", "play my playlist", "play my music")
-        playlist_regex = re.compile(r"^(?:open|play)\s+(?:my\s+)?(?:favorite\s+|favourite\s+)?(?:spotify\s+)?(?:playlist|music|songs?)$", re.IGNORECASE)
+        # 2. Habitual Playlist Recall ("open my playlist", "play my playlist", "play my music", "play focus playlist", "play coding playlist")
+        playlist_regex = re.compile(
+            r"^(?:open|play)\s+(?:my\s+)?(?:favorite\s+|favourite\s+)?(?:spotify\s+)?(?:focus\s+|coding\s+|work\s+|gaming\s+|personal\s+)?(?:playlist|music|songs?)$",
+            re.IGNORECASE
+        )
         if playlist_regex.match(raw_prompt.strip()):
             snapshot = self.context_feed.capture_active_context(record=True)
             frontmost = self._get_frontmost_app_name()
@@ -728,26 +731,85 @@ class AssistantBrain:
                 res["response"] = f"Now playing your {contextual_genre} playlist '{fav_playlist}' on Spotify in exact track order."
             return res
 
-        # 3. Personal Intent Messaging & Email Flow ("message Josh", "email Josh", "shoot an email to josh", "ping josh")
-        msg_match = re.match(
-            r"^(?:i\s+(?:wanna|want\s+to)\s+)?(?:send\s+(?:an?\s+)?(?:email|message)\s+to|shoot\s+(?:an?\s+)?(?:email|message)\s+to|reach\s+out\s+to|write\s+(?:to\s+)?|ping|message|email|mail|tell|text|slack)\s+([a-zA-Z0-9_.+-@\s]+?)(?:\s+(?:saying|about|with|that)\s+(.+))?$",
-            raw_prompt,
-            re.IGNORECASE
+        # 3. Personal Intent Messaging & Email Flow ("message Josh", "email Josh", "shoot an email to josh", "write an email to josh", "ping josh", "message cyril backend tests passing 100%")
+        msg_prefix_pattern = (
+            r"^(?:i\s+(?:wanna|want\s+to|need\s+to)\s+)?"
+            r"(send\s+(?:an?\s+)?(?:email|message)\s+to|shoot\s+(?:an?\s+)?(?:email|message)\s+to|"
+            r"reach\s+out\s+to|write\s+(?:(?:an?\s+)?(?:email|message)\s+)?to|write|ping|message|email|mail|tell|text|slack)"
+            r"\s+(.+)$"
         )
+        msg_match = re.match(msg_prefix_pattern, raw_prompt.strip(), re.IGNORECASE)
         if msg_match:
-            target_raw = msg_match.group(1).strip()
-            content_raw = msg_match.group(2).strip() if msg_match.group(2) else None
+            verb = msg_match.group(1).lower().strip()
+            rest = msg_match.group(2).strip()
 
             # Detect client override in target or query (e.g. "message josh on outlook")
             client_override = None
-            if re.search(r"\b(?:on|via|using)\s+outlook\b", target_raw, re.IGNORECASE):
+            if re.search(r"\b(?:on|via|using)\s+outlook\b", rest, re.IGNORECASE):
                 client_override = "Microsoft Outlook"
-                target_raw = re.sub(r"\b(?:on|via|using)\s+outlook\b", "", target_raw, flags=re.IGNORECASE).strip()
-            elif re.search(r"\b(?:on|via|using)\s+mail\b", target_raw, re.IGNORECASE):
+                rest = re.sub(r"\b(?:on|via|using)\s+outlook\b", "", rest, flags=re.IGNORECASE).strip()
+            elif re.search(r"\b(?:on|via|using)\s+mail\b", rest, re.IGNORECASE):
                 client_override = "Mail"
-                target_raw = re.sub(r"\b(?:on|via|using)\s+mail\b", "", target_raw, flags=re.IGNORECASE).strip()
+                rest = re.sub(r"\b(?:on|via|using)\s+mail\b", "", rest, flags=re.IGNORECASE).strip()
 
-            if target_raw.lower() not in {"me", "notification", "note", "app", "application"}:
+            target_raw = None
+            content_raw = None
+
+            # Pattern A: Separator keywords or punctuation (e.g., "josh saying...", "cyril: ...", "josh, ...")
+            sep_match = re.match(r"^(.+?)\s*(?:\s+(?:saying|about|with|that)\s+|[:,-]\s*)(.+)$", rest, re.IGNORECASE)
+            if sep_match:
+                cand_target = sep_match.group(1).strip()
+                cand_content = sep_match.group(2).strip()
+                if cand_target.lower() not in {"me", "notification", "note", "app", "application"}:
+                    ent = self.memory.resolve_entity(cand_target)
+                    if ent or ("@" in cand_target and "." in cand_target):
+                        target_raw = cand_target
+                        content_raw = cand_content
+
+            # Pattern B: No explicit separator keyword (e.g. "message cyril backend tests passing 100%")
+            if not target_raw:
+                words = rest.split()
+                # Try candidate prefixes up to 3 words (e.g. "Joshua Rayan", "Cyril", "Josh")
+                for k in range(min(len(words), 3), 0, -1):
+                    cand = " ".join(words[:k])
+                    if cand.lower() not in {"me", "notification", "note", "app", "application"}:
+                        ent = self.memory.resolve_entity(cand)
+                        if ent or ("@" in cand and "." in cand):
+                            target_raw = cand
+                            rem = " ".join(words[k:]).strip()
+                            content_raw = rem if rem else None
+                            break
+
+            # Pattern C: Fallback for full rest if rest itself resolves to an entity
+            if not target_raw and rest.lower() not in {"me", "notification", "note", "app", "application"}:
+                ent = self.memory.resolve_entity(rest)
+                if ent or ("@" in rest and "." in rest):
+                    target_raw = rest
+                    content_raw = None
+
+            # Pattern D: If explicit separator was matched but target wasn't found in memory
+            if not target_raw and sep_match:
+                cand_target = sep_match.group(1).strip()
+                if cand_target.lower() not in {"me", "notification", "note", "app", "application"}:
+                    target_raw = cand_target
+                    content_raw = sep_match.group(2).strip()
+
+            # Pattern E: If verb is unequivocally messaging (e.g. "message", "email", "ping") and target is not in memory
+            is_explicit_msg_verb = any(v in verb for v in ["message", "email", "mail", "ping", "reach out", "send", "slack", "text"])
+            if not target_raw and is_explicit_msg_verb:
+                words = rest.split()
+                if words and words[0].lower() not in {"me", "notification", "note", "app", "application", "code", "file", "test", "window", "tab"}:
+                    if len(words) == 1:
+                        target_raw = words[0]
+                        content_raw = None
+                    elif len(words) == 2:
+                        target_raw = " ".join(words)
+                        content_raw = None
+                    else:
+                        target_raw = words[0]
+                        content_raw = " ".join(words[1:])
+
+            if target_raw:
                 entity = self.memory.resolve_entity(target_raw)
                 if entity:
                     client = client_override or self.memory.get_preference("mail.preferred_client", "Microsoft Outlook")
@@ -807,7 +869,7 @@ class AssistantBrain:
                 channel_name = rec["channel"]
                 topic_name = rec["topic"]
                 cat_name = rec["category"]
-                resp_text = f"Opening {channel_name} ({topic_name}) on YouTube based on your active {cat_name} context and viewing history."
+                resp_text = f"Opening {channel_name} on YouTube."
 
             self._notify_action("executing", f"Opening YouTube: {channel_name} ({topic_name})")
 

@@ -354,11 +354,6 @@ class LocalMachineIngest:
                 })
             self.memory.set_preference("youtube.watch_history", json.dumps(formatted_yt), category="media")
 
-            # Discover top favorite channel from real history
-            channels = [i["channel"] for i in yt_list if i["channel"] != "YouTube"]
-            if channels:
-                self.memory.set_preference("youtube.favorite_channel.tech", channels[0], category="media")
-
         if top_sites:
             self.memory.set_preference("browser.top_sites", json.dumps(top_sites[:10]), category="web")
 

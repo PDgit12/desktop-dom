@@ -418,6 +418,178 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     display: block;
   }
 
+  /* Interactive Onboarding Drawer */
+  .onboarding-drawer {
+    display: none;
+    flex-direction: column;
+    padding: 12px 16px;
+    gap: 10px;
+    max-height: 320px;
+    overflow-y: auto;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity 0.16s ease, transform 0.16s ease;
+  }
+  .onboarding-drawer::-webkit-scrollbar {
+    width: 4px;
+  }
+  .onboarding-drawer::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+  }
+  .onboarding-drawer.visible {
+    display: flex !important;
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .onb-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .onb-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: #38bdf8;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .onb-close-btn {
+    background: transparent;
+    border: none;
+    color: #71717a;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 2px 5px;
+    border-radius: 4px;
+    transition: all 0.1s ease;
+  }
+  .onb-close-btn:hover {
+    color: #f4f4f5;
+    background: rgba(255, 255, 255, 0.08);
+  }
+  .onb-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .onb-field {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .onb-label {
+    font-size: 10px;
+    color: #71717a;
+    font-weight: 500;
+  }
+  .onb-input {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 6px 9px;
+    font-size: 11.5px;
+    color: #f4f4f5;
+    outline: none;
+    transition: all 0.12s ease;
+  }
+  .onb-input:focus {
+    border-color: #38bdf8;
+    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.18);
+    background: rgba(56, 189, 248, 0.06);
+  }
+  .onb-apps-label {
+    font-size: 10px;
+    color: #71717a;
+    font-weight: 500;
+    margin-top: 2px;
+  }
+  .onb-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  .onb-chip {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 10.5px;
+    color: #a1a1aa;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .onb-chip:hover {
+    border-color: rgba(56, 189, 248, 0.4);
+    background: rgba(255, 255, 255, 0.08);
+    color: #f4f4f5;
+  }
+  .onb-chip.active {
+    background: rgba(56, 189, 248, 0.12);
+    border-color: rgba(56, 189, 248, 0.3);
+    color: #38bdf8;
+  }
+  .onb-isolation-banner {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    border-radius: 6px;
+    font-size: 10px;
+    color: #34d399;
+  }
+  .onb-btn-bar {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .onb-confirm-btn {
+    background: #0284c7;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.12s ease;
+  }
+  .onb-confirm-btn:hover {
+    background: #0369a1;
+  }
+  .onb-confirm-btn:active {
+    transform: scale(0.98);
+  }
+  .onb-cancel-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #a1a1aa;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.12s ease;
+  }
+  .onb-cancel-btn:hover {
+    color: #f4f4f5;
+    background: rgba(255, 255, 255, 0.08);
+  }
+  .onb-cancel-btn:active {
+    transform: scale(0.98);
+  }
+
   .footer-bar {
     height: 32px;
     border-top: 1px solid rgba(255, 255, 255, 0.06);
@@ -540,6 +712,55 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       </div>
     </div>
 
+    <div class="onboarding-drawer" id="onboarding-drawer" style="display: none;">
+      <div class="onb-header">
+        <div class="onb-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          <span>Personal Intent Engine · Onboarding</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div class="status-badge" style="background: rgba(56, 189, 248, 0.1); color: #38bdf8;" id="onb-status-badge">Pure User Data</div>
+          <button class="onb-close-btn" id="onb-close-btn" title="Dismiss (Esc)">×</button>
+        </div>
+      </div>
+      <div class="onb-isolation-banner">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <span>Strict Cluster Isolation: Work & Personal Media are mathematically disjoint (Zero Leakage).</span>
+      </div>
+      <div class="onb-grid">
+        <div class="onb-field">
+          <label class="onb-label">Full Name</label>
+          <input type="text" class="onb-input" id="onb-name" value="Piyush Dua" />
+        </div>
+        <div class="onb-field">
+          <label class="onb-label">Role / Professional Title</label>
+          <input type="text" class="onb-input" id="onb-role" value="Backend Engineer" />
+        </div>
+        <div class="onb-field">
+          <label class="onb-label">Primary Organization / Team</label>
+          <input type="text" class="onb-input" id="onb-company" value="Crcle.ai" />
+        </div>
+        <div class="onb-field">
+          <label class="onb-label">Habitual Focus Playlist</label>
+          <input type="text" class="onb-input" id="onb-playlist" value="Deep Focus" />
+        </div>
+      </div>
+      <div class="onb-field">
+        <label class="onb-label">Collaborators (Locked in Knowledge Graph)</label>
+        <input type="text" class="onb-input" id="onb-collabs" value="Joshua Rayan (josh@crcle.ai), Cyril Rayan (cyril@crcle.ai)" />
+      </div>
+      <div class="onb-field">
+        <label class="onb-apps-label">Detected Machine Applications (Bound to Level 2 Fast-Paths)</label>
+        <div class="onb-chips" id="onb-apps-chips">
+          <!-- Dynamically populated chips -->
+        </div>
+      </div>
+      <div class="onb-btn-bar">
+        <button class="onb-cancel-btn" id="onb-cancel-btn">Dismiss</button>
+        <button class="onb-confirm-btn" id="onb-confirm-btn">Confirm & Seal Knowledge Graph</button>
+      </div>
+    </div>
+
     <div class="footer-bar">
       <div class="shortcuts">
         <span class="kbd-pill"><span class="kbd">↵</span> Run</span>
@@ -547,9 +768,15 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         <span class="kbd-pill"><span class="kbd">Tab</span> Fill</span>
         <span class="kbd-pill"><span class="kbd">Esc</span> Dismiss</span>
       </div>
-      <div class="local-tag" id="footer-model-tag" style="display: none;">
-        <div class="dot-green" id="model-dot"></div>
-        <span id="footer-model-name">Mistral</span>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <div class="local-tag" id="footer-onb-tag" style="cursor: pointer;" title="Open Onboarding & Brain Topology">
+          <div class="dot-green" id="onb-footer-dot"></div>
+          <span id="footer-onb-text">Brain: Verified</span>
+        </div>
+        <div class="local-tag" id="footer-model-tag" style="display: none;">
+          <div class="dot-green" id="model-dot"></div>
+          <span id="footer-model-name">Mistral</span>
+        </div>
       </div>
     </div>
   </div>
@@ -577,6 +804,17 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     const footerModelTag = document.getElementById("footer-model-tag");
     const footerModelName = document.getElementById("footer-model-name");
     const modelDot = document.getElementById("model-dot");
+    const onboardingDrawer = document.getElementById("onboarding-drawer");
+    const onbName = document.getElementById("onb-name");
+    const onbRole = document.getElementById("onb-role");
+    const onbCompany = document.getElementById("onb-company");
+    const onbPlaylist = document.getElementById("onb-playlist");
+    const onbCollabs = document.getElementById("onb-collabs");
+    const onbAppsChips = document.getElementById("onb-apps-chips");
+    const onbConfirmBtn = document.getElementById("onb-confirm-btn");
+    const onbCancelBtn = document.getElementById("onb-cancel-btn");
+    const footerOnbTag = document.getElementById("footer-onb-tag");
+    const onbStatusBadge = document.getElementById("onb-status-badge");
 
     // Pure Monochrome Vector SVGs (Zero Emojis)
     const ICONS = {
@@ -600,10 +838,10 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     const defaultActions = [
       { iconType: "app", title: "Top Apps & Brain Onboarding", subtitle: "Discovered apps & knowledge graph topology", query: "/onboard", badge: "Brain" },
       { iconType: "app", title: "Message Josh", subtitle: "Draft update to Josh about Crcle", query: "message Josh the deck is ready", badge: "Intent" },
+      { iconType: "app", title: "Message Cyril", subtitle: "Quick message to Cyril Rayan", query: "message Cyril PR is ready", badge: "Intent" },
       { iconType: "screen", title: "What was I doing?", subtitle: "Summarize active desktop context & focus", query: "what was I doing?", badge: "Context" },
-      { iconType: "media", title: "Open YouTube", subtitle: "Clean YouTube Home stream", query: "open youtube", badge: "Media" },
       { iconType: "app", title: "Open My Repo", subtitle: "Active GitHub workspace & pull requests", query: "open my repo", badge: "Dev" },
-      { iconType: "media", title: "Play Music", subtitle: "Play contextual focus or gaming playlist", query: "play playlist", badge: "Music" },
+      { iconType: "media", title: "Play Focus Playlist", subtitle: "Play verified focus soundtrack on Spotify", query: "play playlist", badge: "Music" },
       { iconType: "math", title: "Quick Calculation", subtitle: "Evaluate arithmetic expression", query: "125 * 40 + 15", badge: "Math" }
     ];
 
@@ -709,6 +947,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       commandSection.style.display = "block";
       resultDrawer.classList.remove("visible");
       modelDrawer.classList.remove("visible");
+      onboardingDrawer.classList.remove("visible");
       isDrawerOpen = false;
 
       if (selectedIndex >= currentSuggestions.length) {
@@ -743,10 +982,12 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         contentHeight = 52 + resultDrawer.scrollHeight + 32 + 16;
       } else if (modelDrawer.classList.contains("visible")) {
         contentHeight = 52 + modelDrawer.scrollHeight + 32 + 16;
+      } else if (onboardingDrawer.classList.contains("visible")) {
+        contentHeight = 52 + onboardingDrawer.scrollHeight + 32 + 16;
       } else {
         contentHeight = 52 + 24 + (currentSuggestions.length * 38) + 32 + 12;
       }
-      const targetHeight = Math.min(420, Math.max(80, contentHeight));
+      const targetHeight = Math.min(480, Math.max(80, contentHeight));
       if (Math.abs(targetHeight - lastReportedHeight) < 4) {
         return;
       }
@@ -761,6 +1002,9 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       if (autoCloseTimer) clearTimeout(autoCloseTimer);
       resultDrawer.classList.remove("visible");
       modelDrawer.classList.remove("visible");
+      modelDrawer.style.display = "none";
+      onboardingDrawer.classList.remove("visible");
+      onboardingDrawer.style.display = "none";
       commandSection.style.display = "block";
       isDrawerOpen = false;
       badgeText.innerText = "Ready";
@@ -770,6 +1014,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       input.value = "";
       selectedIndex = 0;
       updateSuggestions();
+      notifyResize();
       input.focus();
     };
 
@@ -843,12 +1088,16 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       if (autoCloseTimer) clearTimeout(autoCloseTimer);
       resultDrawer.classList.remove("visible");
       modelDrawer.classList.remove("visible");
+      modelDrawer.style.display = "none";
+      onboardingDrawer.classList.remove("visible");
+      onboardingDrawer.style.display = "none";
       commandSection.style.display = "block";
       isDrawerOpen = false;
       badgeText.innerText = "Ready";
       statusDot.style.background = "#38bdf8";
       card.classList.remove("executing");
       updateSuggestions();
+      notifyResize();
       input.focus();
     }
 
@@ -1000,6 +1249,169 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       notifyResize();
     };
 
+    window.displayOnboardingDrawer = function(data) {
+      if (autoCloseTimer) clearTimeout(autoCloseTimer);
+      progress.classList.remove("active");
+      card.classList.remove("executing");
+      commandSection.style.display = "none";
+      resultDrawer.classList.remove("visible");
+      resultDrawer.style.display = "none";
+      modelDrawer.classList.remove("visible");
+      modelDrawer.style.display = "none";
+      onboardingDrawer.style.display = "flex";
+      onboardingDrawer.classList.add("visible");
+      isDrawerOpen = true;
+
+      badgeText.innerText = "Onboarding";
+      statusDot.style.background = "#38bdf8";
+
+      if (data && data.user) {
+        onbName.value = data.user.name || "Piyush Dua";
+        onbRole.value = data.user.role || "Backend Engineer";
+        onbCompany.value = data.user.company || "Crcle.ai";
+      }
+      if (data && data.media_habits) {
+        onbPlaylist.value = data.media_habits.focus_playlist || "Deep Focus";
+      }
+      if (data && data.collaborators && data.collaborators.length > 0) {
+        onbCollabs.value = data.collaborators.map(c => `${c.name} (${c.email || "no email"})`).join(", ");
+      } else {
+        onbCollabs.value = "Joshua Rayan (josh@crcle.ai), Cyril Rayan (cyril@crcle.ai)";
+      }
+
+      onbAppsChips.innerHTML = "";
+      const apps = (data && data.top_apps && data.top_apps.length > 0) ? data.top_apps : [
+        { name: "Google Chrome", category: "browser", is_running: true },
+        { name: "Microsoft Outlook", category: "communication", is_running: true },
+        { name: "Terminal", category: "developer", is_running: true },
+        { name: "ChatGPT", category: "ai_assistant", is_running: true },
+        { name: "Spotify", category: "media", is_running: true },
+        { name: "Granola", category: "ai_assistant", is_running: true }
+      ];
+
+      apps.forEach(app => {
+        const chip = document.createElement("div");
+        chip.className = "onb-chip active";
+        chip.title = "Click to toggle application binding";
+        const icon = { browser: "🌐", communication: "💬", developer: "💻", ai_assistant: "🤖", media: "🎵" }[app.category] || "📦";
+        chip.innerHTML = `<span>${icon}</span> <span>${escapeHtml(app.name)}</span>`;
+        chip.addEventListener("click", () => {
+          chip.classList.toggle("active");
+        });
+        onbAppsChips.appendChild(chip);
+      });
+
+      if (data && data.verified) {
+        onbStatusBadge.innerText = "✓ Verified Ground Truth";
+        onbStatusBadge.style.color = "#34d399";
+        onbStatusBadge.style.background = "rgba(16, 185, 129, 0.12)";
+      } else {
+        onbStatusBadge.innerText = "Ambient Hydrated";
+        onbStatusBadge.style.color = "#38bdf8";
+        onbStatusBadge.style.background = "rgba(56, 189, 248, 0.12)";
+      }
+
+      onbConfirmBtn.innerText = "Confirm & Seal Knowledge Graph";
+      onbConfirmBtn.style.background = "#0284c7";
+      onbConfirmBtn.disabled = false;
+      notifyResize();
+      setTimeout(() => {
+        onbName.focus();
+        onbName.select();
+      }, 50);
+    };
+
+    window.auraOnboardingSaved = function(result) {
+      onbStatusBadge.innerText = "✓ Sealed with Pure Data";
+      onbStatusBadge.style.color = "#34d399";
+      onbStatusBadge.style.background = "rgba(16, 185, 129, 0.15)";
+      onbConfirmBtn.innerText = "✓ Knowledge Graph Sealed";
+      onbConfirmBtn.style.background = "#059669";
+      badgeText.innerText = "Verified";
+      statusDot.style.background = "#10b981";
+
+      const footerOnbText = document.getElementById("footer-onb-text");
+      if (footerOnbText) footerOnbText.innerText = "Brain: Verified";
+      const footerDot = document.getElementById("onb-footer-dot");
+      if (footerDot) footerDot.className = "dot-green";
+
+      setTimeout(() => {
+        closeDrawers();
+        if (result) {
+          window.displayResult({
+            action: "onboard_complete",
+            response: `✓ Knowledge Graph Verified & Sealed with Pure User Data\n• Identity: ${result.user_name} (${result.user_role} @ ${result.user_company})\n• Work Circle: ${result.collaborators_count} collaborators locked in graph\n• Cluster Isolation: STRICT_DISJOINT Active (Zero Leakage)\n• Intent Grounding: Level 2 & Level 2.5 Active (<0.5ms resolution)`
+          });
+        }
+      }, 1100);
+    };
+
+    const onbCloseBtn = document.getElementById("onb-close-btn");
+    if (onbCloseBtn) onbCloseBtn.addEventListener("click", closeDrawers);
+    onbCancelBtn.addEventListener("click", closeDrawers);
+
+    onboardingDrawer.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        closeDrawers();
+      } else if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        onbConfirmBtn.click();
+      }
+    });
+
+    onbConfirmBtn.addEventListener("click", () => {
+      onbConfirmBtn.innerText = "Sealing Knowledge Graph...";
+      onbConfirmBtn.disabled = true;
+
+      const collabsParsed = [];
+      const rawCollabs = onbCollabs.value.split(",");
+      rawCollabs.forEach(item => {
+        const trimmed = item.trim();
+        if (!trimmed) return;
+        const m = trimmed.match(/^([^(]+)(?:\(([^)]+)\))?$/);
+        if (m) {
+          collabsParsed.push({
+            name: m[1].trim(),
+            email: (m[2] || "").trim(),
+            role: "Collaborator",
+            company: onbCompany.value.trim() || "Crcle.ai"
+          });
+        } else {
+          collabsParsed.push({
+            name: trimmed,
+            email: "",
+            role: "Collaborator",
+            company: onbCompany.value.trim() || "Crcle.ai"
+          });
+        }
+      });
+
+      const profilePayload = {
+        action: "save_onboarding",
+        profile: {
+          user_name: onbName.value.trim(),
+          user_role: onbRole.value.trim(),
+          user_company: onbCompany.value.trim(),
+          playlists: {
+            focus: onbPlaylist.value.trim()
+          },
+          collaborators: collabsParsed
+        }
+      };
+
+      window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify(profilePayload));
+    });
+
+    footerOnbTag.addEventListener("click", () => {
+      if (onboardingDrawer.classList.contains("visible")) {
+        closeDrawers();
+      } else {
+        window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({ action: "get_onboarding_data" }));
+      }
+    });
+
     window.updateModelStatus = function(status) {
       if (!status) return;
       const cur = status.current_model || "Zero-Model Fast-Path";
@@ -1065,6 +1477,11 @@ class OmnibarScriptHandler:
             elif action == "set_model":
                 model_name = payload.get("model", "")
                 self.controller.on_model_switch(model_name)
+            elif action == "get_onboarding_data":
+                self.controller.on_get_onboarding_requested()
+            elif action == "save_onboarding":
+                profile = payload.get("profile", {})
+                self.controller.on_save_onboarding(profile)
             elif action == "copy_to_clipboard":
                 text = payload.get("text", "")
                 self.controller.copy_text(text)
@@ -1236,6 +1653,11 @@ class FloatingOmnibar:
                             self.ctrl.on_model_status_requested()
                         elif act == "set_model":
                             self.ctrl.on_model_switch(payload.get("model", ""))
+                        elif act == "get_onboarding_data":
+                            self.ctrl.on_get_onboarding_requested()
+                        elif act == "save_onboarding":
+                            profile = payload.get("profile", {})
+                            self.ctrl.on_save_onboarding(profile)
                         elif act == "copy_to_clipboard":
                             self.ctrl.copy_text(payload.get("text", ""))
                     except Exception as e:
@@ -1447,9 +1869,33 @@ class FloatingOmnibar:
             self.evaluate_js(f"window.displayModelDrawer({json.dumps(status)});")
             self.evaluate_js(f"window.updateModelStatus({json.dumps(status)});")
 
+    def on_get_onboarding_requested(self):
+        """Retrieves verified onboarding profile data and displays the interactive UI drawer."""
+        if not self.brain or not getattr(self.brain, "memory", None):
+            return
+        try:
+            profile = self.brain.memory.get_verified_onboarding_profile()
+            self.evaluate_js(f"window.displayOnboardingDrawer({json.dumps(profile)});")
+        except Exception as e:
+            logger.warning(f"Error fetching onboarding profile: {e}")
+
+    def on_save_onboarding(self, profile: dict):
+        """Persists updated onboarding profile directly to Knowledge Graph database."""
+        if not self.brain or not getattr(self.brain, "memory", None):
+            return
+        try:
+            res = self.brain.memory.complete_verified_onboarding(profile)
+            self.evaluate_js(f"window.auraOnboardingSaved({json.dumps(res)});")
+        except Exception as e:
+            logger.warning(f"Error saving onboarding profile: {e}")
+
     def on_query_submitted(self, query: str):
         """Processes submitted query with zero flicker and expands Result Drawer."""
         logger.info(f"Omnibar query submitted: '{query}'")
+        clean_q = (query or "").strip().lower()
+        if clean_q in ("/onboard", "onboard", "/onboarding", "onboarding"):
+            self.on_get_onboarding_requested()
+            return
         
         def _execute():
             if not self.brain:

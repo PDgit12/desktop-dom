@@ -253,12 +253,6 @@ class AuraMemory:
             ("user.company", "Crcle.ai", "user", now),
             ("user.role", "Backend Engineer", "user", now),
             ("user.email", "piyushdua01@gmail.com", "user", now),
-            ("youtube.favorite_channel.tech", "ThePrimeagen", "media", now),
-            ("youtube.favorite_channel.gaming", "EA SPORTS FC", "media", now),
-            ("youtube.watch_history", json.dumps([
-                {"channel": "ThePrimeagen", "topic": "Vim, Rust & Systems Architecture", "category": "Engineering", "timestamp": now - 1800},
-                {"channel": "EA SPORTS FC", "topic": "FIFA 23 Skill Moves & Gameplay", "category": "Gaming", "timestamp": now - 86400}
-            ]), "media", now),
             ("github.default_repo", "PDgit12/desktop-dom", "developer", now),
         ]
 
@@ -293,7 +287,6 @@ class AuraMemory:
         outlook = _get_or_create("Microsoft Outlook", "tool", "Enterprise Mail Client", "Microsoft", ["outlook", "ms outlook", "email"])
         spotify = _get_or_create("Spotify", "tool", "Audio & Music Streaming", "Spotify", ["spotify", "spotify app", "music"])
         diljit = _get_or_create("Diljit Dosanjh", "media", "Artist & Musician", "Music", ["diljit", "dosanjh"])
-        prime = _get_or_create("ThePrimeagen", "tech_media", "Tech Content Creator", "YouTube", ["primeagen", "theprimeagen"])
         fifa = _get_or_create("FIFA 23", "gaming", "Sports Game", "EA Sports", ["fifa", "fifa 23", "ea sports fc"])
 
         seed_edges = [
@@ -315,9 +308,6 @@ class AuraMemory:
             # Personal Media Topology (Strictly Disjoint from Work)
             (p_dua, diljit, "listens_to", 0.85, "personal_media"),
             (p_dua, spotify, "uses", 0.90, "personal_media"),
-
-            # Tech Media Topology
-            (p_dua, prime, "watches", 0.80, "tech_media"),
 
             # Gaming Topology (Strictly Disjoint)
             (p_dua, fifa, "plays", 0.75, "gaming"),
@@ -1432,26 +1422,13 @@ class AuraMemory:
         cat_low = (context_category or "general").lower()
         import urllib.parse
 
-        # 1. Explicit channel query override (e.g. "watch fireship")
+        # 1. Explicit search query override (e.g. "watch python tutorial", "watch diljit dosanjh")
         if channel_query:
             clean_ch = channel_query.strip()
-            if "prime" in clean_ch.lower():
-                channel = "ThePrimeagen"
-                url = "https://www.youtube.com/@ThePrimeagen/videos"
-                topic = "Systems & Developer Culture"
-            elif "fireship" in clean_ch.lower():
-                channel = "Fireship"
-                url = "https://www.youtube.com/@Fireship/videos"
-                topic = "High-velocity Tech News"
-            elif any(g in clean_ch.lower() for g in ["fifa", "ea sports", "fc"]):
-                channel = "EA SPORTS FC"
-                url = "https://www.youtube.com/results?search_query=FIFA+23+Ultimate+Team+Gameplay"
-                topic = "FIFA Gameplay & Tactics"
-            else:
-                channel = clean_ch.title()
-                encoded = urllib.parse.quote(f"{clean_ch} latest")
-                url = f"https://www.youtube.com/results?search_query={encoded}"
-                topic = f"{clean_ch} Videos"
+            channel = clean_ch.title()
+            encoded = urllib.parse.quote(clean_ch)
+            url = f"https://www.youtube.com/results?search_query={encoded}"
+            topic = f"{clean_ch} Videos"
 
             self.record_youtube_watch(channel, topic, context_category)
             return {
@@ -1464,23 +1441,24 @@ class AuraMemory:
 
         # 2. Contextual matching
         if cat_low == "gaming":
-            fav_channel = self.resolve_habit("youtube.favorite_channel.gaming") or self.get_preference("youtube.favorite_channel.gaming", "EA SPORTS FC")
-            topic = "FIFA Tactics & Highlights"
-            url = f"https://www.youtube.com/results?search_query={urllib.parse.quote(fav_channel + ' FIFA 23 tactics')}"
-            self.record_youtube_watch(fav_channel, topic, context_category)
-            return {
-                "channel": fav_channel,
-                "topic": topic,
-                "url": url,
-                "category": context_category,
-                "source": "contextual_gaming",
-            }
+            fav_channel = self.resolve_habit("youtube.favorite_channel.gaming") or self.get_preference("youtube.favorite_channel.gaming")
+            if fav_channel:
+                topic = f"{fav_channel} Gaming"
+                url = f"https://www.youtube.com/results?search_query={urllib.parse.quote(fav_channel)}"
+                self.record_youtube_watch(fav_channel, topic, context_category)
+                return {
+                    "channel": fav_channel,
+                    "topic": topic,
+                    "url": url,
+                    "category": context_category,
+                    "source": "contextual_gaming",
+                }
 
         if cat_low == "engineering":
             tech_ch = self.resolve_habit("youtube.favorite_channel.tech") or self.get_preference("youtube.favorite_channel.tech")
             if tech_ch:
                 topic = f"{tech_ch} Engineering"
-                url = f"https://www.youtube.com/@{tech_ch}/videos" if tech_ch in ["ThePrimeagen", "Fireship"] else f"https://www.youtube.com/results?search_query={urllib.parse.quote(tech_ch + ' latest')}"
+                url = f"https://www.youtube.com/results?search_query={urllib.parse.quote(tech_ch)}"
                 self.record_youtube_watch(tech_ch, topic, context_category)
                 return {
                     "channel": tech_ch,
@@ -1494,7 +1472,7 @@ class AuraMemory:
         explicit_ch = self.resolve_habit("youtube.favorite_channel") or self.get_preference("youtube.favorite_channel.general")
         if explicit_ch:
             topic = f"{explicit_ch} Content"
-            url = f"https://www.youtube.com/@{explicit_ch}/videos" if explicit_ch in ["ThePrimeagen", "Fireship"] else f"https://www.youtube.com/results?search_query={urllib.parse.quote(explicit_ch)}"
+            url = f"https://www.youtube.com/results?search_query={urllib.parse.quote(explicit_ch)}"
             self.record_youtube_watch(explicit_ch, topic, context_category)
             return {
                 "channel": explicit_ch,
@@ -1504,7 +1482,7 @@ class AuraMemory:
                 "source": "explicit_preference",
             }
 
-        # 4. Default: Open YouTube Home Feed cleanly without forcing any channel!
+        # 4. Default: Open YouTube Home Feed cleanly without forcing any creator!
         topic = "YouTube Home Feed"
         url = "https://www.youtube.com"
         channel = "YouTube"
@@ -1958,15 +1936,19 @@ class AuraMemory:
         user_company = p.get("user_company") or self.get_preference("user.company") or "Crcle.ai"
 
         # Collaborators
-        collabs = p.get("collaborators")
-        if not collabs:
+        raw_collabs = p.get("collaborators")
+        if not raw_collabs or not isinstance(raw_collabs, list):
             collabs = [
                 {"name": "Joshua Rayan", "role": "Founder / CTO", "company": user_company, "email": "josh@crcle.ai"},
                 {"name": "Cyril Rayan", "role": "Founder / CEO", "company": user_company, "email": "cyril@crcle.ai"}
             ]
+        else:
+            collabs = raw_collabs
 
         # App Bindings
-        apps = p.get("app_bindings") or {}
+        apps = p.get("app_bindings")
+        if not isinstance(apps, dict):
+            apps = {}
         primary_browser = apps.get("browser") or self.get_preference("apps.primary_browser") or "Google Chrome"
         primary_mail = apps.get("mail") or self.get_preference("mail.preferred_client") or ambient.get("mail_client") or "Microsoft Outlook"
         primary_terminal = apps.get("terminal") or self.get_preference("apps.primary_terminal") or "Terminal"
@@ -1975,13 +1957,16 @@ class AuraMemory:
         primary_editor = apps.get("editor") or self.get_preference("apps.primary_editor") or "Zed"
 
         # Media Preferences
-        playlists = p.get("playlists") or {}
+        playlists = p.get("playlists")
+        if not isinstance(playlists, dict):
+            playlists = {}
         focus_playlist = playlists.get("focus") or self.get_preference("spotify.playlist.coding") or self.get_preference("spotify.favorite_playlist") or "Deep Focus"
         gaming_playlist = playlists.get("gaming") or self.get_preference("spotify.playlist.gaming") or "FIFA Soundtrack"
         favorite_artist = playlists.get("personal") or self.get_preference("spotify.favorite_artist") or "Diljit Dosanjh"
 
         # Repositories
-        work_repos = p.get("work_repos") or ["desktop-dom"]
+        raw_repos = p.get("work_repos")
+        work_repos = raw_repos if (raw_repos and isinstance(raw_repos, list)) else ["desktop-dom"]
         default_repo = p.get("default_repo") or self.get_preference("github.default_repo") or "PDgit12/desktop-dom"
 
         # 3. Store Verified Preferences
@@ -2031,12 +2016,29 @@ class AuraMemory:
         )
         self.add_edge(user_name, user_company, "works_at", cluster="work", weight=1.0, metadata={"provenance": "user_verified"})
 
+        validated_collabs = []
         for col in collabs:
-            c_name = col["name"]
-            c_email = col.get("email", "")
-            c_role = col.get("role", "Collaborator")
-            c_comp = col.get("company", user_company)
-            c_aliases = [c_name.lower(), c_name.split()[0].lower(), f"{c_name.lower().replace(' ', '')}"]
+            if isinstance(col, str):
+                c_name = col.strip()
+                c_email = ""
+                c_role = "Collaborator"
+                c_comp = user_company
+            elif isinstance(col, dict):
+                c_name = str(col.get("name") or "").strip()
+                c_email = str(col.get("email") or "").strip()
+                c_role = str(col.get("role") or "Collaborator").strip()
+                c_comp = str(col.get("company") or user_company).strip()
+            else:
+                continue
+
+            if not c_name:
+                continue
+
+            parts = c_name.split()
+            first = parts[0].lower() if parts else c_name.lower()
+            no_space = c_name.lower().replace(" ", "")
+            c_aliases = list({c_name.lower(), first, no_space})
+
             self.add_entity(
                 name=c_name,
                 email=c_email,
@@ -2048,17 +2050,26 @@ class AuraMemory:
             )
             self.add_edge(user_name, c_name, "collaborates_with", cluster="work", weight=1.0, metadata={"provenance": "user_verified"})
             self.add_edge(c_name, user_company, "works_at", cluster="work", weight=1.0, metadata={"provenance": "user_verified"})
+            validated_collabs.append({
+                "name": c_name,
+                "email": c_email,
+                "role": c_role,
+                "company": c_comp
+            })
 
         for repo in work_repos:
+            repo_str = str(repo).strip() if repo else ""
+            if not repo_str:
+                continue
             self.add_entity(
-                name=repo,
+                name=repo_str,
                 role="Code Repository",
                 company=user_company,
                 category="project",
                 metadata={"verified": True, "provenance": "user_onboarding"}
             )
-            self.add_edge(user_name, repo, "develops_repo", cluster="work", weight=1.0, metadata={"provenance": "user_verified"})
-            self.add_edge(repo, user_company, "belongs_to", cluster="work", weight=1.0, metadata={"provenance": "user_verified"})
+            self.add_edge(user_name, repo_str, "develops_repo", cluster="work", weight=1.0, metadata={"provenance": "user_verified"})
+            self.add_edge(repo_str, user_company, "belongs_to", cluster="work", weight=1.0, metadata={"provenance": "user_verified"})
 
         # Connect Primary Mail to Work
         self.add_entity(name=primary_mail, category="application", role="Work Mail Client")
@@ -2099,8 +2110,8 @@ class AuraMemory:
             "user_email": user_email,
             "user_role": user_role,
             "user_company": user_company,
-            "collaborators_count": len(collabs),
-            "collaborators": collabs,
+            "collaborators_count": len(validated_collabs),
+            "collaborators": validated_collabs,
             "app_bindings": {
                 "browser": primary_browser,
                 "mail": primary_mail,
