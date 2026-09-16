@@ -304,3 +304,32 @@ def test_calendar_schedule_intent(mock_memory):
         assert res.get("action") == "open_calendar"
         assert res.get("level") == "2.0"
 
+
+def test_daily_routine_morning_execution(mock_memory):
+    brain = AssistantBrain(memory=mock_memory)
+    with patch("subprocess.run") as mock_run, patch("webbrowser.open") as mock_open, patch.object(brain, "_control_spotify_play") as mock_spot:
+        mock_run.return_value = MagicMock(returncode=0)
+        res = brain.execute_intent("start my day")
+        assert res.get("status") == "success"
+        assert res.get("action") == "daily_routine"
+        assert res.get("level") == "2.5"
+        assert len(res.get("executed_steps", [])) >= 2
+
+
+def test_daily_routine_gaming_execution(mock_memory):
+    brain = AssistantBrain(memory=mock_memory)
+    with patch("subprocess.run") as mock_run, patch.object(brain, "_control_spotify_play") as mock_spot:
+        mock_run.return_value = MagicMock(returncode=0)
+        res = brain.execute_intent("gaming mode")
+        assert res.get("status") == "success"
+        assert res.get("action") == "daily_routine"
+        assert res.get("routine") == "gaming"
+
+
+def test_remember_daily_routine(mock_memory):
+    brain = AssistantBrain(memory=mock_memory)
+    res = brain.execute_intent("remember my morning routine is open VS Code and play Lofi Beats")
+    assert res.get("status") == "success"
+    assert "open VS Code" in mock_memory.get_preference("routine.morning.desc")
+
+

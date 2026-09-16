@@ -584,7 +584,23 @@ class AuraMemory:
                 "response": f"Remembered your default GitHub repository is '{repo_name}'.",
             }
 
-        # 5. User Preference / Attribute Pattern (e.g. "my role is Backend Engineer")
+        # 5. Daily Routine Pattern ("remember my morning routine is open VS Code and play Deep Focus")
+        routine_match = re.match(r"^(?:my\s+)?(morning|work|daily|evening|gaming)\s+routine\s+is\s+(.+)$", clean, re.IGNORECASE)
+        if routine_match:
+            r_name = routine_match.group(1).lower()
+            if r_name == "daily":
+                r_name = "morning"
+            steps_desc = routine_match.group(2).strip()
+            self.set_preference(f"routine.{r_name}.desc", steps_desc, category="routine")
+            return {
+                "status": "success",
+                "action": "remember_preference",
+                "key": f"routine.{r_name}.desc",
+                "value": steps_desc,
+                "response": f"Remembered your {r_name} routine is '{steps_desc}'.",
+            }
+
+        # 6. User Preference / Attribute Pattern (e.g. "my role is Backend Engineer")
         pref_match = re.match(r"^(?:my\s+)([a-zA-Z0-9_\s]+?)\s+is\s+(.+)$", clean, re.IGNORECASE)
         if pref_match:
             attr = pref_match.group(1).strip().lower().replace(" ", "_")
@@ -754,6 +770,61 @@ class AuraMemory:
         except Exception:
             pass
         return self.get_preference("github.default_repo", "PDgit12/desktop-dom")
+
+    def get_daily_routine(self, routine_name: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Retrieves the structured sequence of actions for a daily routine.
+        If routine_name is omitted, infers from the temporal vector (hour of day):
+        - 05:00 - 12:00 -> morning
+        - 12:00 - 18:00 -> work
+        - 18:00 - 05:00 -> gaming / evening
+        """
+        import datetime
+        if not routine_name:
+            hour = datetime.datetime.now().hour
+            if 5 <= hour < 12:
+                routine_name = "morning"
+            elif 12 <= hour < 18:
+                routine_name = "work"
+            else:
+                routine_name = "gaming"
+
+        r_low = routine_name.lower()
+        if r_low in ["daily", "start"]:
+            r_low = "morning"
+
+        raw = self.get_preference(f"routine.{r_low}", None)
+        steps = []
+        if raw:
+            try:
+                steps = json.loads(raw)
+            except Exception:
+                steps = []
+
+        if not steps:
+            if r_low in ["morning", "work"]:
+                steps = [
+                    {"action": "open_app", "target": "Visual Studio Code", "label": "Open VS Code"},
+                    {"action": "open_repo", "target": self.get_developer_repo(), "label": f"Open {self.get_developer_repo()}"},
+                    {"action": "play_spotify", "target": self.get_preference("spotify.favorite_playlist", "Deep Focus"), "label": "Play Deep Focus"},
+                ]
+            else:
+                steps = [
+                    {"action": "open_app", "target": "FIFA 23", "label": "Launch FIFA 23"},
+                    {"action": "play_spotify", "target": "FIFA Soundtrack", "label": "Play FIFA Soundtrack"},
+                ]
+
+        desc = self.get_preference(f"routine.{r_low}.desc", None)
+
+        return {
+            "name": r_low,
+            "description": desc,
+            "steps": steps,
+        }
+
+    def set_daily_routine(self, routine_name: str, steps: List[Dict[str, Any]]):
+        """Persists custom steps for a named routine."""
+        self.set_preference(f"routine.{routine_name.lower()}", json.dumps(steps), category="routine")
 
     # -------------------------------------------------------------------------
     # Multi-Source Ingestion (macOS Contacts)

@@ -584,7 +584,49 @@ class AssistantBrain:
                 "response": "Opened your Calendar for today's schedule.",
             }
 
-        # 8. Screen Introspection & Active Window Reading
+        # 8. Temporal & Daily Routine Intent Flow ("start my day", "daily routine", "morning routine", "work mode", "gaming mode", "what should I do?")
+        routine_triggers = [
+            "start my day", "start the day", "morning routine", "daily routine",
+            "kick off my day", "start working", "work mode", "work routine",
+            "gaming mode", "game mode", "evening routine", "what should i do",
+            "start work", "set up my workspace", "setup workspace"
+        ]
+        if any(t in prompt for t in routine_triggers):
+            req_routine = "gaming" if any(w in prompt for w in ["gaming", "game"]) else ("work" if "work" in prompt else ("morning" if "morning" in prompt else None))
+            routine = self.memory.get_daily_routine(req_routine)
+            r_name = routine["name"]
+            steps = routine["steps"]
+            executed_labels = []
+
+            self._notify_action("executing", f"Executing {r_name.capitalize()} Routine")
+
+            for step in steps:
+                act = step.get("action")
+                target = step.get("target")
+                lbl = step.get("label", act)
+                try:
+                    if act == "open_app" and target:
+                        if sys.platform == "darwin":
+                            subprocess.run(["open", "-a", target], capture_output=True)
+                    elif act == "open_repo" and target:
+                        webbrowser.open(f"https://github.com/{target}")
+                    elif act == "play_spotify" and target:
+                        self._control_spotify_play(target)
+                    executed_labels.append(lbl)
+                except Exception as e:
+                    logger.warning(f"Error executing step in routine: {e}")
+
+            summary_steps = ", ".join(executed_labels)
+            return {
+                "status": "success",
+                "action": "daily_routine",
+                "level": "2.5",
+                "routine": r_name,
+                "executed_steps": executed_labels,
+                "response": f"Executed your {r_name.capitalize()} routine: {summary_steps}.",
+            }
+
+        # 9. Screen Introspection & Active Window Reading
         if any(p in prompt for p in ["what is on my screen", "what's on my screen", "inspect screen", "read screen", "inspect active window", "read active window", "summarize screen", "what is on screen"]):
             return self._control_inspect_screen(prompt)
 

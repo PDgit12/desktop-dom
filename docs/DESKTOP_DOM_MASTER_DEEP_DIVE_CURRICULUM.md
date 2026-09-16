@@ -748,21 +748,31 @@ When a user says *"open youtube"* or *"watch youtube"*, a dumb agent opens the g
 #### 3. Developer Workspace & Repository Binding
 When the user states *"open my repo"* or *"open pull requests"*, Desktop-DOM links active telemetry (current git workspace, terminal directory, or active Chrome tab) with SQLite preferences (`github.default_repo`: `PDgit12/desktop-dom`), opening the exact pull requests or code tree in `<15ms`.
 
-#### 4. The 3-Tier Ghost Cursor
+#### 4. Temporal Routine & Daily Flow Induction (When Screen Signal = 0)
+A foundational question in desktop intent architecture: *What if the active screen does NOT reflect the user's intent?* (e.g. user opens a blank desktop at 9:00 AM, unlocks their Mac, or has no apps open).
+Desktop-DOM solves this through **Multi-Signal Intent Arbitration**:
+- **Temporal Vectors:** Inspects diurnal time buckets (Morning Kickoff `05:00-12:00`, Deep Focus `12:00-18:00`, Evening/Gaming `18:00-05:00`).
+- **Composite Habit Execution:** When the user says *"start my day"*, *"morning routine"*, or *"work mode"*, Desktop-DOM orchestrates the complete workflow:
+  1. Launches development IDE (`Visual Studio Code`).
+  2. Opens active project workspace (`PDgit12/desktop-dom` on GitHub).
+  3. Launches Spotify with the user's focus playlist (`Deep Focus`).
+- **Custom Habit Persistence:** Users can declare and persist personal routines (`"remember my morning routine is open VS Code and play Lofi Beats"`), stored directly in SQLite WAL memory.
+
+#### 5. The 3-Tier Ghost Cursor
 For general GUI controls without AppleScript bridges:
 - **Tier 1 (In-Memory Press):** `AXUIElementPerformAction(kAXPressAction)` dispatches the event directly to the control handle. The physical mouse cursor remains stationary.
 - **Tier 2 (Ghost Warp & Restore):** If hardware events are required, `CGWarpMouseCursorPosition` warps the cursor, posts the click event to `kCGHIDEventTap`, and restores the user's previous cursor coordinate in $<0.8\text{ms}$.
 - **Tier 3 (In-Memory Value Mutation):** `AXUIElementSetAttributeValue(kAXValueAttribute, val)` sets text field contents directly without synthetic keystroke jitter.
 
-#### 5. Linear State Verification ($O(N)$ DOM Diffing)
+#### 6. Linear State Verification ($O(N)$ DOM Diffing)
 Before every action, Desktop-DOM captures DOM snapshot $T_0$. After execution, it captures $T_1$. The diff engine computes the added, removed, and mutated nodes in $<0.25\text{ms}$, confirming that the desired state transformation actually completed before reporting success.
 
 ---
 
 ### 15.6 Certified System Metrics (Post-Implementation Audit)
 
-- **Total Hermetic Tests Passing:** **131 / 131 Tests (100% Pass Rate)**
-- **Test Suite Duration:** ~15.0 seconds in headless test environment.
+- **Total Hermetic Tests Passing:** **134 / 134 Tests (100% Pass Rate)**
+- **Test Suite Duration:** ~15.4 seconds in headless test environment.
 - **Telemetry Ingestion Latency:** $<20\text{ms}$ (OS Process + Chrome Active Tab).
 - **Entity Disambiguation Latency:** $0.49\text{ms}$ (SQLite WAL + In-Memory Cache).
 - **DOM Diff Execution Latency:** $<0.25\text{ms}$ ($O(N)$ Tree Differ).
@@ -771,5 +781,5 @@ Before every action, Desktop-DOM captures DOM snapshot $T_0$. After execution, i
 
 ---
 
-*Curriculum certified: 131/131 tests passing, production DMG/ZIP bundles ready, Git tree synchronized with PDgit12/desktop-dom.*
+*Curriculum certified: 134/134 tests passing, production DMG/ZIP bundles ready, Git tree synchronized with PDgit12/desktop-dom.*
 

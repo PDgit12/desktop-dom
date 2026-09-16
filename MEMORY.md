@@ -52,12 +52,14 @@ Eliminates vision agent flaws (>90% token waste, 3–6 second latency, pixel coo
    - CI/CD workflows: `.github/workflows/ci.yml` (multi-OS test matrix) and `.github/workflows/publish.yml` (tag release automation).
 
 ## Test & Integration Status
-- **131 unit and integration tests passing** (`pytest` in 14.37s, 100% pass rate, 100% hermetic).
+- **134 unit and integration tests passing** (`pytest` in 15.44s, 100% pass rate, 100% hermetic).
 - **Level 1 Polish & Dynamic OS Catalog (`src/desktop_dom/assistant/brain.py`):**
   - Dynamic application scanner indexes 100+ native apps across `/Applications`, `/System/Applications`, `/System/Applications/Utilities`, `~/Applications`.
   - `SequenceMatcher` typo tolerance (&ge;0.68) resolves typos (`spotfy` &rarr; Spotify, `safri` &rarr; Safari, `crome` &rarr; Google Chrome, `calc` &rarr; Calculator, `notse` &rarr; Notes) without erroneous browser fallbacks.
   - Native folder navigation (`open downloads`, `open documents`, `open desktop`) & safe app lifecycle control (`quit Spotify`, `close Chrome`).
-- **Level 2 Continuous Intent Cycle (`src/desktop_dom/assistant/context_feed.py` & `memory.py`):**
+- **Level 2 Continuous Intent Cycle & Temporal Routine Engine (`context_feed.py` & `memory.py`):**
+  - Temporal Habit & Routine Engine: When screen offers zero signal (empty desktop), Aura arbitrates intent via diurnal time vectors (Morning Kickoff `05:00-12:00`, Deep Focus `12:00-18:00`, Gaming `18:00-05:00`).
+  - Composite Routine Flow: "start my day", "morning routine", "work mode" orchestrates multi-app workflows (VS Code, GitHub repo, Spotify focus beats).
   - Data Ingestion: Frontmost application and window title capture via Cocoa/NSWorkspace (<10ms). Live browser tab and URL ingestion from Chrome/Brave/Arc/Safari via AppleScript (<15ms).
   - Meaning Synthesis: Activity classification into Gaming, Engineering, Communication, Design, Research. Habit mapping: FIFA gaming &rarr; "FIFA Soundtrack" (Gaming Energy), coding &rarr; "Deep Focus" (Focus Beats).
   - Context Introspection: "What was I doing?", "What am I looking at?", "Summarize my context" extracts active context without vision tokens.
