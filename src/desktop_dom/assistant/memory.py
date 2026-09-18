@@ -638,11 +638,23 @@ class AuraMemory:
                             is_work_hours = bool(context["is_work_hours"])
                         front = (context.get("frontmost_app") or "") if isinstance(context.get("frontmost_app"), str) else ""
                         act_cat = (context.get("activity_category") or "") if isinstance(context.get("activity_category"), str) else ""
-                        is_work_ctx = (
-                            any(w in front.lower() for w in ["code", "zed", "terminal", "slack", "outlook", "chrome", "calendar", "linear", "jira", "figma", "github", "granola", "zoom"])
-                            or act_cat.lower() in ["work", "engineering", "development", "coding"]
-                            or is_work_hours
+
+                        is_explicit_personal = (
+                            act_cat.lower() in ["personal", "leisure", "social", "media", "gaming", "family", "friend"]
+                            or any(p in front.lower() for p in ["messages", "imessage", "whatsapp", "signal", "discord", "spotify", "steam"])
                         )
+                        is_explicit_work = (
+                            any(w in front.lower() for w in ["code", "zed", "terminal", "slack", "outlook", "calendar", "linear", "jira", "figma", "github", "granola", "zoom"])
+                            or act_cat.lower() in ["work", "engineering", "development", "coding"]
+                        )
+
+                        if is_explicit_personal:
+                            is_work_ctx = False
+                        elif is_explicit_work:
+                            is_work_ctx = True
+                        else:
+                            is_work_ctx = is_work_hours
+
                         if is_work_ctx:
                             if is_work_ent:
                                 score += 25.0  # Active cluster affinity boost

@@ -34,21 +34,51 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", sans-serif;
     overflow: hidden;
   }
+  body.dragging, body.dragging * {
+    cursor: -webkit-grabbing !important;
+    cursor: grabbing !important;
+    user-select: none !important;
+  }
   .omnibar-card {
     width: 680px;
-    border-radius: 12px;
-    background: rgba(22, 22, 24, 0.96);
-    backdrop-filter: blur(40px) saturate(190%);
-    -webkit-backdrop-filter: blur(40px) saturate(190%);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    border-radius: 14px;
+    background: rgba(18, 20, 26, 0.94);
+    backdrop-filter: blur(50px) saturate(210%);
+    -webkit-backdrop-filter: blur(50px) saturate(210%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 32px 84px -10px rgba(0, 0, 0, 0.88), 0 0 0 1px rgba(255, 255, 255, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.15);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    transition: border-color 0.15s ease;
+    transition: border-color 0.15s ease, box-shadow 0.2s ease;
   }
   .omnibar-card.executing {
-    border-color: rgba(255, 255, 255, 0.16);
+    border-color: rgba(56, 189, 248, 0.4);
+    box-shadow: 0 32px 84px -10px rgba(0, 0, 0, 0.95), 0 0 20px -2px rgba(56, 189, 248, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+  .drag-handle-bar {
+    width: 100%;
+    height: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: -webkit-grab;
+    cursor: grab;
+    -webkit-app-region: drag;
+    background: transparent;
+    padding-top: 5px;
+    transition: background 0.15s ease;
+  }
+  .drag-pill {
+    width: 38px;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.22);
+    transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .drag-handle-bar:hover .drag-pill {
+    background: rgba(255, 255, 255, 0.55);
+    width: 52px;
   }
   .header-bar {
     height: 52px;
@@ -57,37 +87,42 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     padding: 0 16px;
     gap: 12px;
     position: relative;
+    cursor: -webkit-grab;
+    cursor: grab;
+    -webkit-app-region: drag;
   }
   .search-icon {
-    width: 16px;
-    height: 16px;
-    color: #71717a;
+    width: 18px;
+    height: 18px;
+    color: #94a3b8;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    -webkit-app-region: no-drag;
   }
   .input-wrap {
     flex: 1;
     display: flex;
     align-items: center;
     cursor: text;
+    -webkit-app-region: no-drag;
   }
   input#query-input {
     width: 100%;
     background: transparent;
     border: none;
     outline: none;
-    color: #f4f4f5;
-    font-size: 15px;
+    color: #f8fafc;
+    font-size: 15.5px;
     font-weight: 450;
-    letter-spacing: -0.15px;
+    letter-spacing: -0.2px;
     user-select: text !important;
     -webkit-user-select: text !important;
     cursor: text;
   }
   input#query-input::placeholder {
-    color: #52525b;
+    color: #64748b;
     font-weight: 400;
   }
   .header-tools {
@@ -95,6 +130,26 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     align-items: center;
     gap: 8px;
     flex-shrink: 0;
+    -webkit-app-region: no-drag;
+  }
+  .workspace-pill-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    font-size: 11px;
+    font-weight: 500;
+    color: #cbd5e1;
+    cursor: pointer;
+    transition: all 0.12s ease;
+  }
+  .workspace-pill-btn:hover {
+    background: rgba(255, 255, 255, 0.09);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.18);
   }
   .model-pill-btn {
     display: flex;
@@ -119,10 +174,10 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     color: #71717a;
     font-size: 9px;
   }
-  .mic-btn {
-    width: 26px;
-    height: 26px;
-    border-radius: 6px;
+  .mic-btn, .settings-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.08);
     display: flex;
@@ -130,11 +185,12 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     justify-content: center;
     cursor: pointer;
     transition: all 0.12s ease;
-    color: #71717a;
+    color: #94a3b8;
   }
-  .mic-btn:hover {
-    background: rgba(255, 255, 255, 0.08);
-    color: #f4f4f5;
+  .mic-btn:hover, .settings-btn:hover {
+    background: rgba(255, 255, 255, 0.09);
+    color: #f8fafc;
+    border-color: rgba(255, 255, 255, 0.14);
   }
   .mic-btn.active {
     background: rgba(239, 68, 68, 0.15);
@@ -144,19 +200,22 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
   .status-badge {
     display: flex;
     align-items: center;
-    gap: 5px;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 10px;
+    gap: 6px;
+    padding: 3px 8px;
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    font-size: 10.5px;
     font-weight: 500;
-    color: #71717a;
-    letter-spacing: 0.2px;
+    color: #94a3b8;
+    letter-spacing: 0.1px;
   }
   .status-dot {
-    width: 5px;
-    height: 5px;
+    width: 6px;
+    height: 6px;
     border-radius: 50%;
-    background: #38bdf8;
+    background: #10b981;
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
   }
   .progress-line {
     height: 1px;
@@ -877,6 +936,9 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
 </head>
 <body>
   <div class="omnibar-card" id="card">
+    <div class="drag-handle-bar" id="drag-handle-bar" title="Drag anywhere to reposition">
+      <div class="drag-pill"></div>
+    </div>
     <div class="header-bar" id="header-bar">
       <div class="search-icon">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -885,29 +947,33 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         </svg>
       </div>
       <div class="input-wrap">
-        <input id="query-input" type="text" placeholder="Ask anything or express an intent..." autocomplete="off" spellcheck="false" autofocus />
+        <input id="query-input" type="text" placeholder="Search commands, meetings, contacts, or type an action..." autocomplete="off" spellcheck="false" autofocus />
       </div>
       <div class="header-tools">
-        <div class="model-pill-btn" id="model-pill" title="Standard Mistral Engine" style="display: none;">
-          <span id="header-model-name">Mistral</span>
+        <div class="workspace-pill-btn" id="workspace-pill" title="Active Sovereign Workspace (Click for Settings)">
+          <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #38bdf8; box-shadow: 0 0 6px rgba(56, 189, 248, 0.6);"></span>
+          <span id="workspace-name">Crcle.ai</span>
+        </div>
+        <div class="model-pill-btn" id="model-pill" title="Intent Routing Engine" style="display: none;">
+          <span id="header-model-name">Native</span>
           <span class="chevron">▾</span>
         </div>
-        <div class="mic-btn" id="mic-btn" title="Toggle Voice Microphone">
+        <div class="mic-btn" id="mic-btn" title="Toggle Voice Dictation">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
             <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
             <line x1="12" y1="19" x2="12" y2="22"/>
           </svg>
         </div>
-        <div class="settings-btn" id="settings-btn" title="Memory Settings & Collaborators">
+        <div class="settings-btn" id="settings-btn" title="Knowledge Graph & Collaborator Settings">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="3"/>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
           </svg>
         </div>
-        <div class="status-badge" id="badge">
+        <div class="status-badge" id="badge" title="Native Accessibility & Intent Kernel Active">
           <span class="status-dot" id="status-dot"></span>
-          <span id="badge-text">Ready</span>
+          <span id="badge-text">Connected</span>
         </div>
       </div>
     </div>
@@ -1081,15 +1147,16 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         <span class="kbd-pill"><span class="kbd">↑↓</span> Navigate</span>
         <span class="kbd-pill"><span class="kbd">Tab</span> Fill</span>
         <span class="kbd-pill"><span class="kbd">Esc</span> Dismiss</span>
+        <span class="kbd-pill drag-hint" style="cursor: -webkit-grab; cursor: grab;" title="Click and drag anywhere to move"><span class="kbd">✥</span> Drag Anywhere</span>
       </div>
       <div style="display: flex; align-items: center; gap: 8px;">
         <div class="local-tag" id="footer-onb-tag" style="cursor: pointer;" title="Open Onboarding & Brain Topology">
           <div class="dot-green" id="onb-footer-dot"></div>
-          <span id="footer-onb-text">Brain: Verified</span>
+          <span id="footer-onb-text">Kernel: Online</span>
         </div>
         <div class="local-tag" id="footer-model-tag" style="display: none;">
           <div class="dot-green" id="model-dot"></div>
-          <span id="footer-model-name">Mistral</span>
+          <span id="footer-model-name">Native</span>
         </div>
       </div>
     </div>
@@ -2318,6 +2385,65 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       notifyResize();
     };
 
+    // Dynamic Window Drag & Position Controller (Hover & Drag Anywhere)
+    let isDraggingWindow = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+
+    function initDraggableWindow() {
+      const dragHandle = document.getElementById("drag-handle-bar");
+      const headerBar = document.getElementById("header-bar");
+
+      function onDragMouseDown(e) {
+        if (e.button !== 0) return; // Only primary mouse button
+        if (e.target.closest("input, textarea, button, .action-btn, .mic-btn, .settings-btn, .model-pill-btn, .workspace-pill-btn, #tray, .result-body, #onboarding-drawer, #settings-drawer, #model-drawer, .interactive, .suggestion-item")) {
+          return;
+        }
+        isDraggingWindow = true;
+        dragStartX = e.screenX;
+        dragStartY = e.screenY;
+        document.body.classList.add("dragging");
+        e.preventDefault();
+      }
+
+      if (dragHandle) dragHandle.addEventListener("mousedown", onDragMouseDown);
+      if (headerBar) headerBar.addEventListener("mousedown", onDragMouseDown);
+
+      window.addEventListener("mousemove", (e) => {
+        if (!isDraggingWindow) return;
+        const dx = e.screenX - dragStartX;
+        const dy = e.screenY - dragStartY;
+        dragStartX = e.screenX;
+        dragStartY = e.screenY;
+        if (dx !== 0 || dy !== 0) {
+          if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.desktopDom) {
+            window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({
+              action: "drag_window",
+              dx: dx,
+              dy: dy
+            }));
+          }
+        }
+      });
+
+      window.addEventListener("mouseup", () => {
+        if (isDraggingWindow) {
+          isDraggingWindow = false;
+          document.body.classList.remove("dragging");
+        }
+      });
+    }
+
+    initDraggableWindow();
+
+    const workspacePill = document.getElementById("workspace-pill");
+    if (workspacePill) {
+      workspacePill.addEventListener("click", (e) => {
+        e.stopPropagation();
+        toggleSettingsDrawer();
+      });
+    }
+
     updateSuggestions();
     input.focus();
 
@@ -2326,6 +2452,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
           !e.target.closest(".action-btn") &&
           !e.target.closest("#footer-model-tag") &&
           !e.target.closest("#model-pill") &&
+          !e.target.closest("#workspace-pill") &&
           !e.target.closest(".model-card") &&
           !e.target.closest("#misfire-feedback-bar") &&
           !e.target.closest("#onboarding-drawer") &&
@@ -2360,7 +2487,11 @@ class OmnibarScriptHandler:
         try:
             payload = json.loads(str(msg.body()))
             action = payload.get("action")
-            if action == "submit_query":
+            if action == "drag_window":
+                dx = float(payload.get("dx", 0))
+                dy = float(payload.get("dy", 0))
+                self.controller.move_window_by(dx, dy)
+            elif action == "submit_query":
                 query = payload.get("query", "")
                 self.controller.on_query_submitted(query)
             elif action == "start_listening":
@@ -2466,6 +2597,21 @@ class FloatingOmnibar:
                 logger.debug(f"JS eval error: {e}")
         self.dispatch_main(_do)
 
+    def move_window_by(self, dx: float, dy: float):
+        """Moves the floating Cocoa NSPanel by (dx, dy) screen delta."""
+        def _do():
+            if self._panel:
+                try:
+                    import Cocoa
+                    frame = self._panel.frame()
+                    # In Cocoa screen coordinates: y goes up from bottom of screen.
+                    # Dragging down in WebKit (dy > 0) means decreasing frame origin y.
+                    new_origin = Cocoa.NSMakePoint(frame.origin.x + dx, frame.origin.y - dy)
+                    self._panel.setFrameOrigin_(new_origin)
+                except Exception as e:
+                    logger.debug(f"move_window_by error: {e}")
+        self.dispatch_main(_do)
+
     def setup_ui(self):
         """Initializes the Cocoa window, WebKit view, and status bar item."""
         try:
@@ -2487,7 +2633,7 @@ class FloatingOmnibar:
         pos_x = (screen_frame.size.width - bar_width) / 2
         pos_y = screen_frame.size.height * 0.58
 
-        # Create frameless floating KeyablePanel capable of accepting keyboard focus
+        # Create frameless floating KeyablePanel capable of accepting keyboard focus and dragging
         try:
             panel_cls = objc.lookUpClass("AuraKeyablePanelObjC")
         except Exception:
@@ -2507,6 +2653,12 @@ class FloatingOmnibar:
                 def acceptsFirstResponder(self):
                     return True
 
+                def isMovable(self):
+                    return True
+
+                def isMovableByWindowBackground(self):
+                    return True
+
             panel_cls = AuraKeyablePanelObjC
 
         self._panel = panel_cls.alloc().initWithContentRect_styleMask_backing_defer_(
@@ -2521,6 +2673,7 @@ class FloatingOmnibar:
         self._panel.setBackgroundColor_(Cocoa.NSColor.clearColor())
         self._panel.setHasShadow_(False)
         self._panel.setMovableByWindowBackground_(True)
+        self._panel.setMovable_(True)
         self._panel.setBecomesKeyOnlyIfNeeded_(False)
         self._panel.setWorksWhenModal_(True)
         self._panel.setHidesOnDeactivate_(False)
@@ -2570,7 +2723,11 @@ class FloatingOmnibar:
                     try:
                         payload = json.loads(str(msg.body()))
                         act = payload.get("action")
-                        if act == "submit_query":
+                        if act == "drag_window":
+                            dx = float(payload.get("dx", 0))
+                            dy = float(payload.get("dy", 0))
+                            self.ctrl.move_window_by(dx, dy)
+                        elif act == "submit_query":
                             self.ctrl.on_query_submitted(payload.get("query", ""))
                         elif act == "start_listening":
                             self.ctrl.on_voice_requested()

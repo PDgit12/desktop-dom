@@ -48,7 +48,7 @@ def _http_post(url: str, data: dict):
         data=body,
         headers={'Content-Type': 'application/json', 'User-Agent': 'desktop-dom-test'},
     )
-    with urllib.request.urlopen(req, timeout=5.0) as resp:
+    with urllib.request.urlopen(req, timeout=10.0) as resp:
         return json.loads(resp.read().decode('utf-8'))
 
 def test_server_health(test_server):

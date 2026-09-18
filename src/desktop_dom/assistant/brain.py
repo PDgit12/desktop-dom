@@ -2238,27 +2238,30 @@ end tell'''
     make new recipient at newMsg with properties {{email address:{{name:"{escaped_name}", address:"{escaped_email}"}}}}
     open newMsg
 end tell'''
-                res = subprocess.run(["osascript", "-e", osa_script], capture_output=True, text=True, timeout=4.0)
-                if res.returncode == 0:
-                    self.memory.reinforce_interaction("send_message", entity_name=name)
-                    return {
-                        "status": "success",
-                        "action": "send_message",
-                        "level": "2.5",
-                        "recipient": name,
-                        "email": email,
-                        "company": entity.get("company", ""),
-                        "role": entity.get("role", ""),
-                        "client": "Microsoft Outlook",
-                        "subject": subject,
-                        "body": body,
-                        "draft_body": draft_body,
-                        "signature": signature,
-                        "confidence": 0.95,
-                        "tier": "autonomous",
-                        "verified": True,
-                        "response": f"Composed message in Microsoft Outlook to {name} ({email}) with subject '{subject}'.",
-                    }
+                try:
+                    res = subprocess.run(["osascript", "-e", osa_script], capture_output=True, text=True, timeout=4.0)
+                    if res.returncode == 0:
+                        self.memory.reinforce_interaction("send_message", entity_name=name)
+                        return {
+                            "status": "success",
+                            "action": "send_message",
+                            "level": "2.5",
+                            "recipient": name,
+                            "email": email,
+                            "company": entity.get("company", ""),
+                            "role": entity.get("role", ""),
+                            "client": "Microsoft Outlook",
+                            "subject": subject,
+                            "body": body,
+                            "draft_body": draft_body,
+                            "signature": signature,
+                            "confidence": 0.95,
+                            "tier": "autonomous",
+                            "verified": True,
+                            "response": f"Composed message in Microsoft Outlook to {name} ({email}) with subject '{subject}'.",
+                        }
+                except (subprocess.SubprocessError, subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
+                    logger.debug(f"AppleScript Outlook failed or timed out: {e}")
 
             # 2. Native Apple Mail outgoing draft via AppleScript
             if "mail" in client.lower():
@@ -2273,27 +2276,30 @@ end tell'''
         make new to recipient at end of to recipients with properties {{name:"{escaped_name}", address:"{escaped_email}"}}
     end tell
 end tell'''
-                res = subprocess.run(["osascript", "-e", osa_script], capture_output=True, text=True, timeout=4.0)
-                if res.returncode == 0:
-                    self.memory.reinforce_interaction("send_message", entity_name=name)
-                    return {
-                        "status": "success",
-                        "action": "send_message",
-                        "level": "2.5",
-                        "recipient": name,
-                        "email": email,
-                        "company": entity.get("company", ""),
-                        "role": entity.get("role", ""),
-                        "client": "Mail",
-                        "subject": subject,
-                        "body": body,
-                        "draft_body": draft_body,
-                        "signature": signature,
-                        "confidence": 0.95,
-                        "tier": "autonomous",
-                        "verified": True,
-                        "response": f"Composed message in Mail to {name} ({email}) with subject '{subject}'.",
-                    }
+                try:
+                    res = subprocess.run(["osascript", "-e", osa_script], capture_output=True, text=True, timeout=4.0)
+                    if res.returncode == 0:
+                        self.memory.reinforce_interaction("send_message", entity_name=name)
+                        return {
+                            "status": "success",
+                            "action": "send_message",
+                            "level": "2.5",
+                            "recipient": name,
+                            "email": email,
+                            "company": entity.get("company", ""),
+                            "role": entity.get("role", ""),
+                            "client": "Mail",
+                            "subject": subject,
+                            "body": body,
+                            "draft_body": draft_body,
+                            "signature": signature,
+                            "confidence": 0.95,
+                            "tier": "autonomous",
+                            "verified": True,
+                            "response": f"Composed message in Mail to {name} ({email}) with subject '{subject}'.",
+                        }
+                except (subprocess.SubprocessError, subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
+                    logger.debug(f"AppleScript Mail failed or timed out: {e}")
 
             # 3. Fallback to system mailto handler
             res = subprocess.run(["open", mailto_url], capture_output=True, text=True)

@@ -337,6 +337,34 @@ def test_omnibar_resize_and_status_item():
     bar.resize_window(360.0)
     bar._panel.setFrame_display_animate_.assert_called_once()
 
+def test_omnibar_window_drag_movement_and_ipc():
+    from desktop_dom.assistant.omnibar import OMNIBAR_HTML, FloatingOmnibar, OmnibarScriptHandler
+    bar = FloatingOmnibar()
+    bar._panel = MagicMock()
+    mock_frame = MagicMock()
+    mock_frame.origin.x = 200.0
+    mock_frame.origin.y = 400.0
+    bar._panel.frame.return_value = mock_frame
+
+    # Test programmatic window movement
+    bar.move_window_by(40.0, 20.0)
+    bar._panel.setFrameOrigin_.assert_called_once()
+
+    # Test Script Message Handler IPC dispatch
+    handler = OmnibarScriptHandler(bar)
+    mock_msg = MagicMock()
+    mock_msg.body.return_value = json.dumps({"action": "drag_window", "dx": 15.0, "dy": -10.0})
+    with patch.object(bar, "move_window_by") as mock_move:
+        handler.userContentController_didReceiveScriptMessage_(None, mock_msg)
+        mock_move.assert_called_once_with(15.0, -10.0)
+
+    # Test HTML and CSS features
+    assert "drag-handle-bar" in OMNIBAR_HTML
+    assert "drag-pill" in OMNIBAR_HTML
+    assert "-webkit-app-region: drag" in OMNIBAR_HTML
+    assert "initDraggableWindow" in OMNIBAR_HTML
+    assert "workspace-pill-btn" in OMNIBAR_HTML
+
 def test_cli_package_help():
     result = runner.invoke(app, ["package", "--help"])
     assert result.exit_code == 0
