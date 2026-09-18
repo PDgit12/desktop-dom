@@ -113,6 +113,8 @@ class AssistantBrain:
         self._installed_apps: Dict[str, str] = {}
         self._scan_installed_apps()
         self.memory = memory or AuraMemory()
+        from desktop_dom.assistant.integrations.composio_ingest import ComposioIngest
+        self.composio_ingest = ComposioIngest(memory=self.memory)
         self.context_feed = ContextFeedEngine(memory=self.memory)
         self._current_context_snapshot: Optional[ActiveContextSnapshot] = None
         self.last_intent_state: Optional[Dict[str, Any]] = None
@@ -587,7 +589,7 @@ end tell'''
 
         # 0c. Non-Binary Desktop & OS Adapters (Calendar Briefing, Git PR Status, Linear Issues)
         if not any(w in prompt.lower() for w in ["email from", "mail from", "last email", "last mail"]):
-            non_binary_res = route_non_binary_intent(prompt)
+            non_binary_res = route_non_binary_intent(prompt, memory=self.memory if hasattr(self, "memory") else None)
             if non_binary_res:
                 self._notify_action("completed", non_binary_res.get("response", "Completed"))
                 return non_binary_res
@@ -1227,6 +1229,27 @@ end tell'''
             else:
                 resp = f"Opened {meeting_app} for your meeting notes."
 
+            # Enrich with canonical calendar meeting URL if available
+            meeting_url = None
+            if hasattr(self, "memory") and self.memory:
+                cal_events_raw = self.memory.get_preference("calendar.events.today")
+                if cal_events_raw:
+                    try:
+                        cal_events = json.loads(cal_events_raw)
+                        for ev in cal_events:
+                            ev_url = ev.get("meeting_url")
+                            ev_att = [str(a).lower() for a in ev.get("attendees", [])]
+                            if collab_query and any(collab_query.lower() in a for a in ev_att):
+                                meeting_url = ev_url
+                                break
+                            elif not meeting_url and ev_url:
+                                meeting_url = ev_url
+                    except Exception:
+                        pass
+
+            if meeting_url:
+                resp += f"\n• Meeting Link: {meeting_url}"
+
             return {
                 "status": "success",
                 "action": "meeting_intent",
@@ -1235,6 +1258,7 @@ end tell'''
                 "participant": ParticipantRef(participant_info) if participant_info else None,
                 "participant_entity": participant_info,
                 "topic": meeting_topic,
+                "meeting_url": meeting_url,
                 "confidence": confidence,
                 "tier": tier,
                 "ignited_nodes": [n["name"] for n in ignite_res.get("ignited_nodes", [])[:4]],
@@ -1584,7 +1608,7 @@ end tell'''
             }
 
         # 7. Calendar & Daily Schedule Intent ("check my schedule", "calendar", "what's my schedule")
-        if any(p in prompt for p in ["check my schedule", "what is my schedule", "what's my schedule", "show schedule", "open my calendar"]):
+        if any(p in prompt for p in ["check my schedule", "what is my schedule", "what's my schedule", "show schedule", "open my calendar", "open calendar"]):
             self._notify_action("executing", "Opening Calendar")
             if sys.platform == "darwin":
                 subprocess.run(["open", "-a", "Calendar"], capture_output=True)
@@ -1594,6 +1618,7 @@ end tell'''
                 "level": "2.0",
                 "response": "Opened your Calendar for today's schedule.",
             }
+
 
         # 8. Temporal & Daily Routine Intent Flow ("start my day", "daily routine", "morning routine", "work mode", "gaming mode", "what should I do?")
         routine_triggers = [
@@ -2710,3 +2735,104 @@ end tell'''
                 "action": "llm_error",
                 "response": f"Local model error: {e}. Ollama may be offline or busy.",
             }
+
+    # -------------------------------------------------------------------------
+    # Composio Cloud Integrations (OAuth, Sync, Disconnect & Purge)
+    # -------------------------------------------------------------------------
+
+    def connect_composio_app(self, toolkit: str, user_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Initiates an OAuth connection flow via Composio for the given toolkit
+        (e.g., 'googlecalendar', 'github', 'gmail', 'slack').
+        Returns connection details including redirect_url for WebKit or default browser.
+        """
+        clean_toolkit = (toolkit or "").strip().lower()
+        uid = user_id or self.memory.get_preference("user.id") or self.memory.get_preference("user.email") or "user_local"
+        scope_map = {
+            "googlecalendar": ["calendar.readonly"],
+            "github": ["repo:status", "read:user"],
+            "gmail": ["gmail.readonly"],
+            "slack": ["channels:read", "users:read"],
+        }
+        scopes = scope_map.get(clean_toolkit, ["profile"])
+        auth_config_id = f"ac_{clean_toolkit}"
+
+        res = self.composio_ingest.client.initiate_connection(
+            user_id=uid,
+            toolkit=clean_toolkit,
+            scopes=scopes,
+        )
+
+        if res.get("status") in {"INITIATED", "PENDING"}:
+            self.memory.upsert_connected_account({
+                "provider": "composio",
+                "user_id": uid,
+                "toolkit": clean_toolkit,
+                "auth_config_id": auth_config_id,
+                "external_id": res.get("connection_id") or res.get("id"),
+                "status": "PENDING",
+                "consent_version": "v1",
+                "data_scopes": scopes,
+                "redirect_url": res.get("redirect_url"),
+                "metadata": {"provenance": "user_onboarding"},
+            })
+
+        return res
+
+    def disconnect_composio_app(self, toolkit: str, user_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Disconnects a Composio integration and immediately purges all entities
+        and edges originating from this integration from the SQLite Knowledge Graph.
+        """
+        uid = user_id or self.memory.get_preference("user.id") or self.memory.get_preference("user.email") or "user_local"
+        return self.composio_ingest.disconnect_and_purge(toolkit=toolkit, user_id=uid)
+
+    def sync_composio_app(self, toolkit: str, user_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Triggers on-demand bounded ingestion for a connected application into AuraMemory.
+        """
+        clean_toolkit = (toolkit or "").strip().lower()
+        uid = user_id or self.memory.get_preference("user.id") or self.memory.get_preference("user.email") or "user_local"
+        if clean_toolkit in {"googlecalendar", "calendar"}:
+            return self.composio_ingest.sync_calendar(user_id=uid)
+        elif clean_toolkit in {"github", "git"}:
+            return self.composio_ingest.sync_github(user_id=uid)
+        elif clean_toolkit in {"gmail", "mail"}:
+            return self.composio_ingest.sync_gmail(user_id=uid)
+        else:
+            return {"status": "unsupported_toolkit", "toolkit": clean_toolkit}
+
+    def get_composio_status(self, user_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Returns connection statuses for all supported cloud apps.
+        """
+        uid = user_id or self.memory.get_preference("user.id") or self.memory.get_preference("user.email") or "user_local"
+        accounts = self.memory.list_connected_accounts(user_id=uid)
+        acc_by_toolkit = {a.get("toolkit", "").lower(): a for a in accounts}
+
+        toolkits = ["googlecalendar", "github", "gmail", "slack"]
+        statuses = {}
+        for tk in toolkits:
+            acc = acc_by_toolkit.get(tk)
+            if acc:
+                statuses[tk] = {
+                    "connected": acc.get("status") == "ACTIVE",
+                    "status": acc.get("status", "DISCONNECTED"),
+                    "external_id": acc.get("external_id"),
+                    "redirect_url": acc.get("redirect_url"),
+                    "last_synced_at": acc.get("last_synced_at"),
+                }
+            else:
+                statuses[tk] = {
+                    "connected": False,
+                    "status": "DISCONNECTED",
+                    "external_id": None,
+                    "redirect_url": None,
+                    "last_synced_at": None,
+                }
+        return {
+            "user_id": uid,
+            "composio_configured": self.composio_ingest.client.is_configured(),
+            "accounts": statuses,
+        }
+

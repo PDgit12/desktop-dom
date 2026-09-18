@@ -81,9 +81,9 @@ def _extract_meeting_url(url: Optional[str], location: Optional[str], descriptio
     return None
 
 
-def get_calendar_briefing(calendar_client: str = "Calendar", timeout: float = 4.0, allow_fallback: bool = False) -> Dict[str, Any]:
+def get_calendar_briefing(calendar_client: str = "Calendar", timeout: float = 4.0, allow_fallback: bool = False, memory: Optional[Any] = None) -> Dict[str, Any]:
     """
-    Retrieves today's agenda using native macOS AppleScript.
+    Retrieves today's agenda using Composio canonical cache (if connected) or native macOS AppleScript.
     Queries Apple Calendar (and/or Microsoft Outlook), extracting:
     - Event title, start & end times
     - Attendees
@@ -94,10 +94,43 @@ def get_calendar_briefing(calendar_client: str = "Calendar", timeout: float = 4.
         calendar_client: "Calendar" (Apple Calendar), "Outlook" / "Microsoft Outlook", or "auto".
         timeout: Execution timeout in seconds.
         allow_fallback: If True, provides graceful fallback schedule when offline or AppleScript is denied.
+        memory: Optional AuraMemory instance containing canonical cloud synced events.
 
     Returns:
         Dict[str, Any] containing status, events list, event count, and formatted summary response.
     """
+    if memory:
+        try:
+            cached_events_raw = memory.get_preference("calendar.events.today")
+            connected_acc = memory.get_connected_account(toolkit="googlecalendar")
+            if (connected_acc and connected_acc.get("status") == "ACTIVE") or cached_events_raw:
+                cached_events = json.loads(cached_events_raw) if cached_events_raw else []
+                if cached_events:
+                    formatted_lines = []
+                    for ev in cached_events:
+                        title = ev.get("title", "Untitled Event")
+                        st = ev.get("start_time", "")
+                        et = ev.get("end_time", "")
+                        time_str = f"{st} - {et}" if st and et else (st or "All Day")
+                        m_url = ev.get("meeting_url")
+                        join_str = f" | Join: {m_url}" if m_url else ""
+                        att = ev.get("attendees")
+                        att_str = f" | Attendees: {', '.join(att)}" if att else ""
+                        formatted_lines.append(f"• {time_str}: {title}{join_str}{att_str}")
+                    resp = f"Today's Calendar Briefing ({len(cached_events)} events):\n" + "\n".join(formatted_lines)
+                    return {
+                        "status": "success",
+                        "action": "calendar_briefing",
+                        "client": "Google Calendar (Composio)",
+                        "events": cached_events,
+                        "event_count": len(cached_events),
+                        "confidence": 0.98,
+                        "tier": "canonical_composio",
+                        "response": resp,
+                    }
+        except Exception as e:
+            logger.warning(f"Error reading canonical calendar events from memory: {e}")
+
     if sys.platform != "darwin":
         if allow_fallback:
             fallback_events = [
@@ -995,7 +1028,7 @@ end tell'''
     }
 
 
-def route_non_binary_intent(prompt: str, cwd: Optional[str] = None) -> Optional[Dict[str, Any]]:
+def route_non_binary_intent(prompt: str, cwd: Optional[str] = None, memory: Optional[Any] = None) -> Optional[Dict[str, Any]]:
     """
     Deterministic intent matcher routing non-binary queries to their appropriate adapters:
     - Calendar briefing: "calendar briefing", "today's agenda", "agenda today", etc.
@@ -1017,7 +1050,7 @@ def route_non_binary_intent(prompt: str, cwd: Optional[str] = None) -> Optional[
         "today's schedule briefing", "schedule briefing", "check my schedule briefing"
     ]
     if any(p in clean for p in calendar_patterns) or clean in ["calendar briefing", "agenda", "today's agenda"]:
-        return get_calendar_briefing()
+        return get_calendar_briefing(memory=memory)
 
     # 2. Git PR status
     git_pr_patterns = [
@@ -1054,8 +1087,8 @@ class NonBinaryAdapters:
     """Unified container class providing static access to all non-binary adapters."""
 
     @staticmethod
-    def get_calendar_briefing(calendar_client: str = "Calendar") -> Dict[str, Any]:
-        return get_calendar_briefing(calendar_client)
+    def get_calendar_briefing(calendar_client: str = "Calendar", memory: Optional[Any] = None) -> Dict[str, Any]:
+        return get_calendar_briefing(calendar_client, memory=memory)
 
     @staticmethod
     def get_git_pr_status(cwd: Optional[str] = None) -> Dict[str, Any]:

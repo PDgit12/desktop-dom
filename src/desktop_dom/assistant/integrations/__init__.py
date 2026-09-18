@@ -10,6 +10,8 @@ from .contracts import (
     CanonicalCommunicationSnippet,
 )
 from .composio_client import ComposioHttpClient
+from .normalizer import ComposioNormalizer
+from .composio_ingest import ComposioIngest
 
 __all__ = [
     "ConnectedAccountState",
@@ -18,4 +20,6 @@ __all__ = [
     "CanonicalRepository",
     "CanonicalCommunicationSnippet",
     "ComposioHttpClient",
+    "ComposioNormalizer",
+    "ComposioIngest",
 ]

@@ -4,6 +4,7 @@ import json
 import time
 import logging
 import threading
+import webbrowser
 from typing import Optional, Dict, Any
 
 logger = logging.getLogger("desktop_dom.assistant.omnibar")
@@ -858,6 +859,116 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
   .settings-add-btn:hover {
     background: rgba(167, 139, 250, 0.25);
   }
+
+  /* Composio Cloud Integration Cards */
+  .composio-connect-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-top: 2px;
+  }
+  .composio-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 10px;
+    border-radius: 7px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    transition: all 0.12s ease;
+  }
+  .composio-card:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+  .composio-card.connected {
+    background: rgba(16, 185, 129, 0.06);
+    border-color: rgba(16, 185, 129, 0.22);
+  }
+  .composio-card.pending {
+    background: rgba(234, 179, 8, 0.06);
+    border-color: rgba(234, 179, 8, 0.22);
+  }
+  .composio-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .composio-icon {
+    font-size: 14px;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.06);
+    flex-shrink: 0;
+  }
+  .composio-details {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .composio-name {
+    font-size: 11px;
+    font-weight: 550;
+    color: #f1f5f9;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .composio-sub {
+    font-size: 9.5px;
+    color: #64748b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .composio-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .composio-btn {
+    font-size: 10px;
+    font-weight: 500;
+    padding: 3px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.1s ease;
+    border: none;
+  }
+  .composio-btn-connect {
+    background: rgba(56, 189, 248, 0.12);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.25);
+  }
+  .composio-btn-connect:hover {
+    background: rgba(56, 189, 248, 0.22);
+    border-color: rgba(56, 189, 248, 0.45);
+  }
+  .composio-btn-disconnect {
+    background: rgba(239, 68, 68, 0.08);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.18);
+  }
+  .composio-btn-disconnect:hover {
+    background: rgba(239, 68, 68, 0.18);
+    border-color: rgba(239, 68, 68, 0.35);
+  }
+  .composio-btn-sync {
+    background: rgba(255, 255, 255, 0.05);
+    color: #cbd5e1;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  .composio-btn-sync:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+  }
+
   .settings-btn {
     width: 26px;
     height: 26px;
@@ -1077,6 +1188,15 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
           <button class="settings-add-btn" id="onb-add-app-btn" type="button">+ Add App</button>
         </div>
       </div>
+      <div class="onb-field" style="margin-top: 4px;">
+        <label class="onb-apps-label" style="display: flex; justify-content: space-between; align-items: center;">
+          <span>Connect Cloud Data Sources (Composio Integration)</span>
+          <span style="font-size: 9px; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.05em;">OAuth 2.0 · Read-Only · Zero Credential Storage</span>
+        </label>
+        <div class="composio-connect-grid" id="onb-composio-grid">
+          <!-- Dynamically populated Composio integration cards -->
+        </div>
+      </div>
       <div class="onb-btn-bar">
         <button class="onb-cancel-btn" id="onb-cancel-btn">Dismiss</button>
         <button class="onb-confirm-btn" id="onb-confirm-btn">Confirm & Seal Knowledge Graph</button>
@@ -1133,6 +1253,15 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
           <input type="text" class="onb-input" id="settings-new-email" placeholder="Email" style="flex: 2;" />
           <input type="text" class="onb-input" id="settings-new-role" placeholder="Role (e.g. CTO)" style="flex: 1.5;" />
           <button class="settings-add-btn" id="settings-add-collab-btn">+ Add</button>
+        </div>
+      </div>
+      <div class="onb-field" style="margin-top: 4px;">
+        <label class="onb-label" style="display: flex; justify-content: space-between; align-items: center;">
+          <span>Cloud Integrations (Composio Sovereignty Layer)</span>
+          <span style="font-size: 9px; color: #a78bfa; text-transform: uppercase; letter-spacing: 0.05em;">Isolated Work Cluster</span>
+        </label>
+        <div class="composio-connect-grid" id="settings-composio-grid">
+          <!-- Dynamically populated Composio integration cards -->
         </div>
       </div>
       <div class="onb-btn-bar">
@@ -1784,6 +1913,129 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       notifyResize();
     };
 
+    const COMPOSIO_APPS_DEF = [
+      { toolkit: "googlecalendar", name: "Google Calendar", icon: "🗓️", desc: "Agenda & Zoom/Meet Links" },
+      { toolkit: "github", name: "GitHub", icon: "🐙", desc: "Repositories & Open PRs" },
+      { toolkit: "gmail", name: "Gmail", icon: "✉️", desc: "Frequent Work Contacts" },
+      { toolkit: "slack", name: "Slack", icon: "💬", desc: "Channels & Direct Messages" }
+    ];
+
+    let currentComposioStatus = {};
+
+    function normalizeComposioMap(input) {
+      const map = {};
+      if (Array.isArray(input)) {
+        input.forEach(acc => {
+          if (acc && acc.toolkit) {
+            map[acc.toolkit.toLowerCase()] = acc;
+          }
+        });
+      } else if (input && typeof input === "object") {
+        Object.keys(input).forEach(k => {
+          map[k.toLowerCase()] = input[k];
+        });
+      }
+      return map;
+    }
+
+    function renderComposioCards(containerId, accounts) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      container.innerHTML = "";
+      const map = normalizeComposioMap(accounts);
+
+      COMPOSIO_APPS_DEF.forEach(app => {
+        const acc = map[app.toolkit] || { connected: false, status: "DISCONNECTED" };
+        const isConnected = acc.connected || (acc.status === "ACTIVE");
+        const isPending = acc.status === "PENDING" || acc.status === "INITIATED";
+
+        const card = document.createElement("div");
+        card.className = "composio-card" + (isConnected ? " connected" : (isPending ? " pending" : ""));
+        card.id = `${containerId}-${app.toolkit}`;
+
+        let statusBadge = "";
+        let actionButtons = "";
+
+        if (isConnected) {
+          statusBadge = '<span style="font-size: 9px; color: #34d399; font-weight: 500; margin-right: 4px;">Connected</span>';
+          actionButtons = `
+            <button class="composio-btn composio-btn-sync" title="Sync now" type="button" onclick="syncComposioApp('${app.toolkit}')">Sync</button>
+            <button class="composio-btn composio-btn-disconnect" title="Disconnect & Purge Data" type="button" onclick="disconnectComposioApp('${app.toolkit}')">Disconnect</button>
+          `;
+        } else if (isPending) {
+          statusBadge = '<span style="font-size: 9px; color: #facc15; font-weight: 500; margin-right: 4px;">Pending...</span>';
+          actionButtons = `
+            <button class="composio-btn composio-btn-connect" type="button" onclick="connectComposioApp('${app.toolkit}')">Authorize</button>
+            <button class="composio-btn composio-btn-disconnect" type="button" onclick="disconnectComposioApp('${app.toolkit}')">Cancel</button>
+          `;
+        } else {
+          statusBadge = '<span style="font-size: 9px; color: #64748b; margin-right: 4px;">Not Connected</span>';
+          actionButtons = `
+            <button class="composio-btn composio-btn-connect" type="button" onclick="connectComposioApp('${app.toolkit}')">Connect</button>
+          `;
+        }
+
+        card.innerHTML = `
+          <div class="composio-info">
+            <div class="composio-icon">${app.icon}</div>
+            <div class="composio-details">
+              <span class="composio-name">${escapeHtml(app.name)}</span>
+              <span class="composio-sub">${escapeHtml(app.desc)}</span>
+            </div>
+          </div>
+          <div class="composio-actions">
+            ${statusBadge}
+            ${actionButtons}
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    window.connectComposioApp = function(toolkit) {
+      window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({
+        action: "connect_composio_app",
+        toolkit: toolkit
+      }));
+    };
+
+    window.disconnectComposioApp = function(toolkit) {
+      window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({
+        action: "disconnect_composio_app",
+        toolkit: toolkit
+      }));
+    };
+
+    window.syncComposioApp = function(toolkit) {
+      window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({
+        action: "sync_composio_app",
+        toolkit: toolkit
+      }));
+    };
+
+    window.renderComposioStatuses = function(payload) {
+      if (payload && payload.accounts) {
+        currentComposioStatus = payload.accounts;
+      }
+      renderComposioCards("onb-composio-grid", currentComposioStatus);
+      renderComposioCards("settings-composio-grid", currentComposioStatus);
+      notifyResize();
+    };
+
+    window.updateComposioCardStatus = function(toolkit, status, redirectUrl) {
+      if (!currentComposioStatus[toolkit]) {
+        currentComposioStatus[toolkit] = {};
+      }
+      currentComposioStatus[toolkit].status = status;
+      currentComposioStatus[toolkit].connected = (status === "ACTIVE");
+      if (redirectUrl) {
+        currentComposioStatus[toolkit].redirect_url = redirectUrl;
+      }
+      renderComposioCards("onb-composio-grid", currentComposioStatus);
+      renderComposioCards("settings-composio-grid", currentComposioStatus);
+      notifyResize();
+    };
+
     window.displayOnboardingDrawer = function(data) {
       if (autoCloseTimer) clearTimeout(autoCloseTimer);
       progress.classList.remove("active");
@@ -1847,6 +2099,9 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         onbStatusBadge.style.color = "#38bdf8";
         onbStatusBadge.style.background = "rgba(56, 189, 248, 0.12)";
       }
+
+      const accountsOnb = (data && (data.composio_accounts || data.connected_accounts)) || currentComposioStatus;
+      renderComposioCards("onb-composio-grid", accountsOnb);
 
       onbConfirmBtn.innerText = "Confirm & Seal Knowledge Graph";
       onbConfirmBtn.style.background = "#0284c7";
@@ -2056,6 +2311,8 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
 
       renderSettingsApps(currentSettingsData.connected_apps || []);
       renderSettingsCollabs(currentSettingsData.collaborators || []);
+      const accountsSet = (currentSettingsData && (currentSettingsData.composio_accounts || currentSettingsData.connected_accounts)) || currentComposioStatus;
+      renderComposioCards("settings-composio-grid", accountsSet);
       notifyResize();
     };
 
@@ -2473,6 +2730,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       input.focus();
       window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({ action: "get_model_status" }));
       window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({ action: "check_onboarding_status" }));
+      window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({ action: "get_composio_status" }));
     }, 120);
   </script>
 </body>
@@ -2549,6 +2807,14 @@ class OmnibarScriptHandler:
                     payload.get("wrong_app", ""),
                     payload.get("correct_app", "")
                 )
+            elif action == "connect_composio_app":
+                self.controller.on_connect_composio_app(payload.get("toolkit", ""))
+            elif action == "disconnect_composio_app":
+                self.controller.on_disconnect_composio_app(payload.get("toolkit", ""))
+            elif action == "sync_composio_app":
+                self.controller.on_sync_composio_app(payload.get("toolkit", ""))
+            elif action == "get_composio_status":
+                self.controller.on_get_composio_status()
         except Exception as e:
             logger.warning(f"Error handling script message: {e}")
 
@@ -2782,6 +3048,14 @@ class FloatingOmnibar:
                                 payload.get("wrong_app", ""),
                                 payload.get("correct_app", "")
                             )
+                        elif act == "connect_composio_app":
+                            self.ctrl.on_connect_composio_app(payload.get("toolkit", ""))
+                        elif act == "disconnect_composio_app":
+                            self.ctrl.on_disconnect_composio_app(payload.get("toolkit", ""))
+                        elif act == "sync_composio_app":
+                            self.ctrl.on_sync_composio_app(payload.get("toolkit", ""))
+                        elif act == "get_composio_status":
+                            self.ctrl.on_get_composio_status()
                     except Exception as e:
                         logger.warning(f"Bridge dispatch error: {e}")
 
@@ -3018,6 +3292,13 @@ class FloatingOmnibar:
             return
         try:
             profile = self.brain.memory.get_verified_onboarding_profile()
+            if hasattr(self.brain, "get_composio_status"):
+                try:
+                    c_stat = self.brain.get_composio_status()
+                    if isinstance(c_stat, dict) and isinstance(c_stat.get("accounts"), dict):
+                        profile["composio_accounts"] = c_stat["accounts"]
+                except Exception:
+                    pass
             self.evaluate_js(f"window.displayOnboardingDrawer({json.dumps(profile)});")
         except Exception as e:
             logger.warning(f"Error fetching onboarding profile: {e}")
@@ -3038,6 +3319,13 @@ class FloatingOmnibar:
             return
         try:
             settings_data = self.brain.memory.get_user_settings()
+            if hasattr(self.brain, "get_composio_status"):
+                try:
+                    c_stat = self.brain.get_composio_status()
+                    if isinstance(c_stat, dict) and isinstance(c_stat.get("accounts"), dict):
+                        settings_data["composio_accounts"] = c_stat["accounts"]
+                except Exception:
+                    pass
             self.evaluate_js(f"window.displaySettingsDrawer({json.dumps(settings_data)});")
         except Exception as e:
             logger.warning(f"Error fetching user settings: {e}")
@@ -3143,6 +3431,58 @@ class FloatingOmnibar:
         except Exception as e:
             logger.warning(f"Error recording misfire in Omnibar: {e}")
             return None
+
+    def on_connect_composio_app(self, toolkit: str):
+        """Initiates Composio OAuth connection and opens default browser."""
+        if not self.brain or not hasattr(self.brain, "connect_composio_app"):
+            return {"status": "error", "message": "Brain does not support Composio"}
+        try:
+            res = self.brain.connect_composio_app(toolkit)
+            redirect_url = res.get("redirect_url")
+            status = res.get("status", "PENDING")
+            if redirect_url and str(redirect_url).startswith("http"):
+                webbrowser.open(redirect_url)
+            self.evaluate_js(f"window.updateComposioCardStatus('{toolkit}', '{status}', '{redirect_url or ''}');")
+            return res
+        except Exception as e:
+            logger.warning(f"Error connecting Composio app {toolkit}: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def on_disconnect_composio_app(self, toolkit: str):
+        """Disconnects Composio integration and purges its Knowledge Graph data."""
+        if not self.brain or not hasattr(self.brain, "disconnect_composio_app"):
+            return {"status": "error", "message": "Brain does not support Composio"}
+        try:
+            res = self.brain.disconnect_composio_app(toolkit)
+            self.evaluate_js(f"window.updateComposioCardStatus('{toolkit}', 'DISCONNECTED', '');")
+            return res
+        except Exception as e:
+            logger.warning(f"Error disconnecting Composio app {toolkit}: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def on_sync_composio_app(self, toolkit: str):
+        """Runs on-demand sync for a connected Composio integration."""
+        if not self.brain or not hasattr(self.brain, "sync_composio_app"):
+            return {"status": "error", "message": "Brain does not support Composio"}
+        try:
+            res = self.brain.sync_composio_app(toolkit)
+            self.on_get_composio_status()
+            return res
+        except Exception as e:
+            logger.warning(f"Error syncing Composio app {toolkit}: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def on_get_composio_status(self):
+        """Fetches status of all cloud integrations and updates the UI."""
+        if not self.brain or not hasattr(self.brain, "get_composio_status"):
+            return {"status": "error", "message": "Brain does not support Composio"}
+        try:
+            res = self.brain.get_composio_status()
+            self.evaluate_js(f"window.renderComposioStatuses({json.dumps(res)});")
+            return res
+        except Exception as e:
+            logger.warning(f"Error getting Composio status: {e}")
+            return {"status": "error", "message": str(e)}
 
     def on_query_submitted(self, query: str):
         """Processes submitted query with zero flicker and expands Result Drawer."""
