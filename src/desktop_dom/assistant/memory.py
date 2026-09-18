@@ -18,6 +18,45 @@ logger = logging.getLogger("desktop_dom.assistant.memory")
 DEFAULT_DB_DIR = Path.home() / ".desktop_dom"
 DEFAULT_DB_PATH = DEFAULT_DB_DIR / "aura_memory.db"
 
+_CONNECTED_ACCOUNT_STATUSES = {"PENDING", "ACTIVE", "INACTIVE", "ERROR", "REVOKED"}
+_EXTERNAL_PROFILE_FIELDS = {
+    "user.name": "user",
+    "user.email": "user",
+    "user.role": "user",
+    "user.company": "user",
+    "github.default_repo": "developer",
+    "work.repos": "developer",
+    "mail.preferred_client": "mail",
+    "music.preferred_player": "music",
+}
+_SENSITIVE_METADATA_PARTS = (
+    "token",
+    "secret",
+    "password",
+    "cookie",
+    "authorization",
+    "credential",
+    "api_key",
+    "apikey",
+)
+
+
+def _safe_external_metadata(value: Any) -> Any:
+    """Keep provider metadata useful without allowing credential persistence."""
+    if isinstance(value, dict):
+        safe: Dict[str, Any] = {}
+        for key, item in value.items():
+            key_text = str(key).lower()
+            if any(part in key_text for part in _SENSITIVE_METADATA_PARTS):
+                continue
+            safe[str(key)] = _safe_external_metadata(item)
+        return safe
+    if isinstance(value, (list, tuple)):
+        return [_safe_external_metadata(item) for item in value]
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    return str(value)
+
 
 def _edit_distance(s1: str, s2: str) -> int:
     """Calculates Levenshtein distance between two strings with early length bounds."""
@@ -142,6 +181,47 @@ class AuraMemory:
             );
             """)
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_preferences_category ON preferences(category);")
+
+            # 2a. External OAuth accounts. Tokens and raw provider payloads are
+            # deliberately absent; Composio remains the credential authority.
+            cursor.execute("PRAGMA table_info(connected_accounts);")
+            cols = [c[1] for c in cursor.fetchall()]
+            if cols and "user_id" not in cols:
+                # Preserve any pre-release rows for manual migration rather than
+                # deleting user data. The old shape cannot be safely promoted
+                # without a user_id/auth_config_id, so new onboarding starts in
+                # the versioned table below.
+                legacy_name = "connected_accounts_legacy"
+                legacy_exists = cursor.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?;",
+                    (legacy_name,),
+                ).fetchone()
+                if legacy_exists:
+                    legacy_name = "connected_accounts_legacy_v2"
+                cursor.execute(f"ALTER TABLE connected_accounts RENAME TO {legacy_name};")
+
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS connected_accounts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                provider TEXT NOT NULL DEFAULT 'composio',
+                user_id TEXT NOT NULL,
+                toolkit TEXT NOT NULL,
+                auth_config_id TEXT NOT NULL,
+                external_id TEXT,
+                status TEXT NOT NULL,
+                consent_version TEXT NOT NULL,
+                data_scopes TEXT NOT NULL DEFAULT '[]',
+                redirect_url TEXT,
+                metadata TEXT NOT NULL DEFAULT '{}',
+                connected_at REAL,
+                last_synced_at REAL,
+                revoked_at REAL,
+                updated_at REAL NOT NULL,
+                UNIQUE(provider, user_id, toolkit, auth_config_id)
+            );
+            """)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_connected_accounts_user ON connected_accounts(user_id);")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_connected_accounts_external ON connected_accounts(external_id);")
 
             # 2b. Stabilized Anti-Drift Habits Table (Hysteresis & Confidence Guard)
             cursor.execute("""
@@ -744,6 +824,209 @@ class AuraMemory:
                     cursor.execute("SELECT key, value FROM preferences WHERE category = ?;", (category,))
                     return {r["key"]: r["value"] for r in cursor.fetchall()}
             return dict(self._pref_cache)
+
+    # -------------------------------------------------------------------------
+    # External Accounts & Consent-Safe Profile Sync
+    # -------------------------------------------------------------------------
+
+    def upsert_connected_account(self, account: Dict[str, Any]) -> Dict[str, Any]:
+        """Stores Composio connection metadata without credentials or raw data."""
+        if not isinstance(account, dict):
+            raise ValueError("Connected account must be a dictionary")
+
+        provider = str(account.get("provider") or "composio").strip().lower()
+        user_id = str(account.get("user_id") or "").strip()
+        toolkit = str(account.get("toolkit") or "").strip().lower()
+        auth_config_id = str(account.get("auth_config_id") or "").strip()
+        if not user_id or not toolkit or not auth_config_id:
+            raise ValueError("user_id, toolkit, and auth_config_id are required")
+
+        status = str(account.get("status") or "PENDING").strip().upper()
+        if status not in _CONNECTED_ACCOUNT_STATUSES:
+            raise ValueError(f"Unsupported connected account status: {status}")
+
+        now = time.time()
+        scopes = sorted({str(scope).strip() for scope in (account.get("data_scopes") or []) if str(scope).strip()})
+        metadata = json.dumps(_safe_external_metadata(account.get("metadata") or {}), sort_keys=True)
+        connected_at = account.get("connected_at")
+        if connected_at is None and status == "ACTIVE":
+            connected_at = now
+
+        with self._lock, self._get_connection() as conn:
+            conn.execute("""
+            INSERT INTO connected_accounts (
+                provider, user_id, toolkit, auth_config_id, external_id, status,
+                consent_version, data_scopes, redirect_url, metadata,
+                connected_at, last_synced_at, revoked_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(provider, user_id, toolkit, auth_config_id) DO UPDATE SET
+                external_id = excluded.external_id,
+                status = excluded.status,
+                consent_version = excluded.consent_version,
+                data_scopes = excluded.data_scopes,
+                redirect_url = excluded.redirect_url,
+                metadata = excluded.metadata,
+                connected_at = COALESCE(excluded.connected_at, connected_accounts.connected_at),
+                last_synced_at = COALESCE(excluded.last_synced_at, connected_accounts.last_synced_at),
+                revoked_at = excluded.revoked_at,
+                updated_at = excluded.updated_at;
+            """, (
+                provider,
+                user_id,
+                toolkit,
+                auth_config_id,
+                str(account.get("external_id") or "").strip() or None,
+                status,
+                str(account.get("consent_version") or "v1").strip(),
+                json.dumps(scopes),
+                str(account.get("redirect_url") or "").strip() or None,
+                metadata,
+                connected_at,
+                account.get("last_synced_at"),
+                account.get("revoked_at"),
+                now,
+            ))
+            conn.commit()
+
+        return self.get_connected_account(
+            external_id=str(account.get("external_id") or "").strip() or None,
+            user_id=user_id,
+            toolkit=toolkit,
+        ) or {}
+
+    def get_connected_account(
+        self,
+        external_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        toolkit: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Returns safe connection metadata for a Composio account."""
+        clauses = []
+        values: List[Any] = []
+        if external_id:
+            clauses.append("external_id = ?")
+            values.append(external_id)
+        if user_id:
+            clauses.append("user_id = ?")
+            values.append(user_id)
+        if toolkit:
+            clauses.append("toolkit = ?")
+            values.append(toolkit.strip().lower())
+        if not clauses:
+            raise ValueError("An external_id, user_id, or toolkit is required")
+
+        with self._lock, self._get_connection() as conn:
+            row = conn.execute(
+                f"SELECT * FROM connected_accounts WHERE {' AND '.join(clauses)} ORDER BY id DESC LIMIT 1;",
+                tuple(values),
+            ).fetchone()
+        return self._serialize_connected_account(row) if row else None
+
+    def list_connected_accounts(self, user_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Lists safe connection metadata; credentials never enter this response."""
+        with self._lock, self._get_connection() as conn:
+            if user_id:
+                rows = conn.execute(
+                    "SELECT * FROM connected_accounts WHERE user_id = ? ORDER BY id DESC;",
+                    (user_id,),
+                ).fetchall()
+            else:
+                rows = conn.execute("SELECT * FROM connected_accounts ORDER BY id DESC;").fetchall()
+        return [self._serialize_connected_account(row) for row in rows]
+
+    @staticmethod
+    def _serialize_connected_account(row: sqlite3.Row) -> Dict[str, Any]:
+        item = dict(row)
+        try:
+            item["data_scopes"] = json.loads(item.get("data_scopes") or "[]")
+        except (TypeError, json.JSONDecodeError):
+            item["data_scopes"] = []
+        try:
+            item["metadata"] = json.loads(item.get("metadata") or "{}")
+        except (TypeError, json.JSONDecodeError):
+            item["metadata"] = {}
+        return item
+
+    def update_connected_account(
+        self,
+        external_id: str,
+        *,
+        status: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        last_synced_at: Optional[float] = None,
+        revoked_at: Optional[float] = None,
+    ) -> Dict[str, Any]:
+        """Updates lifecycle metadata for an external account."""
+        clean_status = status.strip().upper() if status else None
+        if clean_status and clean_status not in _CONNECTED_ACCOUNT_STATUSES:
+            raise ValueError(f"Unsupported connected account status: {clean_status}")
+        current = self.get_connected_account(external_id=external_id)
+        if not current:
+            raise ValueError(f"Connected account not found: {external_id}")
+
+        safe_metadata = current.get("metadata") or {}
+        if metadata:
+            safe_metadata.update(_safe_external_metadata(metadata))
+        now = time.time()
+        with self._lock, self._get_connection() as conn:
+            conn.execute("""
+            UPDATE connected_accounts
+            SET status = COALESCE(?, status),
+                metadata = ?,
+                last_synced_at = COALESCE(?, last_synced_at),
+                revoked_at = COALESCE(?, revoked_at),
+                updated_at = ?
+            WHERE external_id = ?;
+            """, (
+                clean_status,
+                json.dumps(safe_metadata, sort_keys=True),
+                last_synced_at,
+                revoked_at,
+                now,
+                external_id,
+            ))
+            conn.commit()
+        return self.get_connected_account(external_id=external_id) or {}
+
+    def revoke_connected_account(self, external_id: str) -> Dict[str, Any]:
+        """Marks a connected account as REVOKED and records timestamp."""
+        return self.update_connected_account(external_id, status="REVOKED", revoked_at=time.time())
+
+    def apply_external_profile_patch(
+        self,
+        values: Dict[str, Any],
+        *,
+        source: str,
+        connected_account_id: str,
+    ) -> Dict[str, Any]:
+        """Applies an allow-listed normalized profile patch with provenance."""
+        if not isinstance(values, dict):
+            raise ValueError("External profile patch must be a dictionary")
+
+        updated_fields: List[str] = []
+        for key, value in values.items():
+            if key not in _EXTERNAL_PROFILE_FIELDS:
+                raise ValueError(f"Unsupported external profile field: {key}")
+            if isinstance(value, list) and key == "work.repos":
+                value = json.dumps([str(item).strip() for item in value if str(item).strip()])
+            if not isinstance(value, (str, int, float, bool)):
+                raise ValueError(f"Unsupported value for external profile field: {key}")
+            clean_value = str(value).strip()
+            if not clean_value:
+                continue
+            if key == "user.email" and ("@" not in clean_value or " " in clean_value):
+                raise ValueError("External profile returned an invalid email")
+            self.set_preference(key, clean_value, category=_EXTERNAL_PROFILE_FIELDS[key])
+            updated_fields.append(key)
+
+        provenance = {
+            "source": str(source).strip() or "composio",
+            "connected_account_id": str(connected_account_id).strip(),
+            "updated_fields": updated_fields,
+            "updated_at": time.time(),
+        }
+        self.set_preference("profile.last_external_sync", json.dumps(provenance, sort_keys=True), category="provenance")
+        return {"updated_fields": updated_fields, "provenance": provenance}
 
     # -------------------------------------------------------------------------
     # Stabilized Anti-Drift Habit Engine (Hysteresis & Confidence Guard)
@@ -2575,6 +2858,7 @@ class AuraMemory:
                 },
                 "graph_topology": graph_summary,
                 "top_apps": top_apps,
+                "connected_accounts": self.list_connected_accounts(),
                 "cluster_isolation_status": "STRICT_DISJOINT",
             }
 
@@ -2642,6 +2926,7 @@ class AuraMemory:
                     "default_repo": self.get_preference("github.default_repo", "PDgit12/desktop-dom"),
                     "repos": repos,
                 },
+                "connected_accounts": self.list_connected_accounts(),
                 "collaborators": collabs,
                 "verified": self.is_onboarding_verified(),
             }
@@ -2854,6 +3139,15 @@ class AuraMemory:
         """Resets onboarding status so user can re-trigger fresh onboarding flow."""
         self.set_preference("onboarding.verified", "false", category="onboarding")
         self.set_preference("onboarding.completed", "false", category="onboarding")
+        # Preserve provider-side accounts, but invalidate local consent until the
+        # user explicitly reconnects or grants the scopes again.
+        for account in self.list_connected_accounts():
+            if account.get("status") == "ACTIVE" and account.get("external_id"):
+                self.update_connected_account(
+                    account["external_id"],
+                    status="INACTIVE",
+                    metadata={"reason": "onboarding_reset"},
+                )
         return {"status": "success", "verified": False}
 
     def reinforce_interaction(self, action_type: str, entity_name: Optional[str] = None, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -3598,3 +3892,56 @@ class AuraMemory:
                 conn.commit()
 
         self._reload_cache()
+
+    def purge_provenance_data(self, provenance_prefix: str) -> Dict[str, int]:
+        """
+        Privacy & Deletion guarantee:
+        Purges all entities, edges, and activity records whose sole provenance matches prefix (e.g. 'composio:gmail').
+        """
+        clean_prefix = provenance_prefix.strip().lower()
+        purged_entities = 0
+        purged_edges = 0
+
+        with self._lock, self._get_connection() as conn:
+            cursor = conn.cursor()
+            # 1. Identify matching edges first (prior to cascade)
+            cursor.execute("SELECT id, metadata FROM graph_edges;")
+            erows = cursor.fetchall()
+            edges_to_delete = []
+            for er in erows:
+                try:
+                    emeta = json.loads(er["metadata"] or "{}")
+                    eprov = str(emeta.get("provenance", "")).lower()
+                    if eprov.startswith(clean_prefix):
+                        edges_to_delete.append(er["id"])
+                except Exception:
+                    pass
+
+            for edge_id in edges_to_delete:
+                cursor.execute("DELETE FROM graph_edges WHERE id = ?;", (edge_id,))
+                purged_edges += cursor.rowcount
+
+            # 2. Identify matching entities
+            cursor.execute("SELECT id, metadata FROM entities;")
+            rows = cursor.fetchall()
+            ent_to_delete = []
+            for r in rows:
+                try:
+                    meta = json.loads(r["metadata"] or "{}")
+                    prov = str(meta.get("provenance", "")).lower()
+                    if prov.startswith(clean_prefix):
+                        ent_to_delete.append(r["id"])
+                except Exception:
+                    pass
+
+            for eid in ent_to_delete:
+                cursor.execute("DELETE FROM entities WHERE id = ?;", (eid,))
+                purged_entities += cursor.rowcount
+
+            conn.commit()
+
+        self._reload_cache()
+        return {
+            "purged_entities": purged_entities,
+            "purged_edges": purged_edges,
+        }
