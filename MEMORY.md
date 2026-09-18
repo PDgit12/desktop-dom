@@ -131,5 +131,22 @@ Eliminates vision agent flaws (>90% token waste, 3–6 second latency, pixel coo
     - Fixed Python `"" in s` edge case in `resolve_entity()` where empty roles incorrectly scored 92.0 against contact names.
     - Locked `spotify.playlist.personal` preference and habit during verified onboarding and handled explicit `req_personal` in `brain.py`.
   - **Native macOS Bundle:** Rebuilt and verified `~/Applications/Aura.app` with `Info.plist`, executable launcher, dark glassmorphic `AppIcon.icns`, and embedded source tree.
-  - **50-Test Opaque-Box E2E Suite (`tests/test_e2e_opaque_box.py`):** Hermetic validation across Tier 1 (Onboarding & Memory), Tier 2 (OS Adapters & Non-Binary Integrations), Tier 3 (Natural Intents & Symmetry Breaking), and Tier 4 (Knitbrain Self-Learning & Edge Weight Adaptation).
+- **Professional Non-AI Command Palette UI & Draggable Omnibar Anywhere (254 Tests Certified):**
+  - **Free-Floating Window Dragging & Hover Anywhere:**
+    - Integrated native `-webkit-app-region: drag` and grab cursor styling on `#drag-handle-bar` and `#header-bar` with `-webkit-app-region: no-drag` on interactive controls.
+    - Implemented `initDraggableWindow()` in JavaScript posting real-time screen coordinate deltas (`dx`, `dy`) via `drag_window` WebKit IPC message handler.
+    - Added `move_window_by(dx, dy)` in `FloatingOmnibar` and `OmnibarScriptHandler`, translating Cocoa `NSPanel` screen coordinates (`new_origin = NSMakePoint(frame.origin.x + dx, frame.origin.y - dy)`).
+    - Enabled `setMovable_(True)` and `setMovableByWindowBackground_(True)` on `AuraKeyablePanelObjC`.
+  - **Institutional-Grade / Non-AI Styling:**
+    - Replaced chatbot novelty with sleek, high-contrast command palette design (Spotlight / Raycast / Linear aesthetic).
+    - Added workspace pill (`[ ⚡ Crcle.ai • Work ]`) dynamically displaying current cluster and opening Knowledge Graph configuration drawer on click.
+    - Updated query input placeholder to `"Search commands, meetings, contacts, or type an action..."`.
+    - Added keyboard navigation badges (`<kbd>↑↓</kbd> Navigate`, `<kbd>↵</kbd> Execute`, `<kbd>esc</kbd> Dismiss`, `<kbd>✥</kbd> Drag Anywhere`).
+  - **Defensive Execution & Context Symmetry Hardening:**
+    - Wrapped AppleScript calls (`osascript`) for Microsoft Outlook and Apple Mail in defensive `try ... except (subprocess.SubprocessError, subprocess.TimeoutExpired, FileNotFoundError, OSError)` with 4.0s timeout to prevent unhandled exceptions when email clients are closed or unresponsive.
+    - Hardened `resolve_entity()` in `memory.py` to prioritize explicit personal context (`activity_category == "personal"` or messaging app) so time-of-day work hours never incorrectly override personal communication.
+  - **Automated Verification & Packaging:**
+    - 254 / 254 tests passing cleanly across full pytest suite in 58.01s (0 failures, 0 errors, 0 warnings).
+    - Native macOS application bundle `Aura.app` built and installed to `/Users/piyushdua/Applications/Aura.app`.
+    - Git branches `develop` and `main` fully synchronized with remote `origin` (`PDgit12/desktop-dom`).
 
