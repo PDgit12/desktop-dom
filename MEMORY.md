@@ -147,6 +147,30 @@ Eliminates vision agent flaws (>90% token waste, 3–6 second latency, pixel coo
     - Hardened `resolve_entity()` in `memory.py` to prioritize explicit personal context (`activity_category == "personal"` or messaging app) so time-of-day work hours never incorrectly override personal communication.
   - **Automated Verification & Packaging:**
     - 254 / 254 tests passing cleanly across full pytest suite in 58.01s (0 failures, 0 errors, 0 warnings).
-    - Native macOS application bundle `Aura.app` built and installed to `/Users/piyushdua/Applications/Aura.app`.
-    - Git branches `develop` and `main` fully synchronized with remote `origin` (`PDgit12/desktop-dom`).
+- **Composio Federated Integration & Sovereign Data Access Layer (269 Tests Certified):**
+  - **Sovereign Canonical Data Contracts (`integrations/contracts.py`):**
+    - Zero External Vendor Coupling: Aura owns `CanonicalCalendarEvent`, `CanonicalContact`, `CanonicalRepository`, and `CanonicalCommunicationSnippet`.
+    - Zero Token / Credential Storage: Aura never stores OAuth tokens or refresh secrets locally; Composio remains the OAuth credential authority.
+    - Explicit `ConnectedAccountState` with toolkits (`googlecalendar`, `github`, `gmail`, `slack`), data scopes, and state lifecycle (`PENDING`, `ACTIVE`, `REVOKED`, `DISCONNECTED`).
+  - **Zero-Dependency Resilient Client (`integrations/composio_client.py`):**
+    - Pure Python standard library (`urllib.request`) client with strict timeouts (10.0s), header auth, and graceful offline/unconfigured trapping.
+  - **Bounded Normalization Pipeline (`integrations/normalizer.py`):**
+    - Google Calendar: Extracts events, timestamps, attendee lists, and regex-parses video conferencing links (Zoom, Google Meet, Microsoft Teams).
+    - GitHub: Normalizes repositories, stars, open PRs, languages, and owner metadata.
+    - Gmail / Slack: Extracts correspondent contacts, interaction frequency, and recent message snippets with strict privacy truncation (max 300 chars, no attachments/PII).
+  - **Sync & Ingestion Engine (`integrations/composio_ingest.py`):**
+    - Sync cycles (`sync_calendar`, `sync_github`, `sync_gmail`, `sync_all_active`) map external items into SQLite `graph_entities` and `graph_edges` tagged with immutable source provenance (e.g. `provenance: "composio:googlecalendar"`).
+    - Privacy Purge (`disconnect_and_purge`): Instantly severs connection in Composio and purges all entities and edges originating from that toolkit from local SQLite without touching manually verified onboarding data.
+  - **Omnibar UI & WebKit IPC Bridge (`omnibar.py`):**
+    - High-density dark glassmorphic integration grid (`.composio-connect-grid`) in both Onboarding and Settings drawers.
+    - Live connection cards (`googlecalendar`, `github`, `gmail`, `slack`) with status badges (`Connected`, `Connecting...`, `Connect`).
+    - Two-way WebKit script message handlers: `connect_composio_app`, `disconnect_composio_app`, `sync_composio_app`, and `get_composio_status`.
+    - Real-time OAuth popup trigger opening Composio authorization flow in user's default browser.
+  - **Intent Layer Enrichment (`brain.py` & `non_binary.py`):**
+    - `get_calendar_briefing()` prioritizes cached canonical Google Calendar events from Composio (`tier="canonical_composio"`), rendering rich meeting agendas with direct Join links.
+    - `_handle_meeting_intent()` enriches meeting requests (`"i have a meeting with Hannah"`) by extracting canonical meeting URLs and injecting them into the response payload.
+  - **Automated Verification & Release:**
+    - 269 / 269 tests passing across all 22 test suites in 60.86s with zero failures, zero errors, and zero warnings.
+    - Native macOS application bundle `Aura.app` rebuilt and installed to `~/Applications/Aura.app`.
+    - Synchronized `develop` and `main` branches and pushed to GitHub remote `PDgit12/desktop-dom`.
 
