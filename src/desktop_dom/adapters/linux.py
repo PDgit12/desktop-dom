@@ -75,7 +75,7 @@ class LinuxAdapter(BasePlatformAdapter):
         except Exception as e:
             logger.warning(f"Could not discover AT-SPI D-Bus bus: {e}")
 
-    def check_permissions(self) -> Dict[str, Any]:
+    def check_permissions(self, prompt: bool = False) -> Dict[str, Any]:
         self._require_linux()
         has_xdotool = shutil.which("xdotool") is not None
         has_ydotool = shutil.which("ydotool") is not None

@@ -47,6 +47,7 @@ class AuraMemory:
         self.db_path = Path(db_path) if db_path else DEFAULT_DB_PATH
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
+        self._conn: Optional[sqlite3.Connection] = None
         
         # In-memory hot cache for instant (<0.1ms) lookups
         self._entity_cache: List[Dict[str, Any]] = []
@@ -62,13 +63,43 @@ class AuraMemory:
         self._reload_cache()
 
     def _get_connection(self) -> sqlite3.Connection:
-        """Returns a configured SQLite connection with row factories and WAL mode."""
-        conn = sqlite3.connect(str(self.db_path), check_same_thread=False, timeout=5.0)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL;")
-        conn.execute("PRAGMA synchronous=NORMAL;")
-        conn.execute("PRAGMA foreign_keys=ON;")
-        return conn
+        """Returns the cached SQLite connection with row factories and WAL mode."""
+        with self._lock:
+            if self._conn is None:
+                conn = sqlite3.connect(str(self.db_path), check_same_thread=False, timeout=10.0)
+                conn.row_factory = sqlite3.Row
+                conn.execute("PRAGMA journal_mode=WAL;")
+                conn.execute("PRAGMA synchronous=NORMAL;")
+                conn.execute("PRAGMA foreign_keys=ON;")
+                self._conn = conn
+            return self._conn
+
+    def close(self) -> None:
+        """Explicitly closes the cached SQLite connection and releases file descriptors."""
+        with self._lock:
+            if self._conn is not None:
+                try:
+                    self._conn.commit()
+                except Exception:
+                    pass
+                try:
+                    self._conn.close()
+                except Exception as e:
+                    logger.warning(f"Error closing SQLite connection: {e}")
+                finally:
+                    self._conn = None
+
+    def __enter__(self) -> "AuraMemory":
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        self.close()
+
+    def __del__(self) -> None:
+        try:
+            self.close()
+        except Exception:
+            pass
 
     def _init_db(self):
         """Initializes database schema and bootstraps seed data if new."""
@@ -549,7 +580,7 @@ class AuraMemory:
                 elif any(clean == a.split()[0] for a in [name_clean] + aliases):
                     score = 94.0
                 # Tier 3: Role / Title Semantic Match (e.g. "ceo", "founder", "systems lead")
-                elif clean and (clean in role_clean or role_clean in clean) and len(clean) >= 3:
+                elif role_clean and (clean in role_clean or role_clean in clean) and len(clean) >= 3:
                     score = 92.0
                 # Tier 4: Typo-Tolerant Edit Distance (Levenshtein)
                 else:
@@ -2290,6 +2321,7 @@ class AuraMemory:
             self.set_preference("spotify.playlist.gaming", gaming_playlist, category="music")
         if favorite_artist:
             self.set_preference("spotify.favorite_artist", favorite_artist, category="music")
+            self.set_preference("spotify.playlist.personal", favorite_artist, category="music")
         self.set_preference("onboarding.completed", "true", category="onboarding")
         self.set_preference("onboarding.verified", "true", category="onboarding")
         self.set_preference("onboarding.verified_at", str(now), category="onboarding")
@@ -2300,6 +2332,8 @@ class AuraMemory:
         self.record_habit_observation("spotify.playlist.coding", focus_playlist, category="music", is_explicit=True)
         if gaming_playlist:
             self.record_habit_observation("spotify.playlist.gaming", gaming_playlist, category="music", is_explicit=True)
+        if favorite_artist:
+            self.record_habit_observation("spotify.playlist.personal", favorite_artist, category="music", is_explicit=True)
         self.record_habit_observation("mail.preferred_client", primary_mail, category="mail", is_explicit=True)
         self.record_habit_observation("apps.primary_browser", primary_browser, category="apps", is_explicit=True)
 
@@ -2501,13 +2535,15 @@ class AuraMemory:
 
             return {
                 "verified": verified,
+                "user_name": profile["name"] if verified else "",
+                "user_email": profile["email"] if verified else "",
                 "mode": self.get_preference("onboarding.mode", "ambient"),
                 "verified_at": self.get_preference("onboarding.verified_at"),
                 "user": {
-                    "name": profile["name"],
-                    "email": profile["email"],
-                    "role": profile["role"],
-                    "company": profile["company"],
+                    "name": profile["name"] if verified else "",
+                    "email": profile["email"] if verified else "",
+                    "role": profile["role"] if verified else "",
+                    "company": profile["company"] if verified else "",
                 },
                 "collaborators": collabs[:4],
                 "app_bindings": {
@@ -2680,7 +2716,7 @@ class AuraMemory:
             company=comp,
             aliases=aliases,
             category="contact",
-            metadata={"verified": True, "provenance": "user_settings"}
+            metadata={"verified": True, "provenance": "user_settings", "cluster": "work"}
         )
         self.add_edge(user_name, clean_name, "collaborates_with", cluster="work", weight=1.0, metadata={"provenance": "user_settings"})
         if comp:
@@ -2717,10 +2753,9 @@ class AuraMemory:
             if not target_id:
                 return {"status": "not_found", "message": f"Collaborator '{identifier}' not found"}
 
-            with sqlite3.connect(self.db_path) as conn:
+            with self._get_connection() as conn:
                 conn.execute("DELETE FROM entities WHERE id = ?;", (target_id,))
                 conn.execute("DELETE FROM graph_edges WHERE source_id = ? OR target_id = ?;", (target_id, target_id))
-                conn.commit()
 
         self._reload_cache()
         return {"status": "success", "deleted_id": target_id, "deleted_name": target_name}
@@ -2796,10 +2831,9 @@ class AuraMemory:
             if self.get_preference("apps.primary_meeting") == target_name:
                 self.set_preference("apps.primary_meeting", "", category="apps")
 
-            with sqlite3.connect(self.db_path) as conn:
+            with self._get_connection() as conn:
                 conn.execute("DELETE FROM entities WHERE id = ?;", (target_id,))
                 conn.execute("DELETE FROM graph_edges WHERE source_id = ? OR target_id = ?;", (target_id, target_id))
-                conn.commit()
 
         self._reload_cache()
         return {"status": "success", "deleted_id": target_id, "deleted_name": target_name}
@@ -2822,14 +2856,13 @@ class AuraMemory:
                 if ent and ent.get("id", -1) > 0:
                     ent_id = ent["id"]
                     self.touch_entity(ent_id, action_type)
-                    with sqlite3.connect(self.db_path) as conn:
+                    with self._get_connection() as conn:
                         conn.execute("""
                         UPDATE graph_edges
                         SET weight = MIN(1.0, weight + 0.05),
                             updated_at = ?
                         WHERE source_id = ? OR target_id = ?;
                         """, (now, ent_id, ent_id))
-                        conn.commit()
 
         self._reload_cache()
         return {"status": "success", "action": action_type, "entity": entity_name}

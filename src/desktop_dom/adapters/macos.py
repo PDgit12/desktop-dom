@@ -124,8 +124,18 @@ class MacOSAdapter(BasePlatformAdapter):
                 "pip install pyobjc-framework-ApplicationServices pyobjc-framework-Quartz pyobjc-framework-Cocoa"
             )
 
-    def check_permissions(self) -> Dict[str, Any]:
-        trusted = ApplicationServices.AXIsProcessTrusted()
+    def check_permissions(self, prompt: bool = False) -> Dict[str, Any]:
+        trusted = False
+        if HAS_MACOS_DEPS:
+            if prompt and hasattr(ApplicationServices, "AXIsProcessTrustedWithOptions"):
+                try:
+                    opt_key = getattr(ApplicationServices, "kAXTrustedCheckOptionPrompt", "AXTrustedCheckOptionPrompt")
+                    trusted = bool(ApplicationServices.AXIsProcessTrustedWithOptions({opt_key: True}))
+                except Exception:
+                    trusted = bool(ApplicationServices.AXIsProcessTrusted())
+            else:
+                trusted = bool(ApplicationServices.AXIsProcessTrusted())
+
         return {
             "platform": "darwin",
             "accessibility_trusted": bool(trusted),

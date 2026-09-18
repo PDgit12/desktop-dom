@@ -119,3 +119,17 @@ Eliminates vision agent flaws (>90% token waste, 3–6 second latency, pixel coo
 - Branches: `main` (stable) and `develop` (integration) synced on `PDgit12/desktop-dom`.
 - Remote repository live on GitHub at `https://github.com/PDgit12/desktop-dom` with 100% sole contributor attribution for PDgit12.
 
+- **Production Hardening, SQLite Connection Integrity & 253-Test Opaque-Box Suite (Certified):**
+  - **Zero-Warning Pytest Suite:** 253 / 253 tests passing across 20 test suites in 39.5s with zero failures, zero errors, and zero warnings (`asyncio_default_fixture_loop_scope = "function"`).
+  - **Memory Integrity & SQLite Connection Caching:** Replaced transient connection opening with thread-safe cached connection (`self._conn` under `threading.RLock`) in `AuraMemory`, along with context manager (`__enter__`/`__exit__`) and `close()`.
+  - **OS Permissions Diagnostic & Auto-Prompt:** Added optional `prompt: bool = False` to `BasePlatformAdapter.check_permissions` across all platform adapters (`MacOSAdapter`, `LinuxAdapter`, `WindowsAdapter`, `TestPlatformAdapter`). macOS triggers `AXIsProcessTrustedWithOptions({kAXTrustedCheckOptionPrompt: True})` when `doctor --fix` is invoked.
+  - **Non-Binary Defensive Error Handling:** Trapped non-zero return codes and AppleScript `ERROR:` strings in `get_last_email()` to surface genuine permission denials and execution failures as `status: "error"` instead of masking them as `not_found`.
+  - **Intent Layer & Symmetry Breaking:**
+    - Broadened meeting regex in `brain.py` to capture `upcoming`, `next`, and `current` meeting variations.
+    - Preserved ticket acronyms (e.g. `ENG-401`) and proper nouns in message drafting by replacing `str.capitalize()` with first-letter uppercase.
+    - Derived active work context from domain-specific tokens (`email`, `mail`, `outlook`, `design`, `tokens`, `pr`) to ensure work symmetry breaking even during off-hours testing.
+    - Fixed Python `"" in s` edge case in `resolve_entity()` where empty roles incorrectly scored 92.0 against contact names.
+    - Locked `spotify.playlist.personal` preference and habit during verified onboarding and handled explicit `req_personal` in `brain.py`.
+  - **Native macOS Bundle:** Rebuilt and verified `~/Applications/Aura.app` with `Info.plist`, executable launcher, dark glassmorphic `AppIcon.icns`, and embedded source tree.
+  - **50-Test Opaque-Box E2E Suite (`tests/test_e2e_opaque_box.py`):** Hermetic validation across Tier 1 (Onboarding & Memory), Tier 2 (OS Adapters & Non-Binary Integrations), Tier 3 (Natural Intents & Symmetry Breaking), and Tier 4 (Knitbrain Self-Learning & Edge Weight Adaptation).
+

@@ -105,7 +105,7 @@ class WindowsAdapter(BasePlatformAdapter):
             logger.error(f"Failed to initialize COM UI Automation: {e}")
             raise
 
-    def check_permissions(self) -> Dict[str, Any]:
+    def check_permissions(self, prompt: bool = False) -> Dict[str, Any]:
         self._require_windows()
         return {
             "platform": "win32",

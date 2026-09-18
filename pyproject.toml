@@ -35,6 +35,7 @@ macos = [
     "pyobjc-framework-ApplicationServices>=10.0",
     "pyobjc-framework-Quartz>=10.0",
     "pyobjc-framework-Cocoa>=10.0",
+    "pyobjc-framework-WebKit>=10.0",
 ]
 windows = [
     "comtypes>=1.2.0",
@@ -67,4 +68,7 @@ testpaths = ["tests"]
 pythonpath = [".", "src"]
 python_files = "test_*.py"
 python_functions = "test_*"
+asyncio_mode = "strict"
+asyncio_default_fixture_loop_scope = "function"
+
 

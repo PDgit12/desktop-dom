@@ -25,7 +25,7 @@ def doctor(
 ):
     """Validates OS accessibility permissions, display scale factors, and dependencies."""
     adapter = get_platform_adapter()
-    perms = adapter.check_permissions()
+    perms = adapter.check_permissions(prompt=fix)
     scale = adapter.get_display_scale_factor()
 
     table = Table(title="desktop-dom Doctor Check")

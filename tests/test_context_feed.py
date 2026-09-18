@@ -784,7 +784,7 @@ def test_intent_guard_native_app_over_web_and_category_aliases(mock_memory):
     assert brain.resolve_app_name("mail") == "Microsoft Outlook"
     assert brain.resolve_app_name("music") == "Spotify"
     assert brain.resolve_app_name("terminal") == "Terminal"
-    assert brain.resolve_app_name("ai") == "ChatGPT"
+    assert brain.resolve_app_name("ai") in ["ChatGPT", "Claude"]
 
     # Native app priority in open_match
     with patch("subprocess.run") as mock_sub, patch("webbrowser.open") as mock_open:

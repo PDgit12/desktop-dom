@@ -92,7 +92,7 @@ class TestPlatformAdapter(BasePlatformAdapter):
             ],
         )
 
-    def check_permissions(self):
+    def check_permissions(self, prompt: bool = False):
         return {"platform": "test", "accessibility_trusted": True, "message": "Test fixture trusted."}
 
     def list_applications(self):

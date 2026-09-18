@@ -876,6 +876,7 @@ def get_last_email(contact_name: str, app: str = "Outlook", timeout: float = 4.0
     time_str: Optional[str] = None
     snippet: Optional[str] = None
     resolved_app: str = app
+    last_error: Optional[str] = None
 
     # 1. Try Microsoft Outlook
     if try_outlook:
@@ -898,16 +899,18 @@ def get_last_email(contact_name: str, app: str = "Outlook", timeout: float = 4.0
         return "ERROR: " & errMsg
     end try
 end tell'''
-        code, stdout, _ = _run_applescript(outlook_osa, timeout=timeout)
-        if code == 0 and stdout.strip():
-            out = stdout.strip()
-            if not out.startswith("ERROR:") and out != "NO_MESSAGES_FOUND":
-                parts = out.split("|||") if "|||" in out else out.split("\n")
-                if len(parts) >= 2:
-                    subject = parts[0].strip()
-                    time_str = parts[1].strip()
-                    snippet = parts[2].strip() if len(parts) > 2 else ""
-                    resolved_app = "Microsoft Outlook"
+        code, stdout, stderr = _run_applescript(outlook_osa, timeout=timeout)
+        if code != 0:
+            last_error = (stderr or "").strip() or f"AppleScript exited with code {code}"
+        elif stdout.strip().startswith("ERROR:"):
+            last_error = stdout.strip()
+        elif stdout.strip() and stdout.strip() != "NO_MESSAGES_FOUND":
+            parts = stdout.strip().split("|||") if "|||" in stdout.strip() else stdout.strip().split("\n")
+            if len(parts) >= 2:
+                subject = parts[0].strip()
+                time_str = parts[1].strip()
+                snippet = parts[2].strip() if len(parts) > 2 else ""
+                resolved_app = "Microsoft Outlook"
 
     # 2. Try Apple Mail if not found in Outlook
     if not subject and try_mail:
@@ -930,19 +933,33 @@ end tell'''
         return "ERROR: " & errMsg
     end try
 end tell'''
-        code, stdout, _ = _run_applescript(mail_osa, timeout=timeout)
-        if code == 0 and stdout.strip():
-            out = stdout.strip()
-            if not out.startswith("ERROR:") and out != "NO_MESSAGES_FOUND":
-                parts = out.split("|||") if "|||" in out else out.split("\n")
-                if len(parts) >= 2:
-                    subject = parts[0].strip()
-                    time_str = parts[1].strip()
-                    snippet = parts[2].strip() if len(parts) > 2 else ""
-                    resolved_app = "Apple Mail"
+        code, stdout, stderr = _run_applescript(mail_osa, timeout=timeout)
+        if code != 0:
+            last_error = (stderr or "").strip() or f"AppleScript exited with code {code}"
+        elif stdout.strip().startswith("ERROR:"):
+            last_error = stdout.strip()
+        elif stdout.strip() and stdout.strip() != "NO_MESSAGES_FOUND":
+            parts = stdout.strip().split("|||") if "|||" in stdout.strip() else stdout.strip().split("\n")
+            if len(parts) >= 2:
+                subject = parts[0].strip()
+                time_str = parts[1].strip()
+                snippet = parts[2].strip() if len(parts) > 2 else ""
+                resolved_app = "Apple Mail"
 
     # Not found in either client
     if not subject:
+        if last_error:
+            return {
+                "status": "error",
+                "action": "last_email_query",
+                "contact": clean_contact,
+                "app": resolved_app,
+                "message": f"Email query error for {resolved_app}: {last_error}",
+                "subject": None,
+                "received": None,
+                "snippet": None,
+                "response": f"Could not retrieve email from {resolved_app}: {last_error}",
+            }
         return {
             "status": "not_found",
             "action": "last_email_query",

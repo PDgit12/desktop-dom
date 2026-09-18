@@ -1143,7 +1143,7 @@ end tell'''
 
         # 2. Meeting Intent & Companion Routing ("i have a meeting [with ...]", "meeting with ...", "meetup with ...", "meeting starting", "join meeting", "meeting notes")
         meeting_regex = re.match(
-            r"^(?:(?:i\s+have|i\'m\s+in|im\s+in|have|got|there\s*is|starting|start|join|prep\s+for|in|take|open)\s+(?:a\s+|my\s+)?)?(?:meeting|meetup|sync)(?:\s+(?:is\s+)?starting|\s+notes|\s+now)?(?:\s+(?:with|and)\s+([a-zA-Z0-9\s]+?))?(?:\s+(?:about|regarding)\s+(.+))?$",
+            r"^(?:(?:i\s+have|i\'m\s+in|im\s+in|have|got|upcoming|next|current|there\s*is|starting|start|join|prep\s+for|in|take|open)\s+(?:a\s+|my\s+|an\s+)?)?(?:meeting|meetup|sync)(?:\s+(?:is\s+)?starting|\s+notes|\s+now)?(?:\s+(?:with|and)\s+([a-zA-Z0-9\s]+?))?(?:\s+(?:about|regarding)\s+(.+))?$",
             prompt,
             re.IGNORECASE
         )
@@ -1284,13 +1284,22 @@ end tell'''
             # 1. Tier 1: Explicit User Lock in habits table or preferences (ground truth)
             explicit_fav = self.memory.resolve_habit("spotify.favorite_playlist") or self.memory.get_preference("spotify.favorite_playlist")
 
-            # Check if user explicitly asked for gaming vs coding/focus
+            # Check if user explicitly asked for gaming vs coding/focus vs personal
             req_gaming = any(w in prompt for w in ["gaming", "game", "fifa"])
             req_coding = any(w in prompt for w in ["coding", "code", "work", "focus"])
+            req_personal = any(w in prompt for w in ["personal", "chill", "relax"])
 
             if req_gaming or snapshot.activity_category == "Gaming":
                 contextual_genre = "Gaming Energy"
                 fav_playlist = self.memory.resolve_habit("spotify.playlist.gaming") or self.memory.get_preference("spotify.playlist.gaming", snapshot.suggested_playlist or "Gaming Soundtrack")
+            elif req_personal:
+                contextual_genre = "Personal Chill"
+                fav_playlist = (
+                    self.memory.resolve_habit("spotify.playlist.personal")
+                    or self.memory.get_preference("spotify.playlist.personal")
+                    or self.memory.get_preference("spotify.favorite_artist")
+                    or "Ambient Chill"
+                )
             elif req_coding:
                 contextual_genre = "Focus Beats"
                 fav_playlist = self.memory.resolve_habit("spotify.playlist.coding") or self.memory.get_preference("spotify.playlist.coding", snapshot.suggested_playlist or "Deep Focus")
@@ -1409,7 +1418,13 @@ end tell'''
                     entity = disambig["entity"]
                 else:
                     # 2. Contextual symmetry breaking: Resolve entity using active cluster/screen context
-                    entity = self.memory.resolve_entity(target_raw, context=self._get_current_context_dict())
+                    msg_ctx = dict(self._get_current_context_dict())
+                    work_indicators = ["email", "mail", "outlook", "design", "token", "pr", "pull request", "code", "sprint", "review", "commit", "deploy", "api", "architecture", "linear", "jira", "branch", "standup", "benchmark"]
+                    if any(w in raw_prompt.lower() for w in work_indicators) or (client_override and "outlook" in client_override.lower()):
+                        msg_ctx["activity_category"] = "work"
+                        if not msg_ctx.get("frontmost_app"):
+                            msg_ctx["frontmost_app"] = "Microsoft Outlook"
+                    entity = self.memory.resolve_entity(target_raw, context=msg_ctx)
 
                 if entity:
                     client = client_override or self.memory.get_preference("mail.preferred_client", "Microsoft Outlook")
@@ -2154,7 +2169,7 @@ end tell'''
             else:
                 subject = "Quick Update"
 
-            formatted_text = clean_for_draft.capitalize()
+            formatted_text = (clean_for_draft[0].upper() + clean_for_draft[1:]) if clean_for_draft else ""
             if not formatted_text.endswith((".", "!", "?")):
                 formatted_text += "."
 

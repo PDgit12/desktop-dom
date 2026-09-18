@@ -71,9 +71,10 @@ class BasePlatformAdapter(ABC):
         pass
 
     @abstractmethod
-    def check_permissions(self) -> Dict[str, Any]:
+    def check_permissions(self, prompt: bool = False) -> Dict[str, Any]:
         """
         Checks whether the host OS has granted accessibility / event tap rights to the running process.
+        If prompt=True, triggers native OS prompt if untrusted.
         """
         pass
 
