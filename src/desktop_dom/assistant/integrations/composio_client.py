@@ -35,14 +35,40 @@ class ComposioHttpClient:
         api_key: Optional[str] = None,
         base_url: str = DEFAULT_COMPOSIO_BASE_URL,
         timeout: float = 8.0,
+        memory: Optional[Any] = None,
     ):
-        self.api_key = (api_key or os.environ.get("COMPOSIO_API_KEY", "")).strip()
+        raw_key = api_key or os.environ.get("COMPOSIO_API_KEY", "")
+        if not raw_key and memory and hasattr(memory, "get_preference"):
+            try:
+                raw_key = memory.get_preference("composio.api_key") or ""
+            except Exception:
+                pass
+        if not raw_key:
+            key_path = os.path.expanduser("~/.config/desktop-dom/composio.key")
+            if os.path.exists(key_path):
+                try:
+                    with open(key_path, "r", encoding="utf-8") as f:
+                        raw_key = f.read().strip()
+                except Exception:
+                    pass
+        self.api_key = raw_key.strip()
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+        self.memory = memory
+
+    def set_api_key(self, api_key: str) -> None:
+        """Updates the API key dynamically in memory and saves to user preferences if memory is available."""
+        self.api_key = (api_key or "").strip()
+        if self.memory and hasattr(self.memory, "set_preference"):
+            try:
+                self.memory.set_preference("composio.api_key", self.api_key, category="integrations")
+            except Exception:
+                pass
 
     def is_configured(self) -> bool:
         """Returns True if a valid API key is present."""
         return bool(self.api_key and len(self.api_key) > 5)
+
 
     def _request(
         self,
@@ -251,6 +277,17 @@ class ComposioHttpClient:
         """
         Executes a read-only tool action on Composio (e.g. GOOGLECALENDAR_FIND_EVENTS, GITHUB_LIST_ISSUES).
         """
+        return self.execute_action(action_name, entity_id, params)
+
+    def execute_action(
+        self,
+        action_name: str,
+        entity_id: str,
+        params: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Executes any tool action on Composio (read or write).
+        """
         if not self.is_configured():
             return {
                 "status": "error",
@@ -265,3 +302,24 @@ class ComposioHttpClient:
 
         res = self._request("POST", f"/actions/{action_name}/execute", payload=payload)
         return res
+
+    def verify_credentials(self) -> Dict[str, Any]:
+        """
+        Validates the configured API key with the Composio API.
+        Returns a dict with status='success' or error details.
+        """
+        if not self.is_configured():
+            return {
+                "status": "error",
+                "code": "UNCONFIGURED",
+                "message": "COMPOSIO_API_KEY is not configured.",
+            }
+        res = self._request("GET", "/connectedAccounts", params={"limit": "1"})
+        if res.get("status") == "error":
+            return {
+                "status": "error",
+                "code": res.get("code", "AUTH_FAILED"),
+                "message": res.get("message", "Authentication with Composio failed."),
+            }
+        return {"status": "success", "message": "Composio API credentials verified successfully."}
+

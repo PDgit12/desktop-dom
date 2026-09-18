@@ -7,8 +7,10 @@ Validates:
 """
 
 import json
+import time
 from unittest.mock import MagicMock, patch
 import pytest
+
 
 from desktop_dom.assistant.integrations.contracts import (
     ConnectedAccountState,
@@ -522,5 +524,228 @@ def test_meeting_intent_enriches_with_canonical_meeting_url(tmp_path):
     assert res["action"] == "meeting_intent"
     assert res.get("meeting_url") == "https://zoom.us/j/9988776655"
     assert "https://zoom.us/j/9988776655" in res["response"]
+
+
+def test_composio_write_actions_github_calendar_email_slack(tmp_path):
+    """Verifies that Composio write actions execute successfully when accounts are connected."""
+    from desktop_dom.assistant.brain import AssistantBrain
+    from desktop_dom.assistant.integrations.composio_ingest import ComposioIngest
+
+    mem = AuraMemory(db_path=str(tmp_path / "write_actions.db"))
+    mock_client = MagicMock()
+    mock_client.is_configured.return_value = True
+
+    ingest = ComposioIngest(memory=mem, client=mock_client)
+
+    # 1. GitHub Issue when unconnected
+    res_unconn = ingest.create_github_issue("desktop-dom", "Fix hover", user_id="piyush@crcle.ai")
+    assert res_unconn["status"] == "unconnected"
+
+    # Connect GitHub
+    mem.upsert_connected_account({
+        "provider": "composio",
+        "user_id": "piyush@crcle.ai",
+        "toolkit": "github",
+        "auth_config_id": "ac_github",
+        "status": "ACTIVE",
+        "data_scopes": ["repo"],
+    })
+
+    mock_client.execute_action.return_value = {
+        "status": "success",
+        "data": {
+            "number": 42,
+            "html_url": "https://github.com/PDgit12/desktop-dom/issues/42",
+        },
+    }
+
+    res_issue = ingest.create_github_issue("desktop-dom", "Fix hover bug", user_id="piyush@crcle.ai")
+    assert res_issue["status"] == "success"
+    assert res_issue["number"] == 42
+    assert "https://github.com/PDgit12/desktop-dom/issues/42" in res_issue["response"]
+
+    # 2. Google Calendar Event Creation
+    mem.upsert_connected_account({
+        "provider": "composio",
+        "user_id": "piyush@crcle.ai",
+        "toolkit": "googlecalendar",
+        "auth_config_id": "ac_googlecalendar",
+        "status": "ACTIVE",
+        "data_scopes": ["calendar"],
+    })
+    mock_client.execute_action.return_value = {
+        "status": "success",
+        "data": {
+            "hangoutLink": "https://meet.google.com/test-meet-123",
+        },
+    }
+    res_cal = ingest.create_calendar_event(
+        title="Sync with Joshua",
+        start_time="2026-09-19T14:00:00Z",
+        attendees=["josh@crcle.ai"],
+        user_id="piyush@crcle.ai",
+    )
+    assert res_cal["status"] == "success"
+    assert res_cal["meeting_url"] == "https://meet.google.com/test-meet-123"
+
+    # 3. Gmail Draft Creation
+    mem.upsert_connected_account({
+        "provider": "composio",
+        "user_id": "piyush@crcle.ai",
+        "toolkit": "gmail",
+        "auth_config_id": "ac_gmail",
+        "status": "ACTIVE",
+        "data_scopes": ["gmail.compose"],
+    })
+    mock_client.execute_action.return_value = {
+        "status": "success",
+        "data": {"id": "draft_999"},
+    }
+    res_draft = ingest.create_email_draft(
+        to="josh@crcle.ai",
+        subject="Sprint Alignment",
+        body="All tests passing.",
+        user_id="piyush@crcle.ai",
+    )
+    assert res_draft["status"] == "success"
+    assert res_draft["to"] == "josh@crcle.ai"
+
+    # 4. Slack Message
+    mem.upsert_connected_account({
+        "provider": "composio",
+        "user_id": "piyush@crcle.ai",
+        "toolkit": "slack",
+        "auth_config_id": "ac_slack",
+        "status": "ACTIVE",
+        "data_scopes": ["chat:write"],
+    })
+
+    mock_client.execute_action.return_value = {
+        "status": "success",
+        "data": {"ok": True},
+    }
+    res_slack = ingest.send_slack_message(
+        channel="#general",
+        text="Build succeeded",
+        user_id="piyush@crcle.ai",
+    )
+    assert res_slack["status"] == "success"
+
+
+def test_brain_write_intent_routing(tmp_path):
+    """Verifies that execute_intent routes GitHub issue, Calendar booking, and project switching."""
+    from desktop_dom.assistant.brain import AssistantBrain
+
+    mem = AuraMemory(db_path=str(tmp_path / "brain_write.db"))
+    brain = AssistantBrain(memory=mem)
+
+    # 1. Project Switcher Intent
+    res_proj = brain.execute_intent("switch project to desktop-dom")
+    assert res_proj["status"] == "success"
+    assert res_proj["project"] == "desktop-dom"
+    assert mem.get_preference("workspace.active_project") == "desktop-dom"
+
+    # 2. GitHub issue creation unconfigured fallback
+    res_gh = brain.execute_intent("create issue on desktop-dom: Fix hover padding")
+    assert res_gh["action"] == "create_github_issue"
+    assert res_gh["status"] == "unconfigured"
+    assert "connect GitHub in Settings" in res_gh["response"]
+
+    # 3. Calendar event scheduling unconfigured fallback
+    res_sched = brain.execute_intent("schedule meeting with Cyril tomorrow at 3pm")
+    assert res_sched["action"] == "create_calendar_event"
+    assert res_sched["status"] == "unconfigured"
+    assert "connect Google Calendar in Settings" in res_sched["response"]
+
+
+def test_omnibar_project_and_key_bridge(tmp_path):
+    """Verifies Omnibar WebKit IPC script handlers dispatch project switching and API key saving."""
+    from desktop_dom.assistant.brain import AssistantBrain
+    from desktop_dom.assistant.omnibar import FloatingOmnibar, OmnibarScriptHandler
+
+    mem = AuraMemory(db_path=str(tmp_path / "omnibar_bridge.db"))
+    brain = AssistantBrain(memory=mem)
+
+    bar = FloatingOmnibar(brain=brain)
+    bar._webview = MagicMock()
+    handler = OmnibarScriptHandler(bar)
+
+    # 1. Save Composio API key
+    msg_key = MagicMock()
+    msg_key.body.return_value = json.dumps({
+        "action": "save_composio_api_key",
+        "api_key": "comp_live_test_key_12345",
+    })
+    handler.userContentController_didReceiveScriptMessage_(None, msg_key)
+    assert mem.get_preference("composio.api_key") == "comp_live_test_key_12345"
+
+    # 2. Switch Project
+    msg_proj = MagicMock()
+    msg_proj.body.return_value = json.dumps({
+        "action": "switch_project",
+        "project": "Aura-Kernel",
+    })
+    bar._webview.reset_mock()
+    handler.userContentController_didReceiveScriptMessage_(None, msg_proj)
+    assert mem.get_preference("workspace.active_project") == "Aura-Kernel"
+    assert "window.updateActiveProject('Aura-Kernel')" in bar._webview.evaluateJavaScript_completionHandler_.call_args[0][0]
+
+    # 3. Get Projects
+    msg_get_proj = MagicMock()
+    msg_get_proj.body.return_value = json.dumps({"action": "get_projects"})
+    bar._webview.reset_mock()
+    handler.userContentController_didReceiveScriptMessage_(None, msg_get_proj)
+    assert "window.renderProjectList('Aura-Kernel'" in bar._webview.evaluateJavaScript_completionHandler_.call_args[0][0]
+
+
+def test_composio_auto_polling_background_thread(tmp_path):
+    """Verifies that the background auto-polling loop detects ACTIVE connection and triggers UI sync."""
+    from desktop_dom.assistant.brain import AssistantBrain
+    from desktop_dom.assistant.integrations.contracts import ConnectedAccountState
+    from desktop_dom.assistant.omnibar import FloatingOmnibar
+
+    mem = AuraMemory(db_path=str(tmp_path / "polling_test.db"))
+    brain = AssistantBrain(memory=mem)
+
+    # Pre-populate pending account
+    mem.upsert_connected_account({
+        "provider": "composio",
+        "user_id": "piyush@crcle.ai",
+        "toolkit": "googlecalendar",
+        "auth_config_id": "ac_gcal",
+        "external_id": "ca_poll_123",
+        "status": "PENDING",
+        "data_scopes": ["calendar.readonly"],
+    })
+
+    bar = FloatingOmnibar(brain=brain)
+    bar._webview = MagicMock()
+
+    # Mock client connection status returning ACTIVE
+    mock_active_state = ConnectedAccountState(
+        app="googlecalendar",
+        status="ACTIVE",
+        account_id="ca_poll_123",
+        user_identifier="piyush@crcle.ai",
+    )
+
+    with patch.object(brain.composio_ingest.client, "get_connection_status", return_value=mock_active_state), \
+         patch.object(brain, "sync_composio_app") as mock_sync, \
+         patch("time.sleep"):
+        # Run polling
+        t = bar._start_composio_polling("googlecalendar", "ca_poll_123")
+        if t:
+            t.join(timeout=1.0)
+
+        acc = mem.get_connected_account(toolkit="googlecalendar", user_id="piyush@crcle.ai")
+        assert acc is not None
+        assert acc["status"] == "ACTIVE"
+        all_js_calls = [c[0][0] for c in bar._webview.evaluateJavaScript_completionHandler_.call_args_list]
+        assert any("window.updateComposioCardStatus('googlecalendar', 'ACTIVE'" in js for js in all_js_calls)
+        assert any("window.renderComposioStatuses" in js for js in all_js_calls)
+
+
+
+
 
 

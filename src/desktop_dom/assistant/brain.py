@@ -594,6 +594,13 @@ end tell'''
                 self._notify_action("completed", non_binary_res.get("response", "Completed"))
                 return non_binary_res
 
+        # 0d. Project & Workspace Switcher Intent ("switch project to <name>", "project: <name>")
+        proj_match = re.match(r"^(?:switch\s+(?:project|workspace)\s+to|switch\s+to\s+project|project\s*[:=])\s+(.+)$", raw_prompt.strip(), re.IGNORECASE)
+        if proj_match:
+            new_proj = proj_match.group(1).strip()
+            return self.switch_project(new_proj)
+
+
         # 0c. Misfire Feedback & Self-Correction Engine:
         # e.g. "no open zoom instead", "wrong use zoom", "actually use zoom", "open zoom instead", "not granola, use zoom"
         prompt_low = prompt.strip().lower()
@@ -1607,6 +1614,34 @@ end tell'''
                 "response": f"Opening {repo}{' Pull Requests' if is_pr else ''} on GitHub in browser.",
             }
 
+        # 6b. GitHub Issue Creation Flow ("create issue on <repo>: <title>", "file issue <title>")
+        if any(w in prompt for w in ["create issue", "file issue", "new issue", "create github issue", "open issue"]):
+            clean_q = re.sub(r"^(?:please\s+)?(?:create|file|open|new)\s+(?:a\s+)?(?:github\s+)?issue\s*", "", raw_prompt, flags=re.IGNORECASE).strip()
+            repo_match = re.match(r"^(?:on|for|in)\s+([a-zA-Z0-9_.-]+(?:/[a-zA-Z0-9_.-]+)?)(?:\s*[:\-]\s*|\s+)(.*)$", clean_q, re.IGNORECASE)
+            if repo_match:
+                issue_repo = repo_match.group(1).strip()
+                issue_title = repo_match.group(2).strip()
+            elif ":" in clean_q:
+                parts = clean_q.split(":", 1)
+                issue_repo = parts[0].strip()
+                issue_title = parts[1].strip()
+            else:
+                issue_repo = self.memory.get_developer_repo() if hasattr(self, "memory") and self.memory else "desktop-dom"
+                issue_title = clean_q or "New Issue"
+
+            if hasattr(self, "composio_ingest") and hasattr(self.composio_ingest, "create_github_issue"):
+                res = self.composio_ingest.create_github_issue(repo=issue_repo, title=issue_title)
+                if res.get("status") == "success":
+                    self._notify_action("completed", f"Created GitHub issue on {issue_repo}")
+                    return res
+                elif res.get("status") in {"unconnected", "unconfigured"}:
+                    return {
+                        "status": "unconfigured",
+                        "action": "create_github_issue",
+                        "toolkit": "github",
+                        "response": f"{res.get('message', 'GitHub is not connected.')}\nTo create GitHub issues directly from Aura, connect GitHub in Settings.",
+                    }
+
         # 7. Calendar & Daily Schedule Intent ("check my schedule", "calendar", "what's my schedule")
         if any(p in prompt for p in ["check my schedule", "what is my schedule", "what's my schedule", "show schedule", "open my calendar", "open calendar"]):
             self._notify_action("executing", "Opening Calendar")
@@ -1618,6 +1653,56 @@ end tell'''
                 "level": "2.0",
                 "response": "Opened your Calendar for today's schedule.",
             }
+
+        # 7b. Google Calendar Direct Scheduling Flow ("schedule meeting with <person>", "book 30m with <person>")
+        sched_triggers = ["schedule meeting", "schedule a meeting", "book meeting", "book a meeting", "book 30m", "book 1h", "calendar event"]
+        if any(t in prompt for t in sched_triggers) and not any(p in prompt for p in ["check my schedule", "show schedule"]):
+            clean_s = re.sub(r"^(?:please\s+)?(?:schedule\s+(?:a\s+)?meeting|book\s+(?:a\s+)?meeting|book\s+\d+m(?:in)?|create\s+(?:calendar\s+)?event)\s*", "", raw_prompt, flags=re.IGNORECASE).strip()
+            with_match = re.search(r"with\s+([a-zA-Z0-9\s._-]+?)(?:\s+(?:at|on|tomorrow|next|for)\b|$)", clean_s, re.IGNORECASE)
+            attendee_name = with_match.group(1).strip() if with_match else None
+
+            if hasattr(self, "composio_ingest") and hasattr(self.composio_ingest, "create_calendar_event"):
+                title = f"Sync with {attendee_name}" if attendee_name else "Meeting"
+                now_iso = time.strftime("%Y-%m-%dT%H:00:00Z")
+                res = self.composio_ingest.create_calendar_event(
+                    title=title,
+                    start_time=now_iso,
+                    attendees=[attendee_name] if attendee_name else [],
+                )
+                if res.get("status") == "success":
+                    self._notify_action("completed", "Scheduled meeting on Google Calendar")
+                    return res
+                elif res.get("status") in {"unconnected", "unconfigured"}:
+                    return {
+                        "status": "unconfigured",
+                        "action": "create_calendar_event",
+                        "toolkit": "googlecalendar",
+                        "response": f"{res.get('message', 'Google Calendar is not connected.')}\nTo schedule calendar events directly from Aura, connect Google Calendar in Settings.",
+                    }
+
+        # 7c. Gmail Draft Creation Flow ("draft email to <person> saying <msg>")
+        if any(prompt.startswith(p) for p in ["draft email to", "draft mail to", "create email to", "write email to"]):
+            clean_d = re.sub(r"^(?:draft|create|write)\s+(?:an?\s+)?(?:email|mail)\s+to\s*", "", raw_prompt, flags=re.IGNORECASE).strip()
+            parts = re.split(r"[:\-]|(?:\s+saying\s+)|\s+about\s+", clean_d, maxsplit=1, flags=re.IGNORECASE)
+            to_target = parts[0].strip()
+            body_text = parts[1].strip() if len(parts) > 1 else "Checking in"
+
+            if hasattr(self, "composio_ingest") and hasattr(self.composio_ingest, "create_email_draft"):
+                res = self.composio_ingest.create_email_draft(
+                    to=to_target,
+                    subject=f"Follow-up: {body_text[:30]}",
+                    body=body_text,
+                )
+                if res.get("status") == "success":
+                    self._notify_action("completed", f"Drafted email to {to_target}")
+                    return res
+                elif res.get("status") in {"unconnected", "unconfigured"}:
+                    return {
+                        "status": "unconfigured",
+                        "action": "create_email_draft",
+                        "toolkit": "gmail",
+                        "response": f"{res.get('message', 'Gmail is not connected.')}\nTo draft emails directly via Gmail, connect Gmail in Settings.",
+                    }
 
 
         # 8. Temporal & Daily Routine Intent Flow ("start my day", "daily routine", "morning routine", "work mode", "gaming mode", "what should I do?")
@@ -2830,9 +2915,59 @@ end tell'''
                     "redirect_url": None,
                     "last_synced_at": None,
                 }
+        is_conf = self.composio_ingest.client.is_configured() if (hasattr(self, "composio_ingest") and hasattr(self.composio_ingest, "client")) else False
         return {
             "user_id": uid,
-            "composio_configured": self.composio_ingest.client.is_configured(),
+            "composio_configured": is_conf,
             "accounts": statuses,
         }
+
+
+    def set_composio_api_key(self, api_key: str) -> Dict[str, Any]:
+        """Saves and activates the Composio API key dynamically."""
+        cleaned = (api_key or "").strip()
+        self.memory.set_preference("composio.api_key", cleaned, category="integrations")
+        if hasattr(self, "composio_ingest") and hasattr(self.composio_ingest, "client"):
+            self.composio_ingest.client.set_api_key(cleaned)
+        is_conf = bool(cleaned and len(cleaned) > 5)
+        return {
+            "status": "success" if is_conf else "invalid_key",
+            "composio_configured": is_conf,
+        }
+
+    def switch_project(self, project_name: str) -> Dict[str, Any]:
+        """Switches the active workspace/project context in Aura."""
+        clean_name = (project_name or "").strip()
+        if not clean_name:
+            return {"status": "error", "message": "Project name cannot be empty"}
+        self.memory.set_preference("workspace.active_project", clean_name, category="workspace")
+        self._notify_action("completed", f"Switched project to {clean_name}")
+        return {
+            "status": "success",
+            "action": "switch_project",
+            "project": clean_name,
+            "response": f"Active workspace context switched to '{clean_name}'.",
+        }
+
+    def get_projects(self) -> Dict[str, Any]:
+        """Lists available projects and active project."""
+        active = self.memory.get_preference("workspace.active_project") or self.memory.get_preference("user.company") or "Crcle.ai"
+        defaults = ["Crcle.ai", "desktop-dom", "Personal"]
+        raw = self.memory.get_preference("workspace.projects_list")
+        projects = defaults
+        if raw:
+            try:
+                p_list = json.loads(raw)
+                if isinstance(p_list, list) and p_list:
+                    projects = p_list
+            except Exception:
+                pass
+        if active not in projects:
+            projects.insert(0, active)
+        return {
+            "status": "success",
+            "active_project": active,
+            "projects": projects,
+        }
+
 

@@ -238,3 +238,219 @@ class ComposioIngest:
             "purged_entities": purge_stats.get("purged_entities", 0),
             "purged_edges": purge_stats.get("purged_edges", 0),
         }
+
+    # -------------------------------------------------------------------------
+    # Active Execution / Write Actions (Powering Omnibar Direct Actions)
+    # -------------------------------------------------------------------------
+
+    def create_github_issue(
+        self,
+        repo: str,
+        title: str,
+        body: Optional[str] = None,
+        user_id: str = "user_local",
+    ) -> Dict[str, Any]:
+        """Creates a GitHub issue on the specified repository using connected GitHub credentials."""
+        if not self.client.is_configured():
+            return {"status": "unconfigured", "toolkit": "github", "message": "Composio API key is not configured."}
+
+        acc = self.memory.get_connected_account(toolkit="github", user_id=user_id)
+        if not acc or acc.get("status") != "ACTIVE":
+            return {
+                "status": "unconnected",
+                "toolkit": "github",
+                "message": "GitHub account is not connected. Connect GitHub in Settings (Composio) to create issues.",
+            }
+
+        # Parse owner/repo
+        clean_repo = repo.strip().strip("/")
+        if "/" in clean_repo:
+            owner, repo_name = clean_repo.split("/", 1)
+        else:
+            owner = self.memory.get_preference("user.github_owner") or "PDgit12"
+            repo_name = clean_repo
+
+        params = {
+            "owner": owner,
+            "repo": repo_name,
+            "title": title,
+            "body": body or f"Filed autonomously via Aura Omnibar on {time.strftime('%Y-%m-%d %H:%M:%S')}.",
+        }
+
+        res = self.client.execute_action(
+            action_name="GITHUB_CREATE_AN_ISSUE",
+            entity_id=user_id,
+            params=params,
+        )
+
+        if res.get("status") == "error":
+            return {"status": "error", "toolkit": "github", "error": res.get("message", "Failed to create issue")}
+
+        issue_data = res.get("data") or res
+        issue_url = issue_data.get("html_url") or f"https://github.com/{owner}/{repo_name}/issues"
+        issue_num = issue_data.get("number")
+
+        return {
+            "status": "success",
+            "action": "create_github_issue",
+            "toolkit": "github",
+            "repo": f"{owner}/{repo_name}",
+            "title": title,
+            "number": issue_num,
+            "url": issue_url,
+            "response": f"Created GitHub issue #{issue_num or ''} on {owner}/{repo_name}: '{title}'.\n• URL: {issue_url}",
+        }
+
+    def create_calendar_event(
+        self,
+        title: str,
+        start_time: str,
+        end_time: Optional[str] = None,
+        attendees: Optional[List[str]] = None,
+        description: Optional[str] = None,
+        user_id: str = "user_local",
+    ) -> Dict[str, Any]:
+        """Schedules a calendar event on Google Calendar with attendee invites."""
+        if not self.client.is_configured():
+            return {"status": "unconfigured", "toolkit": "googlecalendar", "message": "Composio API key is not configured."}
+
+        acc = self.memory.get_connected_account(toolkit="googlecalendar", user_id=user_id)
+        if not acc or acc.get("status") != "ACTIVE":
+            return {
+                "status": "unconnected",
+                "toolkit": "googlecalendar",
+                "message": "Google Calendar is not connected. Connect Google Calendar in Settings (Composio) to schedule events.",
+            }
+
+        attendee_list = []
+        if attendees:
+            for att in attendees:
+                if "@" in att:
+                    attendee_list.append({"email": att})
+                else:
+                    ent = self.memory.resolve_entity(att)
+                    if ent and ent.get("email"):
+                        attendee_list.append({"email": ent["email"], "displayName": ent.get("name", att)})
+                    else:
+                        attendee_list.append({"displayName": att})
+
+        params = {
+            "summary": title,
+            "start": {"dateTime": start_time},
+            "end": {"dateTime": end_time or start_time},
+            "description": description or "Scheduled autonomously via Aura Omnibar.",
+        }
+        if attendee_list:
+            params["attendees"] = attendee_list
+
+        res = self.client.execute_action(
+            action_name="GOOGLECALENDAR_CREATE_EVENT",
+            entity_id=user_id,
+            params=params,
+        )
+
+        if res.get("status") == "error":
+            return {"status": "error", "toolkit": "googlecalendar", "error": res.get("message", "Failed to create event")}
+
+        ev_data = res.get("data") or res
+        meeting_url = ev_data.get("hangoutLink") or ev_data.get("htmlLink") or "https://calendar.google.com"
+
+        return {
+            "status": "success",
+            "action": "create_calendar_event",
+            "toolkit": "googlecalendar",
+            "title": title,
+            "meeting_url": meeting_url,
+            "attendees": [a.get("displayName") or a.get("email") for a in attendee_list],
+            "response": f"Scheduled '{title}' on Google Calendar.\n• Link: {meeting_url}",
+        }
+
+    def create_email_draft(
+        self,
+        to: str,
+        subject: str,
+        body: str,
+        user_id: str = "user_local",
+    ) -> Dict[str, Any]:
+        """Creates an email draft in Gmail using connected Composio credentials."""
+        if not self.client.is_configured():
+            return {"status": "unconfigured", "toolkit": "gmail", "message": "Composio API key is not configured."}
+
+        acc = self.memory.get_connected_account(toolkit="gmail", user_id=user_id)
+        if not acc or acc.get("status") != "ACTIVE":
+            return {
+                "status": "unconnected",
+                "toolkit": "gmail",
+                "message": "Gmail is not connected. Connect Gmail in Settings (Composio) to draft emails.",
+            }
+
+        recipient_email = to
+        if "@" not in recipient_email:
+            ent = self.memory.resolve_entity(to)
+            if ent and ent.get("email"):
+                recipient_email = ent["email"]
+
+        params = {
+            "to": [recipient_email],
+            "subject": subject,
+            "body": body,
+        }
+
+        res = self.client.execute_action(
+            action_name="GMAIL_CREATE_DRAFT",
+            entity_id=user_id,
+            params=params,
+        )
+
+        if res.get("status") == "error":
+            return {"status": "error", "toolkit": "gmail", "error": res.get("message", "Failed to draft email")}
+
+        return {
+            "status": "success",
+            "action": "create_email_draft",
+            "toolkit": "gmail",
+            "to": recipient_email,
+            "subject": subject,
+            "response": f"Created email draft to {recipient_email} regarding '{subject}'.",
+        }
+
+    def send_slack_message(
+        self,
+        channel: str,
+        text: str,
+        user_id: str = "user_local",
+    ) -> Dict[str, Any]:
+        """Sends a message to a Slack channel using connected Composio Slack credentials."""
+        if not self.client.is_configured():
+            return {"status": "unconfigured", "toolkit": "slack", "message": "Composio API key is not configured."}
+
+        acc = self.memory.get_connected_account(toolkit="slack", user_id=user_id)
+        if not acc or acc.get("status") != "ACTIVE":
+            return {
+                "status": "unconnected",
+                "toolkit": "slack",
+                "message": "Slack is not connected. Connect Slack in Settings (Composio) to send messages.",
+            }
+
+        params = {
+            "channel": channel.lstrip("#"),
+            "text": text,
+        }
+
+        res = self.client.execute_action(
+            action_name="SLACK_CHAT_POST_MESSAGE",
+            entity_id=user_id,
+            params=params,
+        )
+
+        if res.get("status") == "error":
+            return {"status": "error", "toolkit": "slack", "error": res.get("message", "Failed to post to Slack")}
+
+        return {
+            "status": "success",
+            "action": "send_slack_message",
+            "toolkit": "slack",
+            "channel": channel,
+            "response": f"Sent message to #{channel} on Slack: '{text}'.",
+        }
+

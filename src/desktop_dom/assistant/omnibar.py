@@ -601,6 +601,39 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     display: block;
   }
 
+  /* Project / Workspace Switcher Drawer */
+  .project-drawer {
+    display: none;
+    flex-direction: column;
+    padding: 10px 14px;
+    gap: 4px;
+    max-height: 240px;
+    overflow-y: auto;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+  .project-drawer.visible {
+    display: flex !important;
+  }
+  .project-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: transparent;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.1s ease;
+  }
+  .project-card:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+  .project-card.active {
+    background: rgba(56, 189, 248, 0.1);
+    border-color: rgba(56, 189, 248, 0.25);
+  }
+
   /* Interactive Onboarding Drawer */
   .onboarding-drawer {
     display: none;
@@ -1140,6 +1173,20 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       </div>
     </div>
 
+    <div class="project-drawer" id="project-drawer" style="display: none;">
+      <div class="model-drawer-title">
+        <span>Active Sovereign Workspace</span>
+        <span style="font-size: 9px; color: #38bdf8;">Cmd+P to Switch</span>
+      </div>
+      <div id="project-list" style="display: flex; flex-direction: column; gap: 4px;">
+        <!-- Dynamically rendered projects -->
+      </div>
+      <div class="settings-add-row" style="margin-top: 6px;">
+        <input type="text" class="onb-input" id="project-new-name" placeholder="Enter new project or workspace name..." style="flex: 1;" />
+        <button class="settings-add-btn" id="project-add-btn" style="background: #0284c7; min-width: 70px;" type="button">+ Switch</button>
+      </div>
+    </div>
+
     <div class="onboarding-drawer" id="onboarding-drawer" style="display: none;">
       <div class="onb-header">
         <div class="onb-title">
@@ -1253,6 +1300,16 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
           <input type="text" class="onb-input" id="settings-new-email" placeholder="Email" style="flex: 2;" />
           <input type="text" class="onb-input" id="settings-new-role" placeholder="Role (e.g. CTO)" style="flex: 1.5;" />
           <button class="settings-add-btn" id="settings-add-collab-btn">+ Add</button>
+        </div>
+      </div>
+      <div class="onb-field" style="margin-top: 4px;">
+        <label class="onb-label" style="display: flex; justify-content: space-between; align-items: center;">
+          <span>Composio API Key</span>
+          <span id="composio-key-badge" style="font-size: 9px; color: #a1a1aa; text-transform: uppercase;">Checking...</span>
+        </label>
+        <div class="settings-add-row">
+          <input type="password" class="onb-input" id="settings-composio-key" placeholder="Enter COMPOSIO_API_KEY (comp_...)" style="flex: 1;" />
+          <button class="settings-add-btn" id="settings-save-key-btn" style="background: #059669; min-width: 90px;" type="button">Save Key</button>
         </div>
       </div>
       <div class="onb-field" style="margin-top: 4px;">
@@ -1614,6 +1671,11 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     });
 
     input.addEventListener("keydown", (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "p") {
+        e.preventDefault();
+        window.toggleProjectDrawer();
+        return;
+      }
       if (e.key === "ArrowDown") {
         e.preventDefault();
         if (!isDrawerOpen && currentSuggestions.length > 0) {
@@ -1658,18 +1720,12 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     footerModelTag.addEventListener("click", toggleModelDrawer);
 
     copyBtn.addEventListener("click", () => {
-      if (currentResultRaw) {
-        window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({
-          action: "copy_to_clipboard",
-          text: currentResultRaw
-        }));
-        copyBtn.innerText = "Copied";
-        copyBtn.classList.add("active");
-        setTimeout(() => {
-          copyBtn.innerText = "Copy";
-          copyBtn.classList.remove("active");
-        }, 1400);
-      }
+      window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({
+        action: "copy_to_clipboard",
+        text: resultBody.innerText
+      }));
+      copyBtn.innerText = "Copied!";
+      setTimeout(() => { copyBtn.innerText = "Copy"; }, 1500);
     });
 
     doneBtn.addEventListener("click", closeDrawers);
@@ -1681,6 +1737,12 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       modelDrawer.style.display = "none";
       onboardingDrawer.classList.remove("visible");
       onboardingDrawer.style.display = "none";
+      const pDrawer = document.getElementById("project-drawer");
+      if (pDrawer) {
+        pDrawer.classList.remove("visible");
+        pDrawer.style.display = "none";
+      }
+
       if (settingsDrawer) {
         settingsDrawer.classList.remove("visible");
         settingsDrawer.style.display = "none";
@@ -2019,6 +2081,14 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       }
       renderComposioCards("onb-composio-grid", currentComposioStatus);
       renderComposioCards("settings-composio-grid", currentComposioStatus);
+      const keyBadge = document.getElementById("composio-key-badge");
+      if (keyBadge) {
+        if (payload && payload.composio_configured) {
+          keyBadge.innerHTML = '<span style="color: #10b981; font-weight: 500;">✓ Active</span>';
+        } else {
+          keyBadge.innerHTML = '<span style="color: #f59e0b; font-weight: 500;">Unconfigured</span>';
+        }
+      }
       notifyResize();
     };
 
@@ -2035,6 +2105,70 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       renderComposioCards("settings-composio-grid", currentComposioStatus);
       notifyResize();
     };
+
+    window.toggleProjectDrawer = function() {
+      const pDrawer = document.getElementById("project-drawer");
+      if (!pDrawer) return;
+      if (pDrawer.classList.contains("visible")) {
+        pDrawer.classList.remove("visible");
+        pDrawer.style.display = "none";
+        isDrawerOpen = false;
+        input.focus();
+        notifyResize();
+      } else {
+        closeDrawers();
+        pDrawer.style.display = "flex";
+        pDrawer.classList.add("visible");
+        isDrawerOpen = true;
+        window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({
+          action: "get_projects"
+        }));
+        notifyResize();
+      }
+    };
+
+    window.renderProjectList = function(activeProject, projects) {
+      const container = document.getElementById("project-list");
+      if (!container) return;
+      container.innerHTML = "";
+      const projList = Array.isArray(projects) && projects.length > 0 ? projects : ["Crcle.ai", "desktop-dom", "Personal"];
+      projList.forEach(p => {
+        const isAct = p.toLowerCase() === (activeProject || "").toLowerCase();
+        const pCard = document.createElement("div");
+        pCard.className = "project-card" + (isAct ? " active" : "");
+        pCard.innerHTML = `
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: ${isAct ? '#38bdf8' : '#71717a'};"></span>
+            <span style="font-size: 13px; font-weight: 500; color: #f4f4f5;">${escapeHtml(p)}</span>
+          </div>
+          <span style="font-size: 11px; color: ${isAct ? '#38bdf8' : '#71717a'};">
+            ${isAct ? 'Active' : 'Switch'}
+          </span>
+        `;
+        pCard.addEventListener("click", () => {
+          window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({
+            action: "switch_project",
+            project: p
+          }));
+        });
+        container.appendChild(pCard);
+      });
+      notifyResize();
+    };
+
+    window.updateActiveProject = function(projectName) {
+      const nameEl = document.getElementById("workspace-name");
+      if (nameEl) nameEl.textContent = projectName;
+      const pDrawer = document.getElementById("project-drawer");
+      if (pDrawer && pDrawer.classList.contains("visible")) {
+        pDrawer.classList.remove("visible");
+        pDrawer.style.display = "none";
+        isDrawerOpen = false;
+      }
+      input.focus();
+      notifyResize();
+    };
+
 
     window.displayOnboardingDrawer = function(data) {
       if (autoCloseTimer) clearTimeout(autoCloseTimer);
@@ -2697,7 +2831,42 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     if (workspacePill) {
       workspacePill.addEventListener("click", (e) => {
         e.stopPropagation();
-        toggleSettingsDrawer();
+        window.toggleProjectDrawer();
+      });
+    }
+
+    const saveKeyBtn = document.getElementById("settings-save-key-btn");
+    const keyInput = document.getElementById("settings-composio-key");
+    if (saveKeyBtn && keyInput) {
+      saveKeyBtn.addEventListener("click", () => {
+        const val = keyInput.value.trim();
+        if (!val) return;
+        window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({
+          action: "save_composio_api_key",
+          api_key: val
+        }));
+        keyInput.value = "";
+        keyInput.placeholder = "comp_••••••••••••";
+      });
+    }
+
+    const projAddBtn = document.getElementById("project-add-btn");
+    const projNewInput = document.getElementById("project-new-name");
+    if (projAddBtn && projNewInput) {
+      projAddBtn.addEventListener("click", () => {
+        const pName = projNewInput.value.trim();
+        if (!pName) return;
+        window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({
+          action: "switch_project",
+          project: pName
+        }));
+        projNewInput.value = "";
+      });
+      projNewInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          projAddBtn.click();
+        }
       });
     }
 
@@ -2713,10 +2882,12 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
           !e.target.closest(".model-card") &&
           !e.target.closest("#misfire-feedback-bar") &&
           !e.target.closest("#onboarding-drawer") &&
+          !e.target.closest("#project-drawer") &&
           !e.target.closest("#settings-drawer")) {
         input.focus();
       }
     });
+
 
     window.addEventListener("focus", () => {
       setTimeout(() => input.focus(), 30);
@@ -2814,9 +2985,17 @@ class OmnibarScriptHandler:
             elif action == "sync_composio_app":
                 self.controller.on_sync_composio_app(payload.get("toolkit", ""))
             elif action == "get_composio_status":
+
                 self.controller.on_get_composio_status()
+            elif action == "save_composio_api_key":
+                self.controller.on_save_composio_api_key(payload.get("api_key", ""))
+            elif action == "switch_project":
+                self.controller.on_switch_project(payload.get("project", ""))
+            elif action == "get_projects":
+                self.controller.on_get_projects()
         except Exception as e:
             logger.warning(f"Error handling script message: {e}")
+
 
 class FloatingOmnibar:
     """
@@ -3056,8 +3235,15 @@ class FloatingOmnibar:
                             self.ctrl.on_sync_composio_app(payload.get("toolkit", ""))
                         elif act == "get_composio_status":
                             self.ctrl.on_get_composio_status()
+                        elif act == "save_composio_api_key":
+                            self.ctrl.on_save_composio_api_key(payload.get("api_key", ""))
+                        elif act == "switch_project":
+                            self.ctrl.on_switch_project(payload.get("project", ""))
+                        elif act == "get_projects":
+                            self.ctrl.on_get_projects()
                     except Exception as e:
                         logger.warning(f"Bridge dispatch error: {e}")
+
 
             handler_cls = OmnibarScriptHandlerObjC
 
@@ -3432,17 +3618,54 @@ class FloatingOmnibar:
             logger.warning(f"Error recording misfire in Omnibar: {e}")
             return None
 
+    def _start_composio_polling(self, toolkit: str, connection_id: str):
+        """Polls Composio API in background until user completes OAuth in browser."""
+        import threading
+        def _poll():
+            for _ in range(48):  # 48 * 2.5s = 120s
+                time.sleep(2.5)
+                try:
+                    if not self.brain or not hasattr(self.brain, "composio_ingest"):
+                        break
+                    client = getattr(self.brain.composio_ingest, "client", None)
+                    if not client or not hasattr(client, "get_connection_status"):
+                        break
+                    state = client.get_connection_status(connection_id)
+                    st = getattr(state, "status", "")
+                    if st in ["ACTIVE", "CONNECTED"]:
+                        if hasattr(self.brain, "memory") and hasattr(self.brain.memory, "update_connected_account"):
+                            self.brain.memory.update_connected_account(connection_id, status="ACTIVE")
+                        if hasattr(self.brain, "sync_composio_app"):
+                            self.brain.sync_composio_app(toolkit)
+                        self.evaluate_js(f"window.updateComposioCardStatus('{toolkit}', 'ACTIVE', '');")
+                        self.on_get_composio_status()
+                        break
+                    elif st in ["FAILED", "EXPIRED", "REVOKED"]:
+                        self.evaluate_js(f"window.updateComposioCardStatus('{toolkit}', 'DISCONNECTED', '');")
+                        break
+                except Exception as poll_err:
+                    logger.debug(f"Composio polling tick error: {poll_err}")
+                    break
+
+        t = threading.Thread(target=_poll, daemon=True)
+        t.start()
+        return t
+
+
     def on_connect_composio_app(self, toolkit: str):
-        """Initiates Composio OAuth connection and opens default browser."""
+        """Initiates Composio OAuth connection and opens default browser with auto-polling."""
         if not self.brain or not hasattr(self.brain, "connect_composio_app"):
             return {"status": "error", "message": "Brain does not support Composio"}
         try:
             res = self.brain.connect_composio_app(toolkit)
-            redirect_url = res.get("redirect_url")
-            status = res.get("status", "PENDING")
+            redirect_url = res.get("redirect_url") if isinstance(res, dict) else None
+            status = res.get("status", "PENDING") if isinstance(res, dict) else "PENDING"
+            conn_id = (res.get("connection_id") or res.get("id")) if isinstance(res, dict) else None
             if redirect_url and str(redirect_url).startswith("http"):
                 webbrowser.open(redirect_url)
             self.evaluate_js(f"window.updateComposioCardStatus('{toolkit}', '{status}', '{redirect_url or ''}');")
+            if conn_id and status in {"PENDING", "INITIATED", "AWAITING_USER_AUTH"}:
+                self._start_composio_polling(toolkit, conn_id)
             return res
         except Exception as e:
             logger.warning(f"Error connecting Composio app {toolkit}: {e}")
@@ -3478,11 +3701,51 @@ class FloatingOmnibar:
             return {"status": "error", "message": "Brain does not support Composio"}
         try:
             res = self.brain.get_composio_status()
-            self.evaluate_js(f"window.renderComposioStatuses({json.dumps(res)});")
+            if isinstance(res, dict):
+                self.evaluate_js(f"window.renderComposioStatuses({json.dumps(res)});")
             return res
         except Exception as e:
             logger.warning(f"Error getting Composio status: {e}")
             return {"status": "error", "message": str(e)}
+
+    def on_save_composio_api_key(self, api_key: str):
+        """Saves and activates the Composio API key from Settings."""
+        if not self.brain or not hasattr(self.brain, "set_composio_api_key"):
+            return {"status": "error", "message": "Brain does not support Composio"}
+        try:
+            res = self.brain.set_composio_api_key(api_key)
+            self.on_get_composio_status()
+            return res
+        except Exception as e:
+            logger.warning(f"Error saving Composio API key: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def on_switch_project(self, project_name: str):
+        """Switches active workspace context."""
+        if not self.brain or not hasattr(self.brain, "switch_project"):
+            return {"status": "error", "message": "Brain does not support project switching"}
+        try:
+            res = self.brain.switch_project(project_name)
+            self.evaluate_js(f"window.updateActiveProject('{project_name}');")
+            return res
+        except Exception as e:
+            logger.warning(f"Error switching project: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def on_get_projects(self):
+        """Retrieves active project and project list for the Project Switcher."""
+        if not self.brain or not hasattr(self.brain, "get_projects"):
+            return {"status": "error", "message": "Brain does not support project switching"}
+        try:
+            res = self.brain.get_projects()
+            act = res.get("active_project", "Crcle.ai") if isinstance(res, dict) else "Crcle.ai"
+            projs = res.get("projects", []) if isinstance(res, dict) else []
+            self.evaluate_js(f"window.renderProjectList('{act}', {json.dumps(projs)});")
+            return res
+        except Exception as e:
+            logger.warning(f"Error getting projects: {e}")
+            return {"status": "error", "message": str(e)}
+
 
     def on_query_submitted(self, query: str):
         """Processes submitted query with zero flicker and expands Result Drawer."""

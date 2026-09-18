@@ -173,4 +173,24 @@ Eliminates vision agent flaws (>90% token waste, 3–6 second latency, pixel coo
     - 269 / 269 tests passing across all 22 test suites in 60.86s with zero failures, zero errors, and zero warnings.
     - Native macOS application bundle `Aura.app` rebuilt and installed to `~/Applications/Aura.app`.
     - Synchronized `develop` and `main` branches and pushed to GitHub remote `PDgit12/desktop-dom`.
+- **Omnibar Write Execution, OAuth Polling & Workspace Switcher (273 Tests Certified):**
+  - **Direct Write-Action Execution (`composio_ingest.py` & `brain.py`):**
+    - GitHub Issues: Prompts like `"create issue on desktop-dom: Fix menu bar hover"` or `"file issue <title>"` autonomously call `GITHUB_CREATE_AN_ISSUE` and return clickable issue URLs.
+    - Google Calendar Event Scheduling: Prompts like `"schedule meeting with Cyril tomorrow at 3pm"` or `"book 30m with Josh"` autonomously call `GOOGLECALENDAR_CREATE_EVENT` and generate instant Meet links.
+    - Gmail Draft Creation: Prompts like `"draft email to Josh saying backend tests passing"` autonomously call `GMAIL_CREATE_DRAFT` without touching local Mail clients.
+    - Slack Message Dispatch: Autonomous posting via `SLACK_CHAT_POST_MESSAGE` with clean `#channel` resolution.
+    - Graceful Degraded Fallbacks: If an integration is unconfigured or unconnected, Aura returns helpful instructions to connect the app in Settings.
+  - **Zero-Click Background OAuth Polling Loop (`omnibar.py`):**
+    - Spawns a background thread on "Connect" button click, polling Composio connection status every 2.5s.
+    - Transitions account status to `ACTIVE` in `AuraMemory`, runs initial sync, and evaluates JavaScript to turn the card green (`Connected`) the moment user finishes browser OAuth without requiring manual page refresh or sync clicks.
+  - **Fast Project & Workspace Switcher (`Cmd+P` & Workspace Pill):**
+    - Accessible via `Cmd+P`, `Ctrl+P`, or clicking the header `#workspace-pill`.
+    - Opens `#project-drawer` allowing instant 1-click switching between sovereign workspaces (e.g. `Crcle.ai`, `desktop-dom`, `Personal`) or creating custom project names.
+    - Natural language project switching supported: `"switch project to desktop-dom"` or `"project: desktop-dom"`.
+  - **In-App Composio API Key Management (`omnibar.py`):**
+    - Sleek API key configuration input in Settings drawer (`#settings-composio-key`) with masked preview, instant key persistence in `AuraMemory`, and live validation status badges.
+  - **Automated Verification & Packaging:**
+    - 273 / 273 tests passing cleanly across full pytest suite in 73.80s (0 failures, 0 errors, 0 warnings).
+    - Native macOS application bundle `Aura.app` rebuilt and installed to `~/Applications/Aura.app`.
+
 
