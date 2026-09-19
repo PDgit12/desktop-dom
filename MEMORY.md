@@ -207,6 +207,24 @@ Eliminates vision agent flaws (>90% token waste, 3–6 second latency, pixel coo
     - Slack: `https://connect.composio.dev/link/lk_63eXmbHZpmWM`
   - **Automated Verification:**
     - 273 / 273 tests passing across all 22 test suites in 75.07s (0 failures, 0 errors, 0 warnings).
+- **Zero-Friction Desktop Onboarding, Direct CLI Trigger & Architectural Hardening (275 Tests Certified):**
+  - **Composio-First 1-Click Desktop Onboarding UI (`omnibar.py`):**
+    - High-friction 6-field text form replaced with prominent 1-Click Connect Cards for Google (Calendar & Gmail), GitHub, and Slack.
+    - Dynamic discovery banner (`#onb-discovery-banner`) lights up automatically upon account authorization, reflecting discovered calendar events, repos, and teammates with zero typing.
+    - Legacy manual inputs safely housed in an optional collapsible accordion (`#onb-manual-accordion`), allowing instant 1-click completion via `"Launch Aura ➔"`.
+  - **Direct CLI Invocation & Single-Instance IPC Socket Bridge (`main.py` & `omnibar.py`):**
+    - Added `--omnibar` (default True) and `--onboard` flags to `desktop-dom assistant`.
+    - Integrated single-instance UNIX domain socket IPC (`/tmp/desktop_dom_aura.sock`): when Aura is already active, `desktop-dom assistant --omnibar --onboard` sends `b"onboard\n"`, bringing the window to the front and opening the onboarding drawer immediately.
+  - **Deterministic Intent Routing Polish (`brain.py` & `non_binary.py`):**
+    - Added repository status intent resolution (`what is on desktop-dom` / `status of desktop-dom`) directly to `route_non_binary_intent`, returning live branch, uncommitted files, and active PR status.
+    - Enhanced `who_is` matching to accept hyphenated/symbol entities (`desktop-dom`, `Crcle.ai`) and `what is <entity>` queries.
+  - **Hermetic Test Suite Stabilization:**
+    - Replaced fixed `time.sleep(0.08)` in WebKit IPC dispatch test (`tests/test_e2e_opaque_box.py`) with a resilient polling deadline loop, eliminating thread preemption flakiness under heavy test load.
+    - Added hermetic CLI tests for `--omnibar` and `--onboard` in `tests/test_cli.py`.
+    - All 275 / 275 automated tests passing across 22 test suites with 0 failures, 0 errors, and 0 warnings.
+  - **Native macOS Bundle Updated:**
+    - Recompiled and installed to `/Users/piyushdua/Applications/Aura.app`.
+
 
 
 
