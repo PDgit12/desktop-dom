@@ -1191,62 +1191,77 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       <div class="onb-header">
         <div class="onb-title">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-          <span>Personal Intent Engine · Onboarding</span>
+          <span>Personal Command Layer · Quick Setup</span>
         </div>
         <div style="display: flex; align-items: center; gap: 8px;">
-          <div class="status-badge" style="background: rgba(56, 189, 248, 0.1); color: #38bdf8;" id="onb-status-badge">Pure User Data</div>
+          <div class="status-badge" style="background: rgba(56, 189, 248, 0.1); color: #38bdf8;" id="onb-status-badge">1-Click Connect</div>
           <button class="onb-close-btn" id="onb-close-btn" title="Dismiss (Esc)">×</button>
         </div>
       </div>
-      <div class="onb-isolation-banner">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-        <span>Strict Cluster Isolation: Work & Personal Media are mathematically disjoint (Zero Leakage).</span>
+
+      <div style="font-size: 11.5px; color: #a1a1aa; line-height: 1.4;">
+        Connect your work tools via Composio. Aura automatically maps your calendar, repositories, and team members into your local Knowledge Graph with zero manual typing.
       </div>
-      <div class="onb-grid">
-        <div class="onb-field">
-          <label class="onb-label">Full Name</label>
-          <input type="text" class="onb-input" id="onb-name" value="Piyush Dua" />
-        </div>
-        <div class="onb-field">
-          <label class="onb-label">Role / Professional Title</label>
-          <input type="text" class="onb-input" id="onb-role" value="Backend Engineer" />
-        </div>
-        <div class="onb-field">
-          <label class="onb-label">Primary Organization / Team</label>
-          <input type="text" class="onb-input" id="onb-company" value="Crcle.ai" />
-        </div>
-        <div class="onb-field">
-          <label class="onb-label">Habitual Focus Playlist</label>
-          <input type="text" class="onb-input" id="onb-playlist" value="Deep Focus" />
-        </div>
-      </div>
-      <div class="onb-field">
-        <label class="onb-label">Collaborators (Locked in Knowledge Graph)</label>
-        <input type="text" class="onb-input" id="onb-collabs" value="Joshua Rayan (josh@crcle.ai), Cyril Rayan (cyril@crcle.ai)" />
-      </div>
-      <div class="onb-field">
-        <label class="onb-apps-label">Detected Machine Applications (Bound to Level 2 Fast-Paths)</label>
-        <div class="onb-chips" id="onb-apps-chips">
-          <!-- Dynamically populated chips -->
-        </div>
-        <div class="settings-add-row" style="margin-top: 6px;">
-          <input type="text" class="onb-input" id="onb-new-app-name" placeholder="App Name (e.g. Granola, Figma, Linear, Notion)" style="flex: 3;" />
-          <input type="text" class="onb-input" id="onb-new-app-cat" placeholder="Capability / Intent (e.g. meeting, design, tasks)" style="flex: 2;" />
-          <button class="settings-add-btn" id="onb-add-app-btn" type="button">+ Add App</button>
-        </div>
-      </div>
-      <div class="onb-field" style="margin-top: 4px;">
-        <label class="onb-apps-label" style="display: flex; justify-content: space-between; align-items: center;">
-          <span>Connect Cloud Data Sources (Composio Integration)</span>
-          <span style="font-size: 9px; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.05em;">OAuth 2.0 · Read-Only · Zero Credential Storage</span>
-        </label>
+
+      <div class="onb-field" style="margin-top: 2px;">
         <div class="composio-connect-grid" id="onb-composio-grid">
           <!-- Dynamically populated Composio integration cards -->
         </div>
       </div>
-      <div class="onb-btn-bar">
-        <button class="onb-cancel-btn" id="onb-cancel-btn">Dismiss</button>
-        <button class="onb-confirm-btn" id="onb-confirm-btn">Confirm & Seal Knowledge Graph</button>
+
+      <div id="onb-discovery-banner" style="display: none; padding: 8px 12px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 6px; font-size: 11px; color: #34d399;">
+        <div style="display: flex; align-items: center; gap: 6px; font-weight: 600;">
+          <span>✓</span> <span id="onb-discovery-title">Connected to Cloud Data Layer</span>
+        </div>
+        <div id="onb-discovery-details" style="margin-top: 3px; font-size: 10px; color: #a7f3d0; opacity: 0.9;">
+          Auto-discovering meetings, team contacts, and active repositories...
+        </div>
+      </div>
+
+      <details id="onb-manual-accordion" style="margin-top: 2px; border: 1px solid rgba(255, 255, 255, 0.07); border-radius: 6px; padding: 6px 10px; font-size: 11px; color: #71717a;">
+        <summary style="cursor: pointer; user-select: none; color: #a1a1aa; font-weight: 500;">
+          <span>Customize or Override Details (Optional)</span>
+        </summary>
+        <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
+          <div class="onb-grid">
+            <div class="onb-field">
+              <label class="onb-label">Full Name</label>
+              <input type="text" class="onb-input" id="onb-name" value="Piyush Dua" />
+            </div>
+            <div class="onb-field">
+              <label class="onb-label">Role / Professional Title</label>
+              <input type="text" class="onb-input" id="onb-role" value="Backend Engineer" />
+            </div>
+            <div class="onb-field">
+              <label class="onb-label">Primary Organization / Team</label>
+              <input type="text" class="onb-input" id="onb-company" value="Crcle.ai" />
+            </div>
+            <div class="onb-field">
+              <label class="onb-label">Habitual Focus Playlist</label>
+              <input type="text" class="onb-input" id="onb-playlist" value="Deep Focus" />
+            </div>
+          </div>
+          <div class="onb-field">
+            <label class="onb-label">Collaborators (Locked in Knowledge Graph)</label>
+            <input type="text" class="onb-input" id="onb-collabs" value="Joshua Rayan (josh@crcle.ai), Cyril Rayan (cyril@crcle.ai)" />
+          </div>
+          <div class="onb-field">
+            <label class="onb-apps-label">Detected Machine Applications (Bound to Level 2 Fast-Paths)</label>
+            <div class="onb-chips" id="onb-apps-chips">
+              <!-- Dynamically populated chips -->
+            </div>
+            <div class="settings-add-row" style="margin-top: 6px;">
+              <input type="text" class="onb-input" id="onb-new-app-name" placeholder="App Name (e.g. Granola, Figma, Linear, Notion)" style="flex: 3;" />
+              <input type="text" class="onb-input" id="onb-new-app-cat" placeholder="Capability / Intent (e.g. meeting, design, tasks)" style="flex: 2;" />
+              <button class="settings-add-btn" id="onb-add-app-btn" type="button">+ Add App</button>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <div class="onb-btn-bar" style="margin-top: 6px;">
+        <button class="onb-cancel-btn" id="onb-cancel-btn">Skip for now</button>
+        <button class="onb-confirm-btn" id="onb-confirm-btn" style="background: linear-gradient(135deg, #0284c7, #2563eb); font-weight: 600;">Launch Aura ➔</button>
       </div>
     </div>
 
