@@ -165,15 +165,22 @@ class ComposioHttpClient:
 
     def initiate_connection(
         self,
-        app_name: str,
-        entity_id: str,
+        app_name: Optional[str] = None,
+        entity_id: Optional[str] = None,
         redirect_url: Optional[str] = None,
+        toolkit: Optional[str] = None,
+        user_id: Optional[str] = None,
+        scopes: Optional[List[str]] = None,
+        **kwargs: Any,
     ) -> ConnectedAccountState:
         """
         Initiates an OAuth connection flow for a specific app (e.g. googlecalendar, github, gmail).
         Returns ConnectedAccountState containing the auth_url to open in user's browser.
         """
-        clean_app = app_name.strip().lower()
+        clean_app = (app_name or toolkit or kwargs.get("app") or "").strip().lower()
+        target_entity = (entity_id or user_id or kwargs.get("entityId") or "user_local").strip()
+        target_redirect = redirect_url or kwargs.get("redirectUrl")
+
         if not self.is_configured():
             return ConnectedAccountState(
                 app=clean_app,
@@ -185,8 +192,8 @@ class ComposioHttpClient:
             sdk = self._get_sdk()
             if sdk is not None:
                 try:
-                    session = sdk.create(user_id=entity_id)
-                    conn = session.authorize(toolkit=clean_app, callback_url=redirect_url)
+                    session = sdk.create(user_id=target_entity)
+                    conn = session.authorize(toolkit=clean_app, callback_url=target_redirect)
                     raw_status = (getattr(conn, "status", None) or "INITIATING").upper()
                     auth_url = getattr(conn, "redirect_url", None)
                     mapped_status = "AWAITING_USER_AUTH" if auth_url else raw_status
@@ -204,10 +211,10 @@ class ComposioHttpClient:
 
         payload = {
             "appName": clean_app,
-            "entityId": entity_id,
+            "entityId": target_entity,
         }
-        if redirect_url:
-            payload["redirectUrl"] = redirect_url
+        if target_redirect:
+            payload["redirectUrl"] = target_redirect
 
         res = self._request("POST", "/connectedAccounts", payload=payload)
 

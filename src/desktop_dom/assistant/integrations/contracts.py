@@ -23,6 +23,26 @@ class ConnectedAccountState(BaseModel):
     error_message: Optional[str] = None
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
+    @property
+    def redirect_url(self) -> Optional[str]:
+        return self.auth_url
+
+    def get(self, key: str, default: Any = None) -> Any:
+        if key == "redirect_url":
+            return self.auth_url if self.auth_url is not None else default
+        if key in {"connection_id", "id"}:
+            return self.account_id if self.account_id is not None else default
+        if hasattr(self, key):
+            val = getattr(self, key)
+            return val if val is not None else default
+        return self.metadata.get(key, default) if self.metadata else default
+
+    def __getitem__(self, key: str) -> Any:
+        val = self.get(key)
+        if val is None:
+            raise KeyError(key)
+        return val
+
 
 class CanonicalContact(BaseModel):
     """Normalized contact entity extracted from Gmail, Slack, or Google Calendar."""
