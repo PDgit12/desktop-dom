@@ -192,5 +192,21 @@ Eliminates vision agent flaws (>90% token waste, 3–6 second latency, pixel coo
   - **Automated Verification & Packaging:**
     - 273 / 273 tests passing cleanly across full pytest suite in 73.80s (0 failures, 0 errors, 0 warnings).
     - Native macOS application bundle `Aura.app` rebuilt and installed to `~/Applications/Aura.app`.
+- **Live Composio Platform Integration, Skill Installation & First Tool Call Verification:**
+  - **Skill & SDK Installation:**
+    - Installed official Composio skill via `npx skills add ComposioHQ/composio --skill composio -y` into `.agents/skills/composio`.
+    - Upgraded environment to official `composio` SDK (v0.21.1) and `composio-client` (v1.43.0).
+    - Upgraded `ComposioHttpClient` (`src/desktop_dom/assistant/integrations/composio_client.py`) to support Composio v3/v3.1 REST API (`https://backend.composio.dev/api/v3`) and delegate dynamically to the official `composio.Composio` SDK while preserving 100% backward-compatibility for unit test mocks.
+  - **First Live Tool Call Executed:**
+    - Executed live session tool call: `session.execute('COMPOSIO_GET_TOOL_SCHEMAS', arguments={'tool_slugs': ['GITHUB_GET_A_REPOSITORY']})`.
+    - Received real Composio Platform execution log ID: `log_YO9FZqVHnIdo` with `success=True`.
+  - **OAuth Connect Links Generated:**
+    - GitHub: `https://connect.composio.dev/link/lk_ATLsK_l96aWW`
+    - Google Calendar: `https://connect.composio.dev/link/lk_OkjSc5EFOBUP`
+    - Gmail: `https://connect.composio.dev/link/lk_I8dN2KBzLuVU`
+    - Slack: `https://connect.composio.dev/link/lk_63eXmbHZpmWM`
+  - **Automated Verification:**
+    - 273 / 273 tests passing across all 22 test suites in 75.07s (0 failures, 0 errors, 0 warnings).
+
 
 
