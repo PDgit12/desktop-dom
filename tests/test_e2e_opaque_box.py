@@ -499,7 +499,10 @@ def test_tier1_webkit_ipc_submit_query_dispatches_result(e2e_onboarded_env):
         handler.userContentController_didReceiveScriptMessage_(
             None, MockScriptMessage({"action": "submit_query", "query": "calculate 100 * 45"})
         )
-        time.sleep(0.08)
+        for _ in range(40):
+            if any("window.displayResult" in call and "4500" in call for call in js_calls):
+                break
+            time.sleep(0.05)
 
     assert any("window.displayResult" in call and "4500" in call for call in js_calls)
 

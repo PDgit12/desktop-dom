@@ -3028,6 +3028,7 @@ class FloatingOmnibar:
         self._status_item = None
         self._menu_delegate = None
         self._is_visible = False
+        self._force_onboard = False
         self._base_width = 720
         self._base_height = 360
 
@@ -3404,7 +3405,9 @@ class FloatingOmnibar:
             self._panel.setAlphaValue_(1.0)
             self._is_visible = True
             is_unverified = False
-            if self.brain and getattr(self.brain, "memory", None):
+            if getattr(self, "_force_onboard", False):
+                is_unverified = True
+            elif self.brain and getattr(self.brain, "memory", None):
                 try:
                     is_unverified = not self.brain.memory.is_onboarding_verified()
                 except Exception:
@@ -3828,10 +3831,10 @@ class FloatingOmnibar:
         except Exception as e:
             logger.warning(f"Could not bind global hotkey: {e}")
 
-    def check_or_start_instance(self) -> bool:
+    def check_or_start_instance(self, command: bytes = b"show\n") -> bool:
         """
         Ensures only a single instance of Aura runs.
-        If another instance is active, sends 'show' command to bring it to front and returns False.
+        If another instance is active, sends IPC command to bring it to front and returns False.
         """
         import socket
         import os
@@ -3843,9 +3846,9 @@ class FloatingOmnibar:
             s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             s.settimeout(0.6)
             s.connect(socket_path)
-            s.sendall(b"show\n")
+            s.sendall(command)
             s.close()
-            logger.info("Aura already running; brought existing window to front.")
+            logger.info("Aura already running; sent IPC command.")
             return False
         except (socket.error, FileNotFoundError, ConnectionRefusedError):
             pass
@@ -3865,7 +3868,10 @@ class FloatingOmnibar:
                 while True:
                     conn, _ = srv.accept()
                     data = conn.recv(1024)
-                    if b"show" in data or b"toggle" in data:
+                    if b"onboard" in data:
+                        self.show()
+                        self.on_get_onboarding_requested()
+                    elif b"show" in data or b"toggle" in data:
                         self.show()
                     elif b"hide" in data:
                         self.hide()
@@ -3877,11 +3883,16 @@ class FloatingOmnibar:
         t.start()
         return True
 
-    def run(self):
+    def run(self, force_onboard: bool = False):
         """Starts the native macOS Cocoa event loop."""
+        self._force_onboard = force_onboard
         if sys.platform == "darwin":
-            if not self.check_or_start_instance():
-                print("Aura is already running. Summoned existing window to front.")
+            cmd = b"onboard\n" if force_onboard else b"show\n"
+            if not self.check_or_start_instance(cmd):
+                if force_onboard:
+                    print("Aura is already running. Summoned onboarding drawer to front.")
+                else:
+                    print("Aura is already running. Summoned existing window to front.")
                 return
         self.setup_ui()
         self.start_global_hotkey_listener()

@@ -1052,7 +1052,7 @@ def route_non_binary_intent(prompt: str, cwd: Optional[str] = None, memory: Opti
     if any(p in clean for p in calendar_patterns) or clean in ["calendar briefing", "agenda", "today's agenda"]:
         return get_calendar_briefing(memory=memory)
 
-    # 2. Git PR status
+    # 2. Git PR status & Repository Status
     git_pr_patterns = [
         "git pr status", "pr status", "pull request status", "check git pr status",
         "active pr status", "git and pr status", "active pull request status",
@@ -1060,6 +1060,12 @@ def route_non_binary_intent(prompt: str, cwd: Optional[str] = None, memory: Opti
     ]
     if any(p in clean for p in git_pr_patterns) or clean in ["git pr status", "pr status"]:
         return get_git_pr_status(cwd=cwd)
+
+    repo_match = re.match(r"^(?:what is on|what's on|status of)\s+([a-zA-Z0-9_.-]+)$", clean)
+    if repo_match:
+        target_repo = repo_match.group(1).strip().lower()
+        if target_repo in ("desktop-dom", "desktop_dom", "repo", "project") or (memory and target_repo in str(memory.get_preference("work.repos", "")).lower()):
+            return get_git_pr_status(cwd=cwd)
 
     # 3. Linear issues
     linear_patterns = [

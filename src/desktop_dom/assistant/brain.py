@@ -1129,8 +1129,8 @@ end tell'''
                 "response": resp_text,
             }
 
-        # Contact Biography & Knowledge Query ("who is ...", "tell me about ...")
-        who_match = re.match(r"^(?:who\s+is|tell\s+me\s+about)\s+(?!connected\s+to)([a-zA-Z0-9\s]+?)\??$", raw_prompt, re.IGNORECASE)
+        # Contact Biography & Knowledge Query ("who is ...", "tell me about ...", "what is ...")
+        who_match = re.match(r"^(?:who\s+is|tell\s+me\s+about|what\s+is)\s+(?!connected\s+to|on\s+|in\s+|my\s+|the\s+weather)([a-zA-Z0-9\s._-]+?)\??$", raw_prompt, re.IGNORECASE)
         if who_match:
             target = who_match.group(1).strip()
             bio = self.memory.who_is(target)
@@ -1142,7 +1142,7 @@ end tell'''
                     "target": target,
                     "response": bio,
                 }
-            else:
+            elif not raw_prompt.lower().startswith("what is"):
                 return {
                     "status": "not_found",
                     "action": "who_is",

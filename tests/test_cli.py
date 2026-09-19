@@ -122,4 +122,25 @@ def test_mcp_server_request_handling(test_adapter):
     unknown_res = server.handle_request({"jsonrpc": "2.0", "id": 7, "method": "unknown/method"})
     assert "error" in unknown_res
 
+def test_cli_assistant_flags():
+    result = runner.invoke(app, ["assistant", "--help"])
+    assert result.exit_code == 0
+    assert "--omnibar" in result.output
+    assert "--onboard" in result.output
+
+def test_cli_assistant_onboard_invocations(monkeypatch):
+    called = {}
+    class FakeAssistant:
+        def __init__(self, *args, **kwargs):
+            self.audio = type("FakeAudio", (), {"speak": lambda *a, **k: None})()
+        def launch_omnibar(self, force_onboard=False):
+            called["force_onboard"] = force_onboard
+        def run_cli_session(self):
+            called["cli"] = True
+
+    monkeypatch.setattr("desktop_dom.assistant.DesktopAssistant", FakeAssistant)
+    result = runner.invoke(app, ["assistant", "--onboard"])
+    assert result.exit_code == 0
+    assert called.get("force_onboard") is True
+
 

@@ -56,13 +56,13 @@ class DesktopAssistant:
         self.audio.speak(reply)
         return reply
 
-    def launch_omnibar(self, enable_wake_word: bool = False):
+    def launch_omnibar(self, enable_wake_word: bool = False, force_onboard: bool = False):
         """Launches the native floating Spotlight/Raycast Omnibar."""
         if not self.omnibar:
             raise RuntimeError("Floating Omnibar currently requires macOS Cocoa & WebKit.")
         if enable_wake_word:
             self.start_wake_word()
-        self.omnibar.run()
+        self.omnibar.run(force_onboard=force_onboard)
 
     def run_cli_session(self):
         """Runs an interactive conversational terminal session."""

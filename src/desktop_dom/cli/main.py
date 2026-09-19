@@ -364,6 +364,8 @@ def crop(
 def assistant(
     mode: str = typer.Option("omnibar", "--mode", "-m", help="'omnibar' (floating Spotlight HUD) or 'cli' (conversational terminal)"),
     cli: bool = typer.Option(False, "--cli", help="Shorthand for conversational terminal HUD mode"),
+    omnibar: bool = typer.Option(True, "--omnibar", help="Launch the floating Spotlight HUD (default)"),
+    onboard: bool = typer.Option(False, "--onboard", help="Force open the zero-friction onboarding drawer with 1-click Composio integrations"),
     wake_word: bool = typer.Option(False, "--wake-word", "-w", help="Enable continuous on-device wake-word detection ('Hey Aura')"),
     ollama_host: str = typer.Option("http://localhost:11434", "--ollama-host", help="Local Ollama endpoint"),
     model: Optional[str] = typer.Option(None, "--model", help="Preferred Ollama model name (e.g. 'ministral-3:8b', 'qwen3:8b')"),
@@ -383,9 +385,10 @@ def assistant(
         assistant_inst.run_cli_session()
     else:
         try:
-            assistant_inst.launch_omnibar()
+            assistant_inst.launch_omnibar(force_onboard=onboard)
         except Exception as e:
             console.print(f"[bold yellow]Omnibar note:[/bold yellow] {e}. Falling back to CLI mode.")
+            assistant_inst.run_cli_session()
 @app.command()
 def onboard(
     interactive: bool = typer.Option(False, "--interactive", "-i", help="Run interactive guided setup"),
