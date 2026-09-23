@@ -115,7 +115,11 @@ def get_calendar_briefing(calendar_client: str = "Calendar", timeout: float = 4.
                         m_url = ev.get("meeting_url")
                         join_str = f" | Join: {m_url}" if m_url else ""
                         att = ev.get("attendees")
-                        att_str = f" | Attendees: {', '.join(att)}" if att else ""
+                        if att and isinstance(att, list):
+                            att_names = [a.get("displayName") or a.get("name") or a.get("email") or str(a) if isinstance(a, dict) else str(a) for a in att]
+                            att_str = f" | Attendees: {', '.join(att_names)}"
+                        else:
+                            att_str = ""
                         formatted_lines.append(f"• {time_str}: {title}{join_str}{att_str}")
                     resp = f"Today's Calendar Briefing ({len(cached_events)} events):\n" + "\n".join(formatted_lines)
                     return {
