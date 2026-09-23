@@ -43,7 +43,7 @@ class ComposioIngest:
 
         raw_events = res.get("data", {}).get("items") or res.get("items") or []
         user_name = self.memory.get_preference("user.name") or "User"
-        user_company = self.memory.get_preference("user.company") or "Crcle.ai"
+        user_company = self.memory.get_user_company()
 
         canonical_events = []
         synced_contacts_count = 0
@@ -101,7 +101,7 @@ class ComposioIngest:
 
         raw_repos = res.get("data") if isinstance(res.get("data"), list) else res.get("items", [])
         user_name = self.memory.get_preference("user.name") or "User"
-        user_company = self.memory.get_preference("user.company") or "Crcle.ai"
+        user_company = self.memory.get_user_company()
 
         canonical_repos = []
         for raw_r in raw_repos:
@@ -267,7 +267,7 @@ class ComposioIngest:
         if "/" in clean_repo:
             owner, repo_name = clean_repo.split("/", 1)
         else:
-            owner = self.memory.get_preference("user.github_owner") or "PDgit12"
+            owner = self.memory.get_preference("user.github_owner") or self.memory.system_identity.get("github_owner", "")
             repo_name = clean_repo
 
         params = {

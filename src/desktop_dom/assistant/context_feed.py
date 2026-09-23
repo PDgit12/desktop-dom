@@ -322,7 +322,10 @@ class ContextFeedEngine:
                 topic = "desktop-dom Core Development"
             elif window_title and not window_title.startswith("Untitled"):
                 topic = f"Code: {window_title.split('—')[0].split('-')[0].strip()}"
-            return "Engineering", topic, "Deep Focus", "Focus Beats"
+            suggested = "Deep Focus"
+            if self.memory:
+                suggested = self.memory.resolve_habit("spotify.playlist.coding") or self.memory.get_preference("spotify.playlist.coding", self.memory.get_preference("spotify.favorite_playlist", "Deep Focus"))
+            return "Engineering", topic, suggested, "Focus Beats"
 
         # 3. Communication & Messaging Context
         comm_apps = ["microsoft outlook", "outlook", "mail", "slack", "messages", "discord", "zoom", "teams", "whatsapp"]
@@ -346,7 +349,7 @@ class ContextFeedEngine:
         if is_media:
             clean_title = re.sub(r"^\(\d+\)\s*", "", browser_title or "")
             clean_title = re.sub(r"\s*-\s*YouTube$", "", clean_title, flags=re.IGNORECASE).strip()
-            return "Media", f"Media: {clean_title}" if clean_title else "Streaming Media", "Deep Focus", "Personal"
+            return "Media", f"Media: {clean_title}" if clean_title else "Streaming Media", "", "Personal"
 
         # 6. Research & Web Reading
         if browser_name or any(b in app_low for b in ["chrome", "safari", "arc", "edge", "brave"]):
@@ -357,7 +360,7 @@ class ContextFeedEngine:
 
         # 6. Fallback General
         topic = window_title if window_title else frontmost_app
-        return "General", topic, "Deep Focus", "Personal"
+        return "General", topic, "", "Personal"
 
     def record_snapshot(self, snapshot: ActiveContextSnapshot):
         """Persists the telemetry snapshot to SQLite WAL memory."""

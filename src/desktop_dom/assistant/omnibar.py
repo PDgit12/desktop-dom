@@ -1096,7 +1096,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       <div class="header-tools">
         <div class="workspace-pill-btn" id="workspace-pill" title="Active Sovereign Workspace (Click for Settings)">
           <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #38bdf8; box-shadow: 0 0 6px rgba(56, 189, 248, 0.6);"></span>
-          <span id="workspace-name">Crcle.ai</span>
+          <span id="workspace-name">Workspace</span>
         </div>
         <div class="model-pill-btn" id="model-pill" title="Intent Routing Engine" style="display: none;">
           <span id="header-model-name">Native</span>
@@ -1226,24 +1226,24 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
           <div class="onb-grid">
             <div class="onb-field">
               <label class="onb-label">Full Name</label>
-              <input type="text" class="onb-input" id="onb-name" value="Piyush Dua" />
+              <input type="text" class="onb-input" id="onb-name" value="" placeholder="Your full name" />
             </div>
             <div class="onb-field">
               <label class="onb-label">Role / Professional Title</label>
-              <input type="text" class="onb-input" id="onb-role" value="Backend Engineer" />
+              <input type="text" class="onb-input" id="onb-role" value="" placeholder="Your role or title" />
             </div>
             <div class="onb-field">
               <label class="onb-label">Primary Organization / Team</label>
-              <input type="text" class="onb-input" id="onb-company" value="Crcle.ai" />
+              <input type="text" class="onb-input" id="onb-company" value="" placeholder="Your company or team" />
             </div>
             <div class="onb-field">
               <label class="onb-label">Habitual Focus Playlist</label>
-              <input type="text" class="onb-input" id="onb-playlist" value="Deep Focus" />
+              <input type="text" class="onb-input" id="onb-playlist" value="" placeholder="e.g. Deep Focus, Lo-Fi Beats" />
             </div>
           </div>
           <div class="onb-field">
             <label class="onb-label">Collaborators (Locked in Knowledge Graph)</label>
-            <input type="text" class="onb-input" id="onb-collabs" value="Joshua Rayan (josh@crcle.ai), Cyril Rayan (cyril@crcle.ai)" />
+            <input type="text" class="onb-input" id="onb-collabs" value="" placeholder="Name (email), Name (email)" />
           </div>
           <div class="onb-field">
             <label class="onb-apps-label">Detected Machine Applications (Bound to Level 2 Fast-Paths)</label>
@@ -1455,8 +1455,8 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       { iconType: "app", title: "Top Apps & Brain Onboarding", subtitle: "Discovered apps & knowledge graph topology", query: "/onboard", badge: "Brain" },
       { iconType: "app", title: "I Have a Meeting", subtitle: "Launch bound meeting companion (Level 2.5 Ghost)", query: "i have a meeting", badge: "Intent" },
       { iconType: "app", title: "Memory & Collaborators", subtitle: "Manage profile, collaborators & app bindings", query: "/settings", badge: "Config" },
-      { iconType: "app", title: "Message Josh", subtitle: "Draft update to Josh about Crcle", query: "message Josh the deck is ready", badge: "Intent" },
-      { iconType: "app", title: "Message Cyril", subtitle: "Quick message to Cyril Rayan", query: "message Cyril PR is ready", badge: "Intent" },
+      { iconType: "app", title: "Message a Colleague", subtitle: "Draft a message to a contact", query: "message ", badge: "Intent" },
+      { iconType: "app", title: "Check My Calendar", subtitle: "View today's schedule and upcoming events", query: "what is on my calendar", badge: "Context" },
       { iconType: "screen", title: "What was I doing?", subtitle: "Summarize active desktop context & focus", query: "what was I doing?", badge: "Context" },
       { iconType: "app", title: "Open My Repo", subtitle: "Active GitHub workspace & pull requests", query: "open my repo", badge: "Dev" },
       { iconType: "media", title: "Play Focus Playlist", subtitle: "Play verified focus soundtrack on Spotify", query: "play playlist", badge: "Music" },
@@ -2146,7 +2146,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       const container = document.getElementById("project-list");
       if (!container) return;
       container.innerHTML = "";
-      const projList = Array.isArray(projects) && projects.length > 0 ? projects : ["Crcle.ai", "desktop-dom", "Personal"];
+      const projList = Array.isArray(projects) && projects.length > 0 ? projects : ["Personal"];
       projList.forEach(p => {
         const isAct = p.toLowerCase() === (activeProject || "").toLowerCase();
         const pCard = document.createElement("div");
@@ -2202,17 +2202,17 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       statusDot.style.background = "#38bdf8";
 
       if (data && data.user) {
-        onbName.value = data.user.name || "Piyush Dua";
-        onbRole.value = data.user.role || "Backend Engineer";
-        onbCompany.value = data.user.company || "Crcle.ai";
+        onbName.value = data.user.name || "";
+        onbRole.value = data.user.role || "";
+        onbCompany.value = data.user.company || "";
       }
       if (data && data.media_habits) {
-        onbPlaylist.value = data.media_habits.focus_playlist || "Deep Focus";
+        onbPlaylist.value = data.media_habits.focus_playlist || "";
       }
       if (data && data.collaborators && data.collaborators.length > 0) {
         onbCollabs.value = data.collaborators.map(c => `${c.name} (${c.email || "no email"})`).join(", ");
       } else {
-        onbCollabs.value = "Joshua Rayan (josh@crcle.ai), Cyril Rayan (cyril@crcle.ai)";
+        onbCollabs.value = "";
       }
 
       onbAppsChips.innerHTML = "";
@@ -2380,14 +2380,14 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
             name: m[1].trim(),
             email: (m[2] || "").trim(),
             role: "Collaborator",
-            company: onbCompany.value.trim() || "Crcle.ai"
+            company: onbCompany.value.trim() || ""
           });
         } else {
           collabsParsed.push({
             name: trimmed,
             email: "",
             role: "Collaborator",
-            company: onbCompany.value.trim() || "Crcle.ai"
+            company: onbCompany.value.trim() || ""
           });
         }
       });
@@ -3756,7 +3756,7 @@ class FloatingOmnibar:
             return {"status": "error", "message": "Brain does not support project switching"}
         try:
             res = self.brain.get_projects()
-            act = res.get("active_project", "Crcle.ai") if isinstance(res, dict) else "Crcle.ai"
+            act = res.get("active_project", "Personal") if isinstance(res, dict) else "Personal"
             projs = res.get("projects", []) if isinstance(res, dict) else []
             self.evaluate_js(f"window.renderProjectList('{act}', {json.dumps(projs)});")
             return res

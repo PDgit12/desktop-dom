@@ -74,6 +74,80 @@ def _edit_distance(s1: str, s2: str) -> int:
     return prev[len(s2)]
 
 
+def _is_git_handle(name: str) -> bool:
+    """Returns True if a name looks like a git/github handle rather than a real human name."""
+    if not name:
+        return False
+    return " " not in name and (any(c.isdigit() for c in name) or len(name) <= 2)
+
+
+def _discover_system_identity() -> Dict[str, str]:
+    """
+    Dynamically discovers the current user's identity from OS and git config.
+    Returns {"name": ..., "email": ..., "username": ..., "repo": ..., "github_owner": ...}.
+    Never returns hardcoded personal data — uses generic fallbacks if discovery fails.
+    """
+    import getpass
+    result: Dict[str, str] = {"name": "", "email": "", "username": "", "repo": "", "github_owner": ""}
+
+    # 1. System username (always available)
+    try:
+        result["username"] = getpass.getuser()
+    except Exception:
+        result["username"] = os.getenv("USER", "user")
+
+    # 2. Full name from macOS GECOS field (pwd)
+    try:
+        import pwd
+        gecos = pwd.getpwuid(os.getuid()).pw_gecos.strip()
+        if gecos:
+            result["name"] = gecos.split(",")[0].strip()
+    except Exception:
+        pass
+
+    # 3. Git config identity
+    try:
+        r_name = subprocess.run(["git", "config", "user.name"], capture_output=True, text=True, timeout=1.0)
+        if r_name.returncode == 0 and r_name.stdout.strip():
+            git_name = r_name.stdout.strip()
+            if not result["name"] and not _is_git_handle(git_name):
+                result["name"] = git_name
+    except Exception:
+        pass
+
+    try:
+        r_email = subprocess.run(["git", "config", "user.email"], capture_output=True, text=True, timeout=1.0)
+        if r_email.returncode == 0 and r_email.stdout.strip():
+            result["email"] = r_email.stdout.strip()
+    except Exception:
+        pass
+
+    try:
+        r_origin = subprocess.run(["git", "config", "--get", "remote.origin.url"], capture_output=True, text=True, timeout=1.0)
+        if r_origin.returncode == 0 and r_origin.stdout.strip():
+            raw_url = r_origin.stdout.strip()
+            clean_url = re.sub(r"\.git$", "", raw_url)
+            repo_slug = ""
+            if ":" in clean_url and not clean_url.startswith("http"):
+                repo_slug = clean_url.split(":")[-1]
+            elif "github.com/" in clean_url:
+                repo_slug = clean_url.split("github.com/")[-1]
+            if repo_slug:
+                result["repo"] = repo_slug
+                if "/" in repo_slug:
+                    result["github_owner"] = repo_slug.split("/")[0]
+    except Exception:
+        pass
+
+    # 4. Generic fallbacks — never personal names
+    if not result["name"]:
+        result["name"] = result["username"].capitalize() if result["username"] else "User"
+    if not result["email"]:
+        result["email"] = f"{result['username']}@local" if result["username"] else "user@local"
+
+    return result
+
+
 class AuraMemory:
     """
     Local-first, sub-millisecond Personal Context & Memory Engine for Aura.
@@ -100,6 +174,39 @@ class AuraMemory:
         
         self._init_db()
         self._reload_cache()
+
+    @property
+    def system_identity(self) -> Dict[str, str]:
+        """Cached dynamic identity from OS/git. Resolved once per AuraMemory instance."""
+        if not hasattr(self, '_system_identity_cache') or self._system_identity_cache is None:
+            self._system_identity_cache = _discover_system_identity()
+        return self._system_identity_cache
+
+    def get_user_name(self) -> str:
+        """Returns the user's name from preferences, falling back to dynamic OS discovery."""
+        stored = self.get_preference("user.name")
+        if stored and not _is_git_handle(stored):
+            return stored
+        return self.system_identity["name"]
+
+    def get_user_email(self) -> str:
+        """Returns the user's email from preferences, falling back to dynamic git discovery."""
+        return self.get_preference("user.email") or self.system_identity["email"]
+
+    def get_user_company(self) -> str:
+        """Returns the user's company from preferences, or empty string if unconfigured."""
+        return self.get_preference("user.company") or ""
+
+    def get_user_role(self) -> str:
+        """Returns the user's role from preferences, or empty string if unconfigured."""
+        return self.get_preference("user.role") or ""
+
+    def get_default_github_repo(self) -> str:
+        """Returns the default GitHub repo from preferences or dynamic git remote discovery."""
+        stored = self.get_preference("github.default_repo")
+        if stored:
+            return stored
+        return self.system_identity.get("repo") or ""
 
     def _get_connection(self) -> sqlite3.Connection:
         """Returns the cached SQLite connection with row factories and WAL mode."""
@@ -359,50 +466,26 @@ class AuraMemory:
             conn.commit()
 
     def _bootstrap_seed_data(self, cursor: sqlite3.Cursor):
-        """Pre-seeds high-frequency contacts and default preferences for Crcle.ai demo."""
+        """Pre-seeds the user entity and default preferences using dynamically discovered identity."""
         now = time.time()
-        
-        # Initial Contacts
+        si = _discover_system_identity()
+        user_name = si["name"]
+        user_email = si["email"]
+        username = si["username"]
+
+        # Seed user entity only — collaborators are added during onboarding
         seeds = [
             (
-                "Joshua Rayan",
-                json.dumps(["josh", "joshua", "josh rayan", "joshua rayan", "ceo", "founder", "founder and ceo", "co-founder"]),
-                "josh@crcle.ai",
+                user_name,
+                json.dumps([username, "me", "myself", "i", "user"]),
+                user_email,
                 "",
-                "Crcle.ai",
-                "Co-Founder & CEO",
-                "colleague",
-                10,
-                now,
-                json.dumps({"relation": "founder", "preferred_client": "Microsoft Outlook", "priority": 10}),
-                now,
-                now,
-            ),
-            (
-                "Cyril Rayan",
-                json.dumps(["cyril", "cyril rayan", "systems lead", "architect", "systems architect", "founder", "co-founder"]),
-                "cyril@crcle.ai",
-                "",
-                "Crcle.ai",
-                "Co-Founder & Systems Architect",
-                "colleague",
-                8,
-                now - 3600,
-                json.dumps({"relation": "founder", "preferred_client": "Microsoft Outlook", "priority": 9}),
-                now,
-                now,
-            ),
-            (
-                "Piyush Dua",
-                json.dumps(["piyush", "me", "myself", "i", "user"]),
-                "piyushdua01@gmail.com",
-                "",
-                "Crcle.ai",
-                "Backend Engineer",
+                "",  # company — set during onboarding
+                "",  # role — set during onboarding
                 "user",
                 25,
                 now,
-                json.dumps({"user": True, "github": "PDgit12", "focus": "Systems & Intent Architecture", "priority": 10}),
+                json.dumps({"user": True}),
                 now,
                 now,
             ),
@@ -415,18 +498,14 @@ class AuraMemory:
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         """, seeds)
 
-        # Initial Preferences
+        # Default preferences — generic app defaults only
         prefs = [
-            ("spotify.favorite_playlist", "Deep Focus", "music", now),
-            ("spotify.routine_playlist", "Discover Weekly", "music", now),
             ("mail.preferred_client", "Microsoft Outlook", "mail", now),
-            ("messaging.default_target", "josh@crcle.ai", "messaging", now),
-            ("user.name", "Piyush Dua", "user", now),
-            ("user.company", "Crcle.ai", "user", now),
-            ("user.role", "Backend Engineer", "user", now),
-            ("user.email", "piyushdua01@gmail.com", "user", now),
-            ("github.default_repo", "PDgit12/desktop-dom", "developer", now),
+            ("user.name", user_name, "user", now),
+            ("user.email", user_email, "user", now),
         ]
+        if si.get("repo"):
+            prefs.append(("github.default_repo", si["repo"], "developer", now))
 
         cursor.executemany("""
         INSERT OR REPLACE INTO preferences (key, value, category, updated_at)
@@ -434,8 +513,9 @@ class AuraMemory:
         """, prefs)
 
     def _bootstrap_seed_graph(self, cursor: sqlite3.Cursor):
-        """Pre-seeds semantic knowledge graph nodes and edges connecting work and media topologies."""
+        """Pre-seeds semantic knowledge graph with user node and generic tool nodes."""
         now = time.time()
+        si = _discover_system_identity()
 
         def _get_or_create(name: str, category: str, role: str = "", company: str = "", aliases: Optional[List[str]] = None, email: str = "") -> int:
             cursor.execute("SELECT id FROM entities WHERE LOWER(name) = LOWER(?) LIMIT 1;", (name,))
@@ -451,32 +531,13 @@ class AuraMemory:
             """, (name, json.dumps(alias_list), email, company, role, category, now, now, now))
             return cursor.lastrowid
 
-        p_dua = _get_or_create("Piyush Dua", "user", "Backend Engineer", "Crcle.ai", ["piyush", "me", "myself", "i", "user"], "piyushdua01@gmail.com")
-        j_rayan = _get_or_create("Joshua Rayan", "colleague", "Co-Founder & CEO", "Crcle.ai", ["josh", "joshua", "josh rayan", "ceo", "founder"], "josh@crcle.ai")
-        c_rayan = _get_or_create("Cyril Rayan", "colleague", "Co-Founder & Systems Architect", "Crcle.ai", ["cyril", "cyril rayan", "architect", "founder"], "cyril@crcle.ai")
-        crcle = _get_or_create("Crcle.ai", "organization", "The Intent Layer of Computing", "Crcle.ai", ["crcle", "crcle ai", "circle ai", "intent layer"])
-        ddom = _get_or_create("desktop-dom", "project", "Autonomous Accessibility & Intent Engine", "Crcle.ai", ["desktop-dom", "desktop dom", "aura"])
+        user_node = _get_or_create(si["name"], "user", "", "", [si["username"], "me", "myself", "i", "user"], si["email"])
         outlook = _get_or_create("Microsoft Outlook", "tool", "Enterprise Mail Client", "Microsoft", ["outlook", "ms outlook", "email"])
         spotify = _get_or_create("Spotify", "tool", "Audio & Music Streaming", "Spotify", ["spotify", "spotify app", "music"])
 
         seed_edges = [
-            # Work Topology (Connected component)
-            (p_dua, crcle, "works_at", 1.0, "work"),
-            (j_rayan, crcle, "founded", 1.0, "work"),
-            (j_rayan, crcle, "ceo_of", 1.0, "work"),
-            (c_rayan, crcle, "founded", 1.0, "work"),
-            (c_rayan, crcle, "architects", 1.0, "work"),
-            (p_dua, j_rayan, "collaborates_with", 0.95, "work"),
-            (p_dua, c_rayan, "collaborates_with", 0.90, "work"),
-            (p_dua, ddom, "develops", 1.0, "work"),
-            (j_rayan, ddom, "collaborates_on", 0.95, "work"),
-            (c_rayan, ddom, "collaborates_on", 0.90, "work"),
-            (ddom, crcle, "powers", 0.95, "work"),
-            (p_dua, outlook, "uses", 0.90, "work"),
-            (j_rayan, outlook, "uses", 0.90, "work"),
-
-            # Tools
-            (p_dua, spotify, "uses", 0.90, "apps"),
+            (user_node, outlook, "uses", 0.90, "work"),
+            (user_node, spotify, "uses", 0.90, "apps"),
         ]
 
         cursor.executemany("""
@@ -697,7 +758,7 @@ class AuraMemory:
                         score += float(meta["priority"]) * 0.3
 
                     # Cluster & Context Affinity Boosting (Entity Symmetry Breaking)
-                    user_co = (self.get_preference("user.company", "Crcle.ai") or "").lower()
+                    user_co = (self.get_user_company() or "").lower()
                     ent_cluster = (meta.get("cluster") or ent.get("category") or "").lower()
                     is_work_ent = (
                         ent.get("category") in {"colleague", "founder", "work"}
@@ -1161,11 +1222,15 @@ class AuraMemory:
         metadata: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Adds or updates an entity in SQLite and updates cache."""
+        if not name or not name.strip():
+            return {}
         now = time.time()
         alias_list = aliases or []
-        first_name = name.strip().split()[0].lower()
-        if first_name not in [a.lower() for a in alias_list]:
-            alias_list.append(first_name)
+        parts = name.strip().split()
+        if parts:
+            first_name = parts[0].lower()
+            if first_name not in [a.lower() for a in alias_list]:
+                alias_list.append(first_name)
         
         meta_dict = metadata or {}
 
@@ -1457,6 +1522,13 @@ class AuraMemory:
         Adds or updates a directed edge in the Knowledge Graph.
         source and target can be integer entity IDs or natural language names.
         """
+        if not source or not target:
+            return False
+        if isinstance(source, str) and not source.strip():
+            return False
+        if isinstance(target, str) and not target.strip():
+            return False
+
         src_id: Optional[int] = None
         tgt_id: Optional[int] = None
 
@@ -1468,7 +1540,7 @@ class AuraMemory:
                 src_id = ent["id"]
             else:
                 new_ent = self.add_entity(name=source.strip(), category=cluster)
-                src_id = new_ent["id"]
+                src_id = new_ent.get("id")
 
         if isinstance(target, int):
             tgt_id = target
@@ -1478,7 +1550,7 @@ class AuraMemory:
                 tgt_id = ent["id"]
             else:
                 new_ent = self.add_entity(name=target.strip(), category=cluster)
-                tgt_id = new_ent["id"]
+                tgt_id = new_ent.get("id")
 
         if not src_id or not tgt_id or src_id == tgt_id:
             return False
@@ -1665,7 +1737,7 @@ class AuraMemory:
                     "target_rel": t_info["rel"],
                 }
                 shared_entities.append(item)
-                if item["category"] in ["project", "organization"] or item["name"] in ["desktop-dom", "Crcle.ai"]:
+                if item["category"] in ["project", "organization"]:
                     shared_projects.append(item)
 
         dist = 1 if direct_relations else (2 if shared_entities else float("inf"))
@@ -1791,14 +1863,14 @@ class AuraMemory:
                 {"name": e["name"], "email": e.get("email", ""), "count": e.get("interaction_count", 0)}
                 for e in self._entity_cache[:5]
             ]
-            favorite_playlist = self.resolve_habit("spotify.favorite_playlist") or self.get_preference("spotify.favorite_playlist", "Deep Focus")
+            favorite_playlist = self.resolve_habit("spotify.favorite_playlist") or self.get_preference("spotify.favorite_playlist", "")
             preferred_client = self.get_preference("mail.preferred_client", "Microsoft Outlook")
-            raw_user_name = self.get_preference("user.name", "Piyush Dua")
-            user_name = "Piyush Dua" if (raw_user_name in ["PDgit12", "pdgit12"] or (raw_user_name.isalnum() and any(c.isdigit() for c in raw_user_name))) else raw_user_name
-            user_role = self.get_preference("user.role", "Backend Engineer")
-            user_company = self.get_preference("user.company", "Crcle.ai")
-            user_email = self.get_preference("user.email", "piyushdua01@gmail.com")
-            default_repo = self.get_preference("github.default_repo", "PDgit12/desktop-dom")
+            raw_user_name = self.get_user_name()
+            user_name = raw_user_name
+            user_role = self.get_user_role()
+            user_company = self.get_user_company()
+            user_email = self.get_user_email()
+            default_repo = self.get_default_github_repo()
 
             habits = self.list_habits()
 
@@ -1839,14 +1911,14 @@ class AuraMemory:
         - Top detected applications
         """
         with self._lock:
-            raw_name = self.get_preference("user.name", "Piyush Dua")
-            name = "Piyush Dua" if (raw_name in ["PDgit12", "pdgit12"] or (raw_name.isalnum() and any(c.isdigit() for c in raw_name))) else raw_name
-            email = self.get_preference("user.email", "piyushdua01@gmail.com")
-            role = self.get_preference("user.role", "Backend Engineer")
-            company = self.get_preference("user.company", "Crcle.ai")
-            repo = self.get_preference("github.default_repo", "PDgit12/desktop-dom")
-            fav_playlist = self.resolve_habit("spotify.favorite_playlist") or self.get_preference("spotify.favorite_playlist", "Deep Focus")
-            gaming_playlist = self.resolve_habit("spotify.playlist.gaming") or self.get_preference("spotify.playlist.gaming", "FIFA Soundtrack")
+            raw_name = self.get_user_name()
+            name = raw_name
+            email = self.get_user_email()
+            role = self.get_user_role()
+            company = self.get_user_company()
+            repo = self.get_default_github_repo()
+            fav_playlist = self.resolve_habit("spotify.favorite_playlist") or self.get_preference("spotify.favorite_playlist", "")
+            gaming_playlist = self.resolve_habit("spotify.playlist.gaming") or self.get_preference("spotify.playlist.gaming", "")
             mail_client = self.get_preference("mail.preferred_client", "Microsoft Outlook")
 
             # Format professional signature
@@ -2036,7 +2108,7 @@ class AuraMemory:
                     return m.group(1)
         except Exception:
             pass
-        return self.get_preference("github.default_repo", "PDgit12/desktop-dom")
+        return self.get_default_github_repo()
 
     def get_daily_routine(self, routine_name: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -2073,12 +2145,12 @@ class AuraMemory:
                 steps = [
                     {"action": "open_app", "target": "Visual Studio Code", "label": "Open VS Code"},
                     {"action": "open_repo", "target": self.get_developer_repo(), "label": f"Open {self.get_developer_repo()}"},
-                    {"action": "play_spotify", "target": self.get_preference("spotify.favorite_playlist", "Deep Focus"), "label": "Play Deep Focus"},
+                    {"action": "play_spotify", "target": self.get_preference("spotify.favorite_playlist", ""), "label": "Play Focus Playlist"},
                 ]
             else:
                 steps = [
                     {"action": "open_app", "target": "FIFA 23", "label": "Launch FIFA 23"},
-                    {"action": "play_spotify", "target": "FIFA Soundtrack", "label": "Play FIFA Soundtrack"},
+                    {"action": "play_spotify", "target": "", "label": "Play Gaming Playlist"},
                 ]
 
         desc = self.get_preference(f"routine.{r_low}.desc", None)
@@ -2177,37 +2249,20 @@ class AuraMemory:
     # -------------------------------------------------------------------------
 
     def _ensure_vip_entities(self, user_name: str, user_email: str):
-        """Pre-seeds or updates VIP entities (Crcle.ai founders and user) with full alias sets."""
+        """Ensures the current user entity exists in the graph with up-to-date identity."""
+        user_company = self.get_user_company()
+        user_role = self.get_user_role()
+        first_name = user_name.split()[0].lower() if " " in user_name else user_name.lower()
         vips = [
             {
-                "name": "Joshua Rayan",
-                "aliases": ["josh", "joshua", "josh rayan", "joshua rayan", "ceo", "founder", "founder and ceo", "co-founder"],
-                "email": "josh@crcle.ai",
-                "company": "Crcle.ai",
-                "role": "Co-Founder & CEO",
-                "category": "colleague",
-                "interaction_count": 15,
-                "metadata": {"relation": "founder", "preferred_client": "Microsoft Outlook", "priority": 10},
-            },
-            {
-                "name": "Cyril Rayan",
-                "aliases": ["cyril", "cyril rayan", "founder", "systems lead", "architect", "systems architect", "co-founder"],
-                "email": "cyril@crcle.ai",
-                "company": "Crcle.ai",
-                "role": "Co-Founder",
-                "category": "colleague",
-                "interaction_count": 12,
-                "metadata": {"relation": "founder", "preferred_client": "Microsoft Outlook", "priority": 9},
-            },
-            {
                 "name": user_name,
-                "aliases": [user_name.split()[0].lower(), "me", "myself", "i", "user"],
+                "aliases": [first_name, "me", "myself", "i", "user"],
                 "email": user_email,
-                "company": "Crcle.ai",
-                "role": "Backend Engineer",
+                "company": user_company,
+                "role": user_role,
                 "category": "user",
                 "interaction_count": 30,
-                "metadata": {"user": True, "github": "PDgit12", "focus": "Systems & Intent Architecture", "priority": 10},
+                "metadata": {"user": True, "priority": 10},
             },
         ]
         for vip in vips:
@@ -2240,10 +2295,11 @@ class AuraMemory:
         and git collaborators from the macOS environment in <50ms.
         """
         now = time.time()
+        si = _discover_system_identity()
         hydrated_info = {
             "status": "success",
-            "user_name": "Piyush Dua",
-            "user_email": "piyushdua01@gmail.com",
+            "user_name": si["name"],
+            "user_email": si["email"],
             "mail_client": "Microsoft Outlook",
             "music_player": "Spotify",
             "contacts_added": 0,
@@ -2547,19 +2603,16 @@ class AuraMemory:
         ambient = self.auto_hydrate_environment()
 
         # 2. Extract verified parameters
-        raw_name = p.get("user_name") or self.get_preference("user.name") or ambient.get("user_name") or "Piyush Dua"
-        user_name = "Piyush Dua" if (raw_name in ["PDgit12", "pdgit12"] or (raw_name.isalnum() and any(c.isdigit() for c in raw_name))) else raw_name
-        user_email = p.get("user_email") or self.get_preference("user.email") or ambient.get("user_email") or "piyushdua01@gmail.com"
-        user_role = p.get("user_role") or self.get_preference("user.role") or "Backend Engineer"
-        user_company = p.get("user_company") or self.get_preference("user.company") or "Crcle.ai"
+        raw_name = p.get("user_name") or self.get_preference("user.name") or ambient.get("user_name") or self.system_identity["name"]
+        user_name = self.system_identity["name"] if _is_git_handle(raw_name) else raw_name
+        user_email = p.get("user_email") or self.get_preference("user.email") or ambient.get("user_email") or self.system_identity["email"]
+        user_role = p.get("user_role") or self.get_user_role()
+        user_company = p.get("user_company") or self.get_user_company()
 
         # Collaborators
         raw_collabs = p.get("collaborators")
         if not raw_collabs or not isinstance(raw_collabs, list):
-            collabs = [
-                {"name": "Joshua Rayan", "role": "Founder / CTO", "company": user_company, "email": "josh@crcle.ai"},
-                {"name": "Cyril Rayan", "role": "Founder / CEO", "company": user_company, "email": "cyril@crcle.ai"}
-            ]
+            collabs = []  # No default collaborators — added during onboarding
         else:
             collabs = raw_collabs
 
@@ -2586,14 +2639,14 @@ class AuraMemory:
         playlists = p.get("playlists")
         if not isinstance(playlists, dict):
             playlists = {}
-        focus_playlist = playlists.get("focus") or self.get_preference("spotify.playlist.coding") or self.get_preference("spotify.favorite_playlist") or "Deep Focus"
+        focus_playlist = playlists.get("focus") or self.get_preference("spotify.playlist.coding") or self.get_preference("spotify.favorite_playlist") or ""
         gaming_playlist = playlists.get("gaming") or self.get_preference("spotify.playlist.gaming") or ""
         favorite_artist = playlists.get("personal") or self.get_preference("spotify.favorite_artist") or ""
 
         # Repositories
         raw_repos = p.get("work_repos")
-        work_repos = raw_repos if (raw_repos and isinstance(raw_repos, list)) else ["desktop-dom"]
-        default_repo = p.get("default_repo") or self.get_preference("github.default_repo") or "PDgit12/desktop-dom"
+        work_repos = raw_repos if (raw_repos and isinstance(raw_repos, list)) else []
+        default_repo = p.get("default_repo") or self.get_default_github_repo()
 
         # 3. Store Verified Preferences
         self.set_preference("user.name", user_name, category="user")
@@ -2642,14 +2695,15 @@ class AuraMemory:
             category="user",
             metadata={"verified": True, "provenance": "user_onboarding"}
         )
-        self.add_entity(
-            name=user_company,
-            role="Organization",
-            company=user_company,
-            category="organization",
-            metadata={"verified": True, "provenance": "user_onboarding"}
-        )
-        self.add_edge(user_name, user_company, "works_at", cluster="work", weight=1.0, metadata={"provenance": "user_verified"})
+        if user_company:
+            self.add_entity(
+                name=user_company,
+                role="Organization",
+                company=user_company,
+                category="organization",
+                metadata={"verified": True, "provenance": "user_onboarding"}
+            )
+            self.add_edge(user_name, user_company, "works_at", cluster="work", weight=1.0, metadata={"provenance": "user_verified"})
 
         validated_collabs = []
         for col in collabs:
@@ -2684,7 +2738,8 @@ class AuraMemory:
                 metadata={"verified": True, "provenance": "user_onboarding"}
             )
             self.add_edge(user_name, c_name, "collaborates_with", cluster="work", weight=1.0, metadata={"provenance": "user_verified"})
-            self.add_edge(c_name, user_company, "works_at", cluster="work", weight=1.0, metadata={"provenance": "user_verified"})
+            if user_company:
+                self.add_edge(c_name, user_company, "works_at", cluster="work", weight=1.0, metadata={"provenance": "user_verified"})
             validated_collabs.append({
                 "name": c_name,
                 "email": c_email,
@@ -2819,13 +2874,13 @@ class AuraMemory:
 
             collabs = []
             for ent in self._entity_cache:
-                if ent.get("category") == "contact" and ent.get("name") not in [profile["name"], "Piyush Dua"]:
+                if ent.get("category") == "contact" and ent.get("name") != profile["name"]:
                     collabs.append({
                         "id": ent.get("id"),
                         "name": ent["name"],
                         "email": ent.get("email", ""),
                         "role": ent.get("role", "Collaborator"),
-                        "company": ent.get("company", profile.get("company", "Crcle.ai")),
+                        "company": ent.get("company", profile.get("company", "")),
                     })
 
             return {
@@ -2852,7 +2907,7 @@ class AuraMemory:
                 },
                 "configured_intents": self.get_all_configured_intents(),
                 "media_habits": {
-                    "focus_playlist": self.resolve_habit("spotify.favorite_playlist") or "Deep Focus",
+                    "focus_playlist": self.resolve_habit("spotify.favorite_playlist") or "",
                     "gaming_playlist": self.resolve_habit("spotify.playlist.gaming") or "",
                     "favorite_artist": self.get_preference("spotify.favorite_artist") or "",
                 },
@@ -2901,10 +2956,10 @@ class AuraMemory:
 
             return {
                 "user": {
-                    "name": profile.get("name", "Piyush Dua"),
-                    "email": profile.get("email", "piyushdua01@gmail.com"),
-                    "role": profile.get("role", "Backend Engineer"),
-                    "company": profile.get("company", "Crcle.ai"),
+                    "name": profile.get("name", self.get_user_name()),
+                    "email": profile.get("email", self.get_user_email()),
+                    "role": profile.get("role", self.get_user_role()),
+                    "company": profile.get("company", ""),
                 },
                 "app_bindings": {
                     "browser": self.get_preference("apps.primary_browser", "Google Chrome"),
@@ -2918,12 +2973,12 @@ class AuraMemory:
                 "configured_intents": self.get_all_configured_intents(),
                 "connected_apps": apps_list,
                 "playlists": {
-                    "focus": self.get_preference("spotify.favorite_playlist", "Deep Focus"),
+                    "focus": self.get_preference("spotify.favorite_playlist", ""),
                     "gaming": self.get_preference("spotify.playlist.gaming", ""),
                     "personal": self.get_preference("spotify.favorite_artist", ""),
                 },
                 "repositories": {
-                    "default_repo": self.get_preference("github.default_repo", "PDgit12/desktop-dom"),
+                    "default_repo": self.get_default_github_repo(),
                     "repos": repos,
                 },
                 "connected_accounts": self.list_connected_accounts(),
@@ -2965,7 +3020,7 @@ class AuraMemory:
 
             if "meeting" in ab and ab.get("meeting"):
                 m_app = ab["meeting"].strip()
-                user_name = self.get_preference("user.name", "Piyush Dua")
+                user_name = self.get_user_name()
                 self.add_entity(name=m_app, category="application", role="Meeting Companion", metadata={"category": "meeting", "intent": "meeting", "verified": True})
                 self.add_edge(user_name, m_app, "handles_meeting_intent", cluster="apps", weight=1.0, metadata={"intent": "meeting", "provenance": "user_settings"})
 
@@ -3000,8 +3055,8 @@ class AuraMemory:
         clean_name = name.strip()
         if not clean_name:
             return {"status": "error", "message": "Collaborator name cannot be empty"}
-        user_name = self.get_preference("user.name", "Piyush Dua")
-        comp = company.strip() or self.get_preference("user.company", "Crcle.ai")
+        user_name = self.get_user_name()
+        comp = company.strip() or self.get_user_company()
         parts = clean_name.split()
         first = parts[0].lower() if parts else clean_name.lower()
         aliases = list({clean_name.lower(), first, clean_name.lower().replace(" ", "")})
@@ -3062,7 +3117,7 @@ class AuraMemory:
         clean_name = name.strip()
         if not clean_name:
             return {"status": "error", "message": "App name cannot be empty"}
-        user_name = self.get_preference("user.name", "Piyush Dua")
+        user_name = self.get_user_name()
         clean_cat = category.strip().lower()
 
         clean_intent = (intent or "").strip().lower()
@@ -3337,7 +3392,7 @@ class AuraMemory:
                     score = max(score, 1.0)
 
                 # Context seed boost & Work Cluster Affinity
-                user_co = self.get_preference("user.company", "Crcle.ai").lower()
+                user_co = self.get_user_company().lower()
                 ent_cluster = meta.get("cluster", "work").lower()
                 is_work_ent = cat in {"colleague", "founder", "work"} or (company and company.lower() == user_co) or ent_cluster == "work"
                 if context:

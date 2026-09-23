@@ -391,7 +391,7 @@ end tell'''
 
         # Fallback to rich entity memory if mail client returned nothing or offline
         if not subject:
-            subject = f"Discussion regarding {entity.get('company', 'Crcle.ai')} and desktop-dom architecture"
+            subject = f"Discussion regarding {entity.get('company', '')} work".strip()
             time_str = "Earlier today"
             snippet = f"Sync notes from {name}: backend testing and high-confidence intent layer verification."
 
@@ -726,7 +726,7 @@ end tell'''
             collab_strs = [f"{c['name']} ({c.get('role', 'Teammate')})" for c in collabs]
             app_str = f"Chrome ({apps.get('browser')}), Outlook ({apps.get('mail')}), Terminal ({apps.get('terminal')}), AI ({apps.get('ai')})"
 
-            media_line = f"• Habitual Media: Focus: '{media.get('focus_playlist', 'Deep Focus')}'"
+            media_line = f"• Habitual Media: Focus: '{media.get('focus_playlist', '')}'"
             if media.get("favorite_artist"):
                 media_line += f", Artist: '{media.get('favorite_artist')}'"
             if media.get("gaming_playlist"):
@@ -854,7 +854,7 @@ end tell'''
         if set_role_match:
             new_role = set_role_match.group(1).strip()
             self.memory.set_preference("user.role", new_role, category="user")
-            user_name = self.memory.get_preference("user.name", "Piyush Dua")
+            user_name = self.memory.get_user_name()
             user_ent = self.memory.resolve_entity(user_name)
             if user_ent:
                 with self.memory._lock, self.memory._get_connection() as conn:
@@ -873,7 +873,7 @@ end tell'''
         if set_company_match:
             new_company = set_company_match.group(1).strip()
             self.memory.set_preference("user.company", new_company, category="user")
-            user_name = self.memory.get_preference("user.name", "Piyush Dua")
+            user_name = self.memory.get_user_name()
             user_ent = self.memory.resolve_entity(user_name)
             if user_ent:
                 with self.memory._lock, self.memory._get_connection() as conn:
@@ -896,7 +896,7 @@ end tell'''
             self.memory.record_habit_observation("spotify.favorite_playlist", new_playlist, category="music", is_explicit=True)
             self.memory.record_habit_observation("spotify.playlist.coding", new_playlist, category="music", is_explicit=True)
             self.memory.set_preference("spotify.favorite_playlist", new_playlist, category="music")
-            user_name = self.memory.get_preference("user.name", "Piyush Dua")
+            user_name = self.memory.get_user_name()
             self.memory.add_entity(name=new_playlist, category="media", role="Focus Playlist")
             self.memory.add_edge(user_name, new_playlist, "focuses_with", cluster="personal_media", weight=1.0)
             self.memory._reload_cache()
@@ -912,8 +912,8 @@ end tell'''
         if add_collab_match:
             c_name = add_collab_match.group(1).strip()
             c_email = (add_collab_match.group(2) or "").strip()
-            user_name = self.memory.get_preference("user.name", "Piyush Dua")
-            user_comp = self.memory.get_preference("user.company", "Crcle.ai")
+            user_name = self.memory.get_user_name()
+            user_comp = self.memory.get_user_company()
             self.memory.add_entity(name=c_name, email=c_email, category="contact", company=user_comp, metadata={"verified": True, "provenance": "user_input"})
             self.memory.add_edge(user_name, c_name, "collaborates_with", cluster="work", weight=1.0)
             self.memory.add_edge(c_name, user_comp, "works_at", cluster="work", weight=1.0)
@@ -970,7 +970,7 @@ end tell'''
             summary = self.memory.get_summary()
             contacts_list = ", ".join(f"{c['name']} ({c['email']})" for c in summary["top_contacts"]) or "None"
             user_info = f"{summary['user']['name']} ({summary['user']['role']})"
-            fav_playlist = summary["preferences"].get("spotify.favorite_playlist", "Deep Focus")
+            fav_playlist = summary["preferences"].get("spotify.favorite_playlist", "")
             pref_client = summary["preferences"].get("mail.preferred_client", "Microsoft Outlook")
             graph_info = summary.get("graph", {})
             graph_line = f"\n• Knowledge Graph: {graph_info.get('nodes_count', 0)} nodes, {graph_info.get('edges_count', 0)} edges ({len(graph_info.get('clusters', []))} clusters)" if graph_info else ""
@@ -1067,7 +1067,7 @@ end tell'''
 
         # Knowledge Graph Connection Query ("who is connected to ...", "connections for ...", "graph connections for ...")
         graph_conn_match = re.match(
-            r"^(?:who\s+is\s+connected\s+to|what\s+is\s+connected\s+to|connections\s+(?:for|of)|graph\s+connections\s+(?:for|of))\s+([a-zA-Z0-9\s]+?)\??$",
+            r"^(?:who\s+is\s+connected\s+to|what\s+is\s+connected\s+to|connections\s+(?:for|of)|graph\s+connections\s+(?:for|of))\s+([a-zA-Z0-9\s._-]+?)\??$",
             raw_prompt,
             re.IGNORECASE
         )
@@ -1098,7 +1098,7 @@ end tell'''
 
         # Knowledge Graph Shared Context Query ("shared context between X and Y")
         shared_ctx_match = re.match(
-            r"^shared\s+context\s+between\s+([a-zA-Z0-9\s]+?)\s+and\s+([a-zA-Z0-9\s]+?)\??$",
+            r"^shared\s+context\s+between\s+([a-zA-Z0-9\s._-]+?)\s+and\s+([a-zA-Z0-9\s._-]+?)\??$",
             raw_prompt,
             re.IGNORECASE
         )
@@ -1127,6 +1127,39 @@ end tell'''
                 "level": "2.5",
                 "shared": shared,
                 "response": resp_text,
+            }
+
+        # Repository / Project Overview Query ("what is on <repo>", "what's on <repo>")
+        repo_what_match = re.match(
+            r"^(?:what\s+is\s+on|what\'s\s+on)\s+(?!my\s+screen|screen|my\s+clipboard|clipboard|my\s+calendar|calendar|my\s+schedule|schedule)([a-zA-Z0-9\s._-]+?)\??$",
+            raw_prompt,
+            re.IGNORECASE
+        )
+        if repo_what_match:
+            target_repo = repo_what_match.group(1).strip()
+            ent = self.memory.resolve_entity(target_repo) if hasattr(self, "memory") and self.memory else None
+            bio = self.memory.who_is(target_repo) if hasattr(self, "memory") and self.memory else None
+            from desktop_dom.assistant.non_binary import get_git_pr_status
+            git_res = get_git_pr_status()
+            resp_parts = []
+            if bio:
+                resp_parts.append(bio)
+            if git_res and git_res.get("status") == "success":
+                resp_parts.append(git_res.get("response", ""))
+            elif ent:
+                resp_parts.append(f"Repository '{target_repo}' ({ent.get('role', 'Code Repository')}) is mapped in the Knowledge Graph{' at ' + ent['company'] if ent.get('company') else ''}.")
+            full_response = "\n\n".join(resp_parts) if resp_parts else f"Information on '{target_repo}': tracked repository in Knowledge Graph."
+            self._notify_action("completed", f"Resolved {target_repo}")
+            return {
+                "status": "success",
+                "action": "repo_overview",
+                "level": "2.5",
+                "target": target_repo,
+                "entity": ent,
+                "git_status": git_res,
+                "confidence": 0.95,
+                "tier": "autonomous",
+                "response": full_response,
             }
 
         # Contact Biography & Knowledge Query ("who is ...", "tell me about ...", "what is ...")
@@ -1333,13 +1366,13 @@ end tell'''
                 )
             elif req_coding:
                 contextual_genre = "Focus Beats"
-                fav_playlist = self.memory.resolve_habit("spotify.playlist.coding") or self.memory.get_preference("spotify.playlist.coding", snapshot.suggested_playlist or "Deep Focus")
+                fav_playlist = self.memory.resolve_habit("spotify.playlist.coding") or self.memory.get_preference("spotify.playlist.coding", snapshot.suggested_playlist or "")
             elif explicit_fav:
                 contextual_genre = "Personal Favorite"
                 fav_playlist = explicit_fav
             elif snapshot.activity_category == "Engineering":
                 contextual_genre = "Focus Beats"
-                fav_playlist = self.memory.resolve_habit("spotify.playlist.coding") or "Deep Focus"
+                fav_playlist = self.memory.resolve_habit("spotify.playlist.coding") or ""
             elif snapshot.activity_category == "Design":
                 contextual_genre = "Creative Flow"
                 fav_playlist = self.memory.get_preference("spotify.playlist.design", snapshot.suggested_playlist or "Creative Flow")
@@ -1348,7 +1381,7 @@ end tell'''
                 fav_playlist = self.memory.get_preference("spotify.playlist.research", snapshot.suggested_playlist or "Lofi Beats")
             else:
                 contextual_genre = "Personal"
-                fav_playlist = self.memory.get_preference("spotify.favorite_playlist", "Deep Focus")
+                fav_playlist = self.memory.get_preference("spotify.favorite_playlist", "")
 
             # Prevent drift: record observation to reinforce this habit
             self.memory.record_habit_observation("spotify.last_played_playlist", fav_playlist, category="music", is_explicit=False)
@@ -2237,9 +2270,9 @@ end tell'''
 
         self._notify_action("executing", f"Composing message to {name} ({email}) in {client}")
 
-        user_name = "Piyush Dua"
-        user_role = "Backend Engineer"
-        user_company = "Crcle.ai"
+        user_name = ""
+        user_role = ""
+        user_company = ""
         try:
             profile = self.memory.get_user_profile()
             user_name = profile.get("name") or user_name
@@ -2314,7 +2347,7 @@ end tell'''
             if not work_topic:
                 shared_ctx = self.memory.find_shared_context(user_name, name, cluster="work")
                 default_repo = self.memory.get_preference("github.default_repo", "")
-                company = user_company or "Crcle.ai"
+                company = user_company or ""
                 if shared_ctx.get("primary_topic"):
                     work_topic = shared_ctx["primary_topic"]
                 elif "desktop-dom" in default_repo:
@@ -2761,7 +2794,7 @@ end tell'''
         contacts_str = ", ".join(f"{c['name']} ({c.get('email', '')})" for c in top_contacts if c.get("name")) if top_contacts else "None"
         contacts_ctx = f"Known Contacts: {contacts_str}."
         pref_mail = mem_summary.get("preferences", {}).get("mail.preferred_client", "Microsoft Outlook")
-        pref_music = mem_summary.get("preferences", {}).get("spotify.favorite_playlist", "Deep Focus")
+        pref_music = mem_summary.get("preferences", {}).get("spotify.favorite_playlist", "")
 
         # Spreading Activation Ignited Nodes & Learned Feedback Patterns
         ignite_res = self.memory.ignite_graph(prompt, context=self._get_current_context_dict())
@@ -2951,8 +2984,9 @@ end tell'''
 
     def get_projects(self) -> Dict[str, Any]:
         """Lists available projects and active project."""
-        active = self.memory.get_preference("workspace.active_project") or self.memory.get_preference("user.company") or "Crcle.ai"
-        defaults = ["Crcle.ai", "desktop-dom", "Personal"]
+        user_company = self.memory.get_user_company()
+        active = self.memory.get_preference("workspace.active_project") or user_company or "Personal"
+        defaults = [c for c in [user_company, "Personal"] if c]
         raw = self.memory.get_preference("workspace.projects_list")
         projects = defaults
         if raw:

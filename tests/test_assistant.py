@@ -530,7 +530,21 @@ def test_aura_memory_crud_and_seed(tmp_path):
     db_file = tmp_path / "memory_test.db"
     mem = AuraMemory(db_file)
     
-    # Check default seeded contacts
+    # Check default seeded user identity from OS/system
+    user = mem.resolve_entity("me")
+    assert user is not None
+    assert user["name"] == mem.get_user_name()
+    assert user["email"] == mem.get_user_email()
+
+    # Test adding and resolving contacts (CRUD)
+    mem.add_entity(
+        name="Joshua Rayan",
+        email="josh@crcle.ai",
+        aliases=["josh", "joshua", "josh rayan", "ceo", "founder"],
+        company="Crcle.ai",
+        role="Co-Founder & CEO",
+        category="colleague",
+    )
     josh = mem.resolve_entity("josh")
     assert josh is not None
     assert josh["name"] == "Joshua Rayan"
@@ -538,26 +552,46 @@ def test_aura_memory_crud_and_seed(tmp_path):
     assert josh["role"] == "Co-Founder & CEO"
     assert josh["company"] == "Crcle.ai"
 
+    mem.add_entity(
+        name="Cyril Rayan",
+        email="cyril@crcle.ai",
+        aliases=["cyril", "cyril rayan", "architect", "founder"],
+        company="Crcle.ai",
+        role="Co-Founder & Systems Architect",
+        category="colleague",
+    )
     cyril = mem.resolve_entity("cyril")
     assert cyril is not None
     assert cyril["name"] == "Cyril Rayan"
     assert cyril["email"] == "cyril@crcle.ai"
 
-    piyush = mem.resolve_entity("piyush")
-    assert piyush is not None
-    assert piyush["name"] == "Piyush Dua"
-    assert piyush["email"] == "piyushdua01@gmail.com"
-
     # Check preferences
-    fav_pl = mem.get_preference("spotify.favorite_playlist")
-    assert fav_pl == "Deep Focus"
     mail_cli = mem.get_preference("mail.preferred_client")
     assert mail_cli == "Microsoft Outlook"
+
+def _seed_test_contacts(mem):
+    mem.add_entity(
+        name="Joshua Rayan",
+        email="josh@crcle.ai",
+        aliases=["josh", "joshua", "josh rayan", "ceo", "founder"],
+        company="Crcle.ai",
+        role="Co-Founder & CEO",
+        category="colleague",
+    )
+    mem.add_entity(
+        name="Cyril Rayan",
+        email="cyril@crcle.ai",
+        aliases=["cyril", "cyril rayan", "architect", "founder", "systems lead", "our systems lead"],
+        company="Crcle.ai",
+        role="Co-Founder & Systems Architect",
+        category="colleague",
+    )
 
 def test_aura_memory_natural_language_learning(tmp_path):
     from desktop_dom.assistant.memory import AuraMemory
     db_file = tmp_path / "memory_learn.db"
     mem = AuraMemory(db_file)
+    _seed_test_contacts(mem)
 
     # Learn new contact
     res = mem.remember("remember Sarah is sarah@crcle.ai")
@@ -580,6 +614,7 @@ def test_aura_memory_natural_language_learning(tmp_path):
 def test_assistant_messaging_fast_path(tmp_path):
     from desktop_dom.assistant.memory import AuraMemory
     mem = AuraMemory(tmp_path / "mem.db")
+    _seed_test_contacts(mem)
     brain = AssistantBrain(preferred_model="test-model", memory=mem)
 
     # 1. Standard message Josh
@@ -617,6 +652,7 @@ def test_assistant_messaging_fast_path(tmp_path):
 def test_assistant_habitual_playlist(tmp_path):
     from desktop_dom.assistant.memory import AuraMemory
     mem = AuraMemory(tmp_path / "mem.db")
+    mem.set_preference("spotify.favorite_playlist", "Deep Focus")
     brain = AssistantBrain(preferred_model="test-model", memory=mem)
 
     with patch.object(brain, "_control_spotify_play") as mock_spotify:
@@ -651,6 +687,7 @@ def test_assistant_habitual_playlist(tmp_path):
 def test_assistant_memory_inspection_and_who_is(tmp_path):
     from desktop_dom.assistant.memory import AuraMemory
     mem = AuraMemory(tmp_path / "mem.db")
+    _seed_test_contacts(mem)
     brain = AssistantBrain(preferred_model="test-model", memory=mem)
 
     # Who is Josh
@@ -673,6 +710,7 @@ def test_assistant_memory_inspection_and_who_is(tmp_path):
 def test_assistant_compound_with_memory(tmp_path):
     from desktop_dom.assistant.memory import AuraMemory
     mem = AuraMemory(tmp_path / "mem.db")
+    _seed_test_contacts(mem)
     brain = AssistantBrain(preferred_model="test-model", memory=mem)
 
     with patch("subprocess.run") as mock_run:
@@ -688,6 +726,7 @@ def test_aura_memory_submillisecond_latency(tmp_path):
     import time
     from desktop_dom.assistant.memory import AuraMemory
     mem = AuraMemory(tmp_path / "mem_latency.db")
+    _seed_test_contacts(mem)
     
     start_t = time.perf_counter()
     ent = mem.resolve_entity("josh")
@@ -699,6 +738,7 @@ def test_aura_memory_submillisecond_latency(tmp_path):
 def test_aura_memory_typo_and_role_disambiguation(tmp_path):
     from desktop_dom.assistant.memory import AuraMemory
     mem = AuraMemory(tmp_path / "mem_disambig.db")
+    _seed_test_contacts(mem)
     
     # 1. Typo tolerance
     assert mem.resolve_entity("jos")["name"] == "Joshua Rayan"
@@ -747,6 +787,7 @@ def test_aura_memory_auto_hydration_and_onboarding(tmp_path):
 def test_assistant_broadened_messaging_phrasing(tmp_path):
     from desktop_dom.assistant.memory import AuraMemory
     mem = AuraMemory(tmp_path / "mem_phrasing.db")
+    _seed_test_contacts(mem)
     brain = AssistantBrain(preferred_model="test-model", memory=mem)
 
     with patch("subprocess.run") as mock_run:
@@ -1138,7 +1179,8 @@ def test_dynamic_intent_resolution_zero_hardcoding(tmp_path):
     mem.complete_verified_onboarding({
         "user_name": "Piyush Dua",
         "app_bindings": {"meeting": "Granola"},
-        "connected_apps": [{"name": "Granola", "category": "meeting"}]
+        "connected_apps": [{"name": "Granola", "category": "meeting"}],
+        "collaborators": [{"name": "Cyril Rayan", "role": "Systems Architect", "company": "Crcle.ai", "email": "cyril@crcle.ai"}]
     })
     assert mem.resolve_app_for_intent("meeting") == "Granola"
 

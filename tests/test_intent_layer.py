@@ -188,3 +188,32 @@ def test_spreading_activation_cluster_barrier_isolation(intent_env):
     ignited_names = [n["name"].lower() for n in ignite_res["ignited_nodes"]]
     assert any("zed" in n or "crcle" in n or "desktop-dom" in n for n in ignited_names)
     assert not any("ambient chill" in n or "gaming" in n for n in ignited_names)
+
+
+def test_natural_intent_what_is_on_repository_overview(intent_env):
+    """
+    Verifies 'what is on desktop-dom' routes directly to repo overview in Knowledge Graph
+    and returns live git & PR status without stalling on LLM reasoning.
+    """
+    mem, brain = intent_env
+
+    mem.add_entity(
+        name="desktop-dom",
+        role="Code Repository",
+        category="project",
+        company="Crcle.ai",
+        metadata={"verified": True, "provenance": "user_onboarding"}
+    )
+
+    with patch("desktop_dom.assistant.non_binary.get_git_pr_status") as mock_git:
+        mock_git.return_value = {
+            "status": "success",
+            "action": "git_pr_status",
+            "branch": "develop",
+            "response": "Git & PR Status (Branch: 'develop'):\n• Uncommitted Changes: Clean (0 files)\n• Pull Request: #108 Approved",
+        }
+        res = brain.execute_intent("what is on desktop-dom")
+        assert res["status"] == "success"
+        assert res["action"] in ("git_pr_status", "repo_overview")
+        assert "develop" in res["response"]
+

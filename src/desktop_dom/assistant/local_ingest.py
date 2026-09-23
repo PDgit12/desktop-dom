@@ -347,7 +347,9 @@ class LocalMachineIngest:
                 self.memory.set_preference("github.username", raw_name, category="developer")
                 curr_name = self.memory.get_preference("user.name")
                 if not curr_name or curr_name == raw_name:
-                    self.memory.set_preference("user.name", "Piyush Dua", category="user")
+                    from desktop_dom.assistant.memory import _discover_system_identity
+                    si = _discover_system_identity()
+                    self.memory.set_preference("user.name", si["name"], category="user")
             else:
                 self.memory.set_preference("user.name", raw_name, category="user")
 
@@ -389,7 +391,7 @@ class LocalMachineIngest:
         top_apps = self.ingest_most_used_apps(limit=12)
         if top_apps and self.memory:
             self.memory.set_preference("apps.most_used", json.dumps(top_apps), category="apps")
-            user_name = self.memory.get_preference("user.name") or "Piyush Dua"
+            user_name = self.memory.get_user_name()
             for app in top_apps:
                 self.memory.add_entity(
                     name=app["name"],

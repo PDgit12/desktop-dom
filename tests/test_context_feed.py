@@ -11,6 +11,51 @@ from desktop_dom.assistant.brain import AssistantBrain
 def mock_memory(tmp_path):
     db_file = tmp_path / "test_memory.db"
     mem = AuraMemory(db_path=db_file)
+    mem.set_preference("user.role", "Backend Engineer", category="user")
+    mem.set_preference("user.company", "Crcle.ai", category="user")
+    mem.set_preference("spotify.favorite_playlist", "Deep Focus", category="music")
+    mem.add_entity(
+        name="Joshua Rayan",
+        email="josh@crcle.ai",
+        aliases=["josh", "joshua", "josh rayan", "ceo", "founder"],
+        company="Crcle.ai",
+        role="Co-Founder & CEO",
+        category="colleague",
+    )
+    mem.add_entity(
+        name="Cyril Rayan",
+        email="cyril@crcle.ai",
+        aliases=["cyril", "cyril rayan", "architect", "founder"],
+        company="Crcle.ai",
+        role="Co-Founder & Systems Architect",
+        category="colleague",
+    )
+    mem.add_entity(
+        name="Crcle.ai",
+        aliases=["crcle", "crcle ai"],
+        company="Crcle.ai",
+        role="The Intent Layer of Computing",
+        category="organization",
+    )
+    mem.add_entity(
+        name="desktop-dom",
+        aliases=["desktop-dom", "aura"],
+        company="Crcle.ai",
+        role="Autonomous Accessibility & Intent Engine",
+        category="project",
+    )
+    u_name = mem.get_user_name()
+    mem.add_edge(u_name, "Crcle.ai", "works_at", cluster="work", weight=1.0)
+    mem.add_edge("Joshua Rayan", "Crcle.ai", "founded", cluster="work", weight=1.0)
+    mem.add_edge("Joshua Rayan", "Crcle.ai", "ceo_of", cluster="work", weight=1.0)
+    mem.add_edge("Cyril Rayan", "Crcle.ai", "founded", cluster="work", weight=1.0)
+    mem.add_edge("Cyril Rayan", "Crcle.ai", "architects", cluster="work", weight=1.0)
+    mem.add_edge(u_name, "Joshua Rayan", "collaborates_with", cluster="work", weight=0.95)
+    mem.add_edge(u_name, "Cyril Rayan", "collaborates_with", cluster="work", weight=0.90)
+    mem.add_edge(u_name, "desktop-dom", "develops", cluster="work", weight=1.0)
+    mem.add_edge("Joshua Rayan", "desktop-dom", "collaborates_on", cluster="work", weight=0.95)
+    mem.add_edge("Cyril Rayan", "desktop-dom", "collaborates_on", cluster="work", weight=0.90)
+    mem.add_edge("desktop-dom", "Crcle.ai", "powers", cluster="work", weight=0.95)
     return mem
 
 

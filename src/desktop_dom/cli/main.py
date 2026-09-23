@@ -414,7 +414,7 @@ def onboard(
         table.add_row("Email", profile['user']['email'])
         table.add_row("Preferred Mail", profile['app_bindings'].get("mail", "Microsoft Outlook"))
         table.add_row("Primary Browser", profile['app_bindings'].get("browser", "Google Chrome"))
-        table.add_row("Favorite Playlist", profile['media_habits'].get("focus_playlist", "Deep Focus"))
+        table.add_row("Favorite Playlist", profile['media_habits'].get("focus_playlist", "Not set"))
         table.add_row("Cluster Isolation", profile["cluster_isolation_status"])
         top_apps = [a["name"] for a in profile.get("top_apps", [])[:5]]
         if top_apps:
@@ -430,14 +430,14 @@ def onboard(
 
     if interactive:
         import rich.prompt
-        default_name = mem.get_preference("user.name", "Piyush Dua")
+        default_name = mem.get_user_name()
         chosen_name = rich.prompt.Prompt.ask("Enter your full name", default=default_name)
-        default_role = mem.get_preference("user.role", "Backend Engineer")
+        default_role = mem.get_user_role() or "Engineer"
         chosen_role = rich.prompt.Prompt.ask("Your role / title", default=default_role)
-        default_comp = mem.get_preference("user.company", "Crcle.ai")
+        default_comp = mem.get_user_company() or "My Company"
         chosen_comp = rich.prompt.Prompt.ask("Your company / team", default=default_comp)
-        chosen_collab = rich.prompt.Prompt.ask("Primary collaborator (Name:Email)", default="Joshua Rayan:josh@crcle.ai")
-        default_play = mem.get_preference("spotify.favorite_playlist", "Deep Focus")
+        chosen_collab = rich.prompt.Prompt.ask("Primary collaborator (Name:Email)", default="")
+        default_play = mem.get_preference("spotify.favorite_playlist", "")
         chosen_play = rich.prompt.Prompt.ask("Favorite focus playlist", default=default_play)
 
         if ":" in chosen_collab:
@@ -445,7 +445,7 @@ def onboard(
         else:
             c_name = chosen_collab
 
-        collabs = [{"name": c_name.strip(), "email": (c_email or "").strip(), "role": "Founder / CTO", "company": chosen_comp}]
+        collabs = [{"name": c_name.strip(), "email": (c_email or "").strip(), "role": "Collaborator", "company": chosen_comp}] if c_name.strip() else []
         res = mem.complete_verified_onboarding({
             "user_name": chosen_name,
             "user_role": chosen_role,
@@ -466,7 +466,7 @@ def onboard(
         if playlist:
             profile_update["playlists"] = {"focus": playlist}
         if c_name:
-            profile_update["collaborators"] = [{"name": c_name, "email": c_email or "", "role": "Collaborator", "company": company or "Crcle.ai"}]
+            profile_update["collaborators"] = [{"name": c_name, "email": c_email or "", "role": "Collaborator", "company": company or ""}]
         res = mem.complete_verified_onboarding(profile_update)
 
     table = Table(title="✓ Aura Knowledge Graph & Intent Engine Onboarded")
@@ -476,7 +476,7 @@ def onboard(
     table.add_row("Work Circle", f"{res.get('collaborators_count', 2)} collaborators locked in Knowledge Graph")
     table.add_row("Preferred Mail", res.get("app_bindings", {}).get("mail", "Microsoft Outlook"))
     table.add_row("Primary Browser", res.get("app_bindings", {}).get("browser", "Google Chrome"))
-    table.add_row("Focus Playlist", res.get("media_habits", {}).get("focus_playlist", "Deep Focus"))
+    table.add_row("Focus Playlist", res.get("media_habits", {}).get("focus_playlist", "Not set"))
     table.add_row("Cluster Isolation", "STRICT_DISJOINT (Zero Cross-Cluster Contamination)")
     table.add_row("Engine Latency", f"{res.get('elapsed_ms', 0)}ms (Sub-millisecond resolution)")
     console.print(table)

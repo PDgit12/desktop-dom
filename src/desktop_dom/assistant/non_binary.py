@@ -140,7 +140,7 @@ def get_calendar_briefing(calendar_client: str = "Calendar", timeout: float = 4.
                     "end_time": "10:45 AM",
                     "location": None,
                     "meeting_url": "https://zoom.us/j/9876543210",
-                    "attendees": ["Joshua Rayan", "Cyril Rayan"],
+                    "attendees": ["Team Member"],
                     "calendar": "Work",
                 },
                 {
@@ -149,11 +149,11 @@ def get_calendar_briefing(calendar_client: str = "Calendar", timeout: float = 4.
                     "end_time": "2:30 PM",
                     "location": None,
                     "meeting_url": "https://meet.google.com/abc-defg-hij",
-                    "attendees": ["Hannah Vance"],
+                    "attendees": ["Colleague"],
                     "calendar": "Work",
                 },
             ]
-            resp = "Today's Calendar Briefing (2 events):\n• 10:00 AM - 10:45 AM: Sprint Sync & Architecture Review | Join: https://zoom.us/j/9876543210 | Attendees: Joshua Rayan, Cyril Rayan\n• 2:00 PM - 2:30 PM: Design Alignment | Join: https://meet.google.com/abc-defg-hij | Attendees: Hannah Vance"
+            resp = "Today's Calendar Briefing (2 events):\n• 10:00 AM - 10:45 AM: Sprint Sync & Architecture Review | Join: https://zoom.us/j/9876543210 | Attendees: Team Member\n• 2:00 PM - 2:30 PM: Design Alignment | Join: https://meet.google.com/abc-defg-hij | Attendees: Colleague"
             return {
                 "status": "success",
                 "action": "calendar_briefing",
@@ -365,7 +365,7 @@ end tell
                     "end_time": "10:45 AM",
                     "location": None,
                     "meeting_url": "https://zoom.us/j/9876543210",
-                    "attendees": ["Joshua Rayan", "Cyril Rayan"],
+                    "attendees": ["Team Member"],
                     "calendar": "Work",
                 },
                 {
@@ -374,11 +374,11 @@ end tell
                     "end_time": "2:30 PM",
                     "location": None,
                     "meeting_url": "https://meet.google.com/abc-defg-hij",
-                    "attendees": ["Hannah Vance"],
+                    "attendees": ["Colleague"],
                     "calendar": "Work",
                 },
             ]
-            resp = "Today's Calendar Briefing (2 events):\n• 10:00 AM - 10:45 AM: Sprint Sync & Architecture Review | Join: https://zoom.us/j/9876543210 | Attendees: Joshua Rayan, Cyril Rayan\n• 2:00 PM - 2:30 PM: Design Alignment | Join: https://meet.google.com/abc-defg-hij | Attendees: Hannah Vance"
+            resp = "Today's Calendar Briefing (2 events):\n• 10:00 AM - 10:45 AM: Sprint Sync & Architecture Review | Join: https://zoom.us/j/9876543210 | Attendees: Team Member\n• 2:00 PM - 2:30 PM: Design Alignment | Join: https://meet.google.com/abc-defg-hij | Attendees: Colleague"
             return {
                 "status": "success",
                 "action": "calendar_briefing",
