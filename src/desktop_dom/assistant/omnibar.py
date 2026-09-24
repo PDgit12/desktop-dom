@@ -42,24 +42,24 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
   }
   .omnibar-card {
     width: 680px;
-    border-radius: 14px;
-    background: rgba(18, 20, 26, 0.94);
-    backdrop-filter: blur(50px) saturate(210%);
-    -webkit-backdrop-filter: blur(50px) saturate(210%);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    box-shadow: 0 32px 84px -10px rgba(0, 0, 0, 0.88), 0 0 0 1px rgba(255, 255, 255, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    background: rgba(16, 17, 21, 0.92);
+    backdrop-filter: blur(48px) saturate(190%);
+    -webkit-backdrop-filter: blur(48px) saturate(190%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 24px 64px -12px rgba(0, 0, 0, 0.78), 0 0 0 1px rgba(255, 255, 255, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.08);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    transition: border-color 0.15s ease, box-shadow 0.2s ease;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
   .omnibar-card.executing {
-    border-color: rgba(56, 189, 248, 0.4);
-    box-shadow: 0 32px 84px -10px rgba(0, 0, 0, 0.95), 0 0 20px -2px rgba(56, 189, 248, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.22);
+    box-shadow: 0 24px 64px -12px rgba(0, 0, 0, 0.88), inset 0 1px 0 rgba(255, 255, 255, 0.14);
   }
   .drag-handle-bar {
     width: 100%;
-    height: 14px;
+    height: 11px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -67,22 +67,22 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     cursor: grab;
     -webkit-app-region: drag;
     background: transparent;
-    padding-top: 5px;
+    padding-top: 4px;
     transition: background 0.15s ease;
   }
   .drag-pill {
-    width: 38px;
-    height: 4px;
+    width: 32px;
+    height: 3px;
     border-radius: 2px;
-    background: rgba(255, 255, 255, 0.22);
+    background: rgba(255, 255, 255, 0.12);
     transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
   }
   .drag-handle-bar:hover .drag-pill {
-    background: rgba(255, 255, 255, 0.55);
-    width: 52px;
+    background: rgba(255, 255, 255, 0.35);
+    width: 44px;
   }
   .header-bar {
-    height: 52px;
+    height: 50px;
     display: flex;
     align-items: center;
     padding: 0 16px;
@@ -93,9 +93,9 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     -webkit-app-region: drag;
   }
   .search-icon {
-    width: 18px;
-    height: 18px;
-    color: #94a3b8;
+    width: 16px;
+    height: 16px;
+    color: #71717a;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -114,8 +114,8 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     background: transparent;
     border: none;
     outline: none;
-    color: #f8fafc;
-    font-size: 15.5px;
+    color: #f4f4f5;
+    font-size: 15px;
     font-weight: 450;
     letter-spacing: -0.2px;
     user-select: text !important;
@@ -123,34 +123,34 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     cursor: text;
   }
   input#query-input::placeholder {
-    color: #64748b;
+    color: #52525b;
     font-weight: 400;
   }
   .header-tools {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 7px;
     flex-shrink: 0;
     -webkit-app-region: no-drag;
   }
   .workspace-pill-btn {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 4px 10px;
+    gap: 5px;
+    padding: 3px 8px;
     border-radius: 6px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.10);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     font-size: 11px;
     font-weight: 500;
-    color: #cbd5e1;
+    color: #a1a1aa;
     cursor: pointer;
     transition: all 0.12s ease;
   }
   .workspace-pill-btn:hover {
-    background: rgba(255, 255, 255, 0.09);
-    color: #ffffff;
-    border-color: rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.08);
+    color: #f4f4f5;
+    border-color: rgba(255, 255, 255, 0.12);
   }
   .model-pill-btn {
     display: flex;
@@ -169,16 +169,16 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
   .model-pill-btn:hover {
     background: rgba(255, 255, 255, 0.08);
     color: #f4f4f5;
-    border-color: rgba(255, 255, 255, 0.14);
+    border-color: rgba(255, 255, 255, 0.12);
   }
   .chevron {
     color: #71717a;
     font-size: 9px;
   }
   .mic-btn, .settings-btn {
-    width: 28px;
-    height: 28px;
-    border-radius: 7px;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.08);
     display: flex;
@@ -186,42 +186,41 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     justify-content: center;
     cursor: pointer;
     transition: all 0.12s ease;
-    color: #94a3b8;
+    color: #71717a;
   }
   .mic-btn:hover, .settings-btn:hover {
-    background: rgba(255, 255, 255, 0.09);
-    color: #f8fafc;
-    border-color: rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.08);
+    color: #f4f4f5;
+    border-color: rgba(255, 255, 255, 0.12);
   }
   .mic-btn.active {
-    background: rgba(239, 68, 68, 0.15);
-    border-color: rgba(239, 68, 68, 0.4);
-    color: #ef4444;
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.3);
+    color: #f87171;
   }
   .status-badge {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 3px 8px;
+    gap: 5px;
+    padding: 3px 7px;
     border-radius: 5px;
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.06);
-    font-size: 10.5px;
+    font-size: 10px;
     font-weight: 500;
-    color: #94a3b8;
+    color: #71717a;
     letter-spacing: 0.1px;
   }
   .status-dot {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
     border-radius: 50%;
     background: #10b981;
-    box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
   }
   .progress-line {
     height: 1px;
     width: 100%;
-    background: rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.05);
     position: relative;
     overflow: hidden;
   }
@@ -232,7 +231,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     left: 0;
     height: 100%;
     width: 30%;
-    background: linear-gradient(90deg, transparent, #38bdf8, transparent);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
     animation: progressSlide 1.1s infinite cubic-bezier(0.4, 0, 0.2, 1);
   }
   @keyframes progressSlide {
@@ -244,8 +243,8 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: #71717a;
-    padding: 8px 14px 4px 14px;
+    color: #52525b;
+    padding: 7px 14px 4px 14px;
   }
   .tray {
     display: flex;
@@ -254,22 +253,29 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     max-height: 250px;
     overflow-y: auto;
   }
+  .tray::-webkit-scrollbar {
+    width: 3px;
+  }
+  .tray::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 3px;
+  }
   .suggestion-item {
     display: flex;
     align-items: center;
     padding: 0 10px;
-    height: 38px;
+    height: 36px;
     border-radius: 6px;
     gap: 10px;
     cursor: pointer;
-    transition: background 0.08s ease;
+    transition: background 0.06s ease;
   }
   .suggestion-item:hover, .suggestion-item.selected {
     background: rgba(255, 255, 255, 0.06);
   }
   .suggestion-icon {
-    width: 16px;
-    height: 16px;
+    width: 15px;
+    height: 15px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -277,7 +283,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     flex-shrink: 0;
   }
   .suggestion-item.selected .suggestion-icon {
-    color: #f4f4f5;
+    color: #e4e4e7;
   }
   .suggestion-content {
     flex: 1;
@@ -308,7 +314,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     font-size: 9.5px;
     font-weight: 500;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    padding: 2px 6px;
+    padding: 2px 5px;
     border-radius: 4px;
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.06);
@@ -318,10 +324,10 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
   }
   .suggestion-item.selected .suggestion-badge {
     color: #a1a1aa;
-    border-color: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.1);
   }
 
-  /* Raycast-Style Result Detail View */
+  /* Minimalist Result Detail View */
   .result-drawer {
     display: none;
     flex-direction: column;
@@ -330,6 +336,13 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     max-height: 340px;
     overflow-y: auto;
     border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+  .result-drawer::-webkit-scrollbar {
+    width: 3px;
+  }
+  .result-drawer::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 3px;
   }
   .result-drawer.visible {
     display: flex;
@@ -353,14 +366,14 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   }
   .pill-success {
-    background: rgba(52, 211, 153, 0.1);
+    background: rgba(52, 211, 153, 0.08);
     color: #34d399;
-    border: 1px solid rgba(52, 211, 153, 0.2);
+    border: 1px solid rgba(52, 211, 153, 0.18);
   }
   .pill-engine {
     background: rgba(255, 255, 255, 0.04);
-    color: #a1a1aa;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #71717a;
+    border: 1px solid rgba(255, 255, 255, 0.06);
   }
   .result-actions {
     display: flex;
@@ -376,14 +389,15 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     font-size: 11px;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.12s ease;
+    transition: all 0.1s ease;
   }
   .action-btn:hover {
     background: rgba(255, 255, 255, 0.08);
     color: #f4f4f5;
+    border-color: rgba(255, 255, 255, 0.12);
   }
   .action-btn.active {
-    background: rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.12);
     color: #ffffff;
   }
   .result-body {
@@ -396,14 +410,14 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     word-break: break-word;
   }
   .result-math-highlight {
-    font-size: 28px;
+    font-size: 26px;
     font-weight: 600;
     color: #ffffff;
     letter-spacing: -0.5px;
     margin-bottom: 2px;
   }
   .result-math-sub {
-    font-size: 12px;
+    font-size: 11.5px;
     color: #71717a;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   }
@@ -416,7 +430,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     margin-top: 10px;
     padding-top: 10px;
     border-top: 1px solid rgba(255, 255, 255, 0.06);
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
   }
   .misfire-feedback-bar.visible {
     display: flex;
@@ -427,22 +441,20 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     align-items: center;
     gap: 5px;
     padding: 3px 8px;
-    border-radius: 6px;
+    border-radius: 5px;
     background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.07);
     font-size: 11px;
     font-weight: 500;
     color: #71717a;
     cursor: pointer;
-    transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: all 0.12s ease;
     user-select: none;
   }
   .misfire-chip:hover {
-    background: rgba(56, 189, 248, 0.08);
-    border-color: rgba(56, 189, 248, 0.3);
-    color: #38bdf8;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(56, 189, 248, 0.12);
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: #d4d4d8;
   }
   .misfire-chip svg {
     color: inherit;
@@ -452,21 +464,21 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     display: flex;
     flex-direction: column;
     gap: 6px;
-    background: rgba(0, 0, 0, 0.25);
-    border: 1px solid rgba(56, 189, 248, 0.2);
-    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
     padding: 8px 10px;
-    animation: misfireFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: misfireFadeIn 0.15s ease;
   }
   @keyframes misfireFadeIn {
-    from { opacity: 0; transform: translateY(-4px); }
+    from { opacity: 0; transform: translateY(-3px); }
     to { opacity: 1; transform: translateY(0); }
   }
   .misfire-label {
     font-size: 10px;
     font-weight: 500;
-    color: #94a3b8;
-    letter-spacing: 0.2px;
+    color: #a1a1aa;
+    letter-spacing: 0.1px;
   }
   .misfire-input-row {
     display: flex;
@@ -475,8 +487,8 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
   }
   .misfire-input {
     flex: 1;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.09);
     border-radius: 5px;
     padding: 5px 8px;
     font-size: 11.5px;
@@ -485,27 +497,26 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     transition: all 0.12s ease;
   }
   .misfire-input:focus {
-    border-color: #38bdf8;
-    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.15);
-    background: rgba(56, 189, 248, 0.05);
+    border-color: rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.06);
   }
   .misfire-submit-btn {
-    background: #0284c7;
-    color: #ffffff;
+    background: #f4f4f5;
+    color: #09090b;
     border: none;
     border-radius: 5px;
     padding: 5px 10px;
     font-size: 11px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.12s ease;
+    transition: all 0.1s ease;
     white-space: nowrap;
   }
   .misfire-submit-btn:hover {
-    background: #0369a1;
+    background: #ffffff;
   }
   .misfire-submit-btn:active {
-    transform: scale(0.97);
+    transform: scale(0.98);
   }
   .misfire-cancel-btn {
     background: transparent;
@@ -630,8 +641,8 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     border-color: rgba(255, 255, 255, 0.08);
   }
   .project-card.active {
-    background: rgba(56, 189, 248, 0.1);
-    border-color: rgba(56, 189, 248, 0.25);
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.14);
   }
 
   /* Interactive Onboarding Drawer */
@@ -667,9 +678,9 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
   .onb-title {
     font-size: 11px;
     font-weight: 600;
-    color: #38bdf8;
+    color: #f4f4f5;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.05em;
     display: flex;
     align-items: center;
     gap: 6px;
@@ -715,9 +726,9 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     transition: all 0.12s ease;
   }
   .onb-input:focus {
-    border-color: #38bdf8;
-    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.18);
-    background: rgba(56, 189, 248, 0.06);
+    border-color: rgba(255, 255, 255, 0.25);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.07);
   }
   .onb-apps-label {
     font-size: 10px;
@@ -745,22 +756,22 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     transition: all 0.12s cubic-bezier(0.16, 1, 0.3, 1);
   }
   .onb-chip:hover {
-    border-color: rgba(56, 189, 248, 0.4);
-    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.16);
+    background: rgba(255, 255, 255, 0.07);
     color: #f4f4f5;
   }
   .onb-chip.active {
-    background: rgba(56, 189, 248, 0.12);
-    border-color: rgba(56, 189, 248, 0.3);
-    color: #38bdf8;
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.18);
+    color: #ffffff;
   }
   .onb-isolation-banner {
     display: flex;
     align-items: center;
     gap: 6px;
     padding: 5px 8px;
-    background: rgba(16, 185, 129, 0.08);
-    border: 1px solid rgba(16, 185, 129, 0.2);
+    background: rgba(16, 185, 129, 0.06);
+    border: 1px solid rgba(16, 185, 129, 0.16);
     border-radius: 6px;
     font-size: 10px;
     color: #34d399;
@@ -772,18 +783,18 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     margin-top: 4px;
   }
   .onb-confirm-btn {
-    background: #0284c7;
-    color: #ffffff;
+    background: #f4f4f5;
+    color: #09090b;
     border: none;
     border-radius: 6px;
     padding: 6px 14px;
     font-size: 11px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.12s ease;
+    transition: all 0.1s ease;
   }
   .onb-confirm-btn:hover {
-    background: #0369a1;
+    background: #ffffff;
   }
   .onb-confirm-btn:active {
     transform: scale(0.98);
@@ -878,19 +889,20 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     margin-top: 4px;
   }
   .settings-add-btn {
-    background: rgba(167, 139, 250, 0.15);
-    border: 1px solid rgba(167, 139, 250, 0.3);
-    color: #a78bfa;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #e4e4e7;
     border-radius: 5px;
     padding: 5px 10px;
     font-size: 11px;
     font-weight: 500;
     cursor: pointer;
     white-space: nowrap;
-    transition: all 0.12s ease;
+    transition: all 0.1s ease;
   }
   .settings-add-btn:hover {
-    background: rgba(167, 139, 250, 0.25);
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
   }
 
   /* Composio Cloud Integration Cards */
@@ -905,22 +917,22 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     align-items: center;
     justify-content: space-between;
     padding: 7px 10px;
-    border-radius: 7px;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    transition: all 0.12s ease;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.025);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    transition: all 0.1s ease;
   }
   .composio-card:hover {
-    background: rgba(255, 255, 255, 0.06);
-    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
   }
   .composio-card.connected {
-    background: rgba(16, 185, 129, 0.06);
-    border-color: rgba(16, 185, 129, 0.22);
+    background: rgba(16, 185, 129, 0.05);
+    border-color: rgba(16, 185, 129, 0.2);
   }
   .composio-card.pending {
-    background: rgba(234, 179, 8, 0.06);
-    border-color: rgba(234, 179, 8, 0.22);
+    background: rgba(234, 179, 8, 0.05);
+    border-color: rgba(234, 179, 8, 0.2);
   }
   .composio-info {
     display: flex;
@@ -975,13 +987,13 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     border: none;
   }
   .composio-btn-connect {
-    background: rgba(56, 189, 248, 0.12);
-    color: #38bdf8;
-    border: 1px solid rgba(56, 189, 248, 0.25);
+    background: #f4f4f5;
+    color: #09090b;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    font-weight: 600;
   }
   .composio-btn-connect:hover {
-    background: rgba(56, 189, 248, 0.22);
-    border-color: rgba(56, 189, 248, 0.45);
+    background: #ffffff;
   }
   .composio-btn-disconnect {
     background: rgba(239, 68, 68, 0.08);
@@ -1091,14 +1103,14 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         </svg>
       </div>
       <div class="input-wrap">
-        <input id="query-input" type="text" placeholder="Search commands, meetings, contacts, or type an action..." autocomplete="off" spellcheck="false" autofocus />
+        <input id="query-input" type="text" placeholder="Type a command or search..." autocomplete="off" spellcheck="false" autofocus />
       </div>
       <div class="header-tools">
-        <div class="workspace-pill-btn" id="workspace-pill" title="Active Sovereign Workspace (Click for Settings)">
-          <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #38bdf8; box-shadow: 0 0 6px rgba(56, 189, 248, 0.6);"></span>
+        <div class="workspace-pill-btn" id="workspace-pill" title="Workspace (Click for Settings)">
+          <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #a1a1aa;"></span>
           <span id="workspace-name">Workspace</span>
         </div>
-        <div class="model-pill-btn" id="model-pill" title="Intent Routing Engine" style="display: none;">
+        <div class="model-pill-btn" id="model-pill" title="Engine" style="display: none;">
           <span id="header-model-name">Native</span>
           <span class="chevron">▾</span>
         </div>
@@ -1109,13 +1121,13 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
             <line x1="12" y1="19" x2="12" y2="22"/>
           </svg>
         </div>
-        <div class="settings-btn" id="settings-btn" title="Knowledge Graph & Collaborator Settings">
+        <div class="settings-btn" id="settings-btn" title="Settings">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="3"/>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
           </svg>
         </div>
-        <div class="status-badge" id="badge" title="Native Accessibility & Intent Kernel Active">
+        <div class="status-badge" id="badge" title="Aura Status">
           <span class="status-dot" id="status-dot"></span>
           <span id="badge-text">Connected</span>
         </div>
@@ -1175,15 +1187,15 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
 
     <div class="project-drawer" id="project-drawer" style="display: none;">
       <div class="model-drawer-title">
-        <span>Active Sovereign Workspace</span>
-        <span style="font-size: 9px; color: #38bdf8;">Cmd+P to Switch</span>
+        <span>Workspaces</span>
+        <span style="font-size: 9px; color: #71717a;">Cmd+P</span>
       </div>
       <div id="project-list" style="display: flex; flex-direction: column; gap: 4px;">
         <!-- Dynamically rendered projects -->
       </div>
       <div class="settings-add-row" style="margin-top: 6px;">
         <input type="text" class="onb-input" id="project-new-name" placeholder="Enter new project or workspace name..." style="flex: 1;" />
-        <button class="settings-add-btn" id="project-add-btn" style="background: #0284c7; min-width: 70px;" type="button">+ Switch</button>
+        <button class="settings-add-btn" id="project-add-btn" style="min-width: 70px;" type="button">+ Switch</button>
       </div>
     </div>
 
@@ -1191,16 +1203,16 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       <div class="onb-header">
         <div class="onb-title">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-          <span>Personal Command Layer · Quick Setup</span>
+          <span>Workspace Setup · Integrations</span>
         </div>
         <div style="display: flex; align-items: center; gap: 8px;">
-          <div class="status-badge" style="background: rgba(56, 189, 248, 0.1); color: #38bdf8;" id="onb-status-badge">1-Click Connect</div>
+          <div class="status-badge" style="background: rgba(255, 255, 255, 0.05); color: #a1a1aa;" id="onb-status-badge">Integrations</div>
           <button class="onb-close-btn" id="onb-close-btn" title="Dismiss (Esc)">×</button>
         </div>
       </div>
 
       <div style="font-size: 11.5px; color: #a1a1aa; line-height: 1.4;">
-        Connect your work tools via Composio. Aura automatically maps your calendar, repositories, and team members into your local Knowledge Graph with zero manual typing.
+        Connect your work tools. Calendar events, repositories, and contacts are synchronized locally with zero token storage.
       </div>
 
       <div class="onb-field" style="margin-top: 2px;">
@@ -1211,16 +1223,16 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
 
       <div id="onb-discovery-banner" style="display: none; padding: 8px 12px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 6px; font-size: 11px; color: #34d399;">
         <div style="display: flex; align-items: center; gap: 6px; font-weight: 600;">
-          <span>✓</span> <span id="onb-discovery-title">Connected to Cloud Data Layer</span>
+          <span>✓</span> <span id="onb-discovery-title">Connected</span>
         </div>
         <div id="onb-discovery-details" style="margin-top: 3px; font-size: 10px; color: #a7f3d0; opacity: 0.9;">
-          Auto-discovering meetings, team contacts, and active repositories...
+          Synchronizing calendar, repositories, and contacts...
         </div>
       </div>
 
       <details id="onb-manual-accordion" style="margin-top: 2px; border: 1px solid rgba(255, 255, 255, 0.07); border-radius: 6px; padding: 6px 10px; font-size: 11px; color: #71717a;">
         <summary style="cursor: pointer; user-select: none; color: #a1a1aa; font-weight: 500;">
-          <span>Customize or Override Details (Optional)</span>
+          <span>Profile & Preferences (Optional)</span>
         </summary>
         <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
           <div class="onb-grid">
@@ -1242,11 +1254,11 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
             </div>
           </div>
           <div class="onb-field">
-            <label class="onb-label">Collaborators (Locked in Knowledge Graph)</label>
+            <label class="onb-label">Collaborators</label>
             <input type="text" class="onb-input" id="onb-collabs" value="" placeholder="Name (email), Name (email)" />
           </div>
           <div class="onb-field">
-            <label class="onb-apps-label">Detected Machine Applications (Bound to Level 2 Fast-Paths)</label>
+            <label class="onb-apps-label">Configured Applications</label>
             <div class="onb-chips" id="onb-apps-chips">
               <!-- Dynamically populated chips -->
             </div>
@@ -1261,18 +1273,18 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
 
       <div class="onb-btn-bar" style="margin-top: 6px;">
         <button class="onb-cancel-btn" id="onb-cancel-btn">Skip for now</button>
-        <button class="onb-confirm-btn" id="onb-confirm-btn" style="background: linear-gradient(135deg, #0284c7, #2563eb); font-weight: 600;">Launch Aura ➔</button>
+        <button class="onb-confirm-btn" id="onb-confirm-btn">Done</button>
       </div>
     </div>
 
     <div class="settings-drawer" id="settings-drawer" style="display: none;">
       <div class="onb-header">
-        <div class="onb-title" style="color: #a78bfa;">
+        <div class="onb-title">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-          <span>Memory & Intent Settings</span>
+          <span>Preferences</span>
         </div>
         <div style="display: flex; align-items: center; gap: 8px;">
-          <div class="status-badge" style="background: rgba(167, 139, 250, 0.1); color: #a78bfa;" id="settings-status-badge">Live Config</div>
+          <div class="status-badge" id="settings-status-badge">Settings</div>
           <button class="onb-close-btn" id="settings-close-btn" title="Dismiss (Esc)">×</button>
         </div>
       </div>
@@ -1295,7 +1307,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         </div>
       </div>
       <div class="onb-field">
-        <label class="onb-label">Connected Applications (Knowledge Graph Apps Cluster)</label>
+        <label class="onb-label">Connected Applications</label>
         <div class="settings-collabs-list" id="settings-apps-container">
           <!-- Populated with connected app rows -->
         </div>
@@ -1306,7 +1318,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         </div>
       </div>
       <div class="onb-field">
-        <label class="onb-label">Team Collaborators (Knowledge Graph)</label>
+        <label class="onb-label">Team Collaborators</label>
         <div class="settings-collabs-list" id="settings-collabs-container">
           <!-- Populated with collaborator rows -->
         </div>
@@ -1324,13 +1336,13 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         </label>
         <div class="settings-add-row">
           <input type="password" class="onb-input" id="settings-composio-key" placeholder="Enter COMPOSIO_API_KEY (comp_...)" style="flex: 1;" />
-          <button class="settings-add-btn" id="settings-save-key-btn" style="background: #059669; min-width: 90px;" type="button">Save Key</button>
+          <button class="settings-add-btn" id="settings-save-key-btn" style="min-width: 90px;" type="button">Save Key</button>
         </div>
       </div>
       <div class="onb-field" style="margin-top: 4px;">
         <label class="onb-label" style="display: flex; justify-content: space-between; align-items: center;">
-          <span>Cloud Integrations (Composio Sovereignty Layer)</span>
-          <span style="font-size: 9px; color: #a78bfa; text-transform: uppercase; letter-spacing: 0.05em;">Isolated Work Cluster</span>
+          <span>Integrations</span>
+          <span style="font-size: 9px; color: #a1a1aa; text-transform: uppercase; letter-spacing: 0.05em;">Private & Local</span>
         </label>
         <div class="composio-connect-grid" id="settings-composio-grid">
           <!-- Dynamically populated Composio integration cards -->
@@ -1338,7 +1350,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       </div>
       <div class="onb-btn-bar">
         <button class="onb-cancel-btn" id="settings-reset-btn" title="Re-run onboarding flow">Re-run Onboarding</button>
-        <button class="onb-confirm-btn" id="settings-save-btn" style="background: #7c3aed;">Save Changes</button>
+        <button class="onb-confirm-btn" id="settings-save-btn">Save Changes</button>
       </div>
     </div>
 
@@ -1351,9 +1363,9 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         <span class="kbd-pill drag-hint" style="cursor: -webkit-grab; cursor: grab;" title="Click and drag anywhere to move"><span class="kbd">✥</span> Drag Anywhere</span>
       </div>
       <div style="display: flex; align-items: center; gap: 8px;">
-        <div class="local-tag" id="footer-onb-tag" style="cursor: pointer;" title="Open Onboarding & Brain Topology">
+        <div class="local-tag" id="footer-onb-tag" style="cursor: pointer;" title="Workspace Setup">
           <div class="dot-green" id="onb-footer-dot"></div>
-          <span id="footer-onb-text">Kernel: Online</span>
+          <span id="footer-onb-text">Ready</span>
         </div>
         <div class="local-tag" id="footer-model-tag" style="display: none;">
           <div class="dot-green" id="model-dot"></div>
@@ -1452,14 +1464,14 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     let lastSubmittedQuery = "";
 
     const defaultActions = [
-      { iconType: "app", title: "Top Apps & Brain Onboarding", subtitle: "Discovered apps & knowledge graph topology", query: "/onboard", badge: "Brain" },
-      { iconType: "app", title: "I Have a Meeting", subtitle: "Launch bound meeting companion (Level 2.5 Ghost)", query: "i have a meeting", badge: "Intent" },
-      { iconType: "app", title: "Memory & Collaborators", subtitle: "Manage profile, collaborators & app bindings", query: "/settings", badge: "Config" },
+      { iconType: "app", title: "Workspace Setup & Integrations", subtitle: "Connect calendar, code repositories, and tools", query: "/onboard", badge: "Setup" },
+      { iconType: "app", title: "Meeting Notes & Calendar", subtitle: "Launch notes and check upcoming schedule", query: "i have a meeting", badge: "Meeting" },
+      { iconType: "app", title: "Settings & Preferences", subtitle: "Manage profile, collaborators & shortcuts", query: "/settings", badge: "Config" },
       { iconType: "app", title: "Message a Colleague", subtitle: "Draft a message to a contact", query: "message ", badge: "Intent" },
       { iconType: "app", title: "Check My Calendar", subtitle: "View today's schedule and upcoming events", query: "what is on my calendar", badge: "Context" },
       { iconType: "screen", title: "What was I doing?", subtitle: "Summarize active desktop context & focus", query: "what was I doing?", badge: "Context" },
       { iconType: "app", title: "Open My Repo", subtitle: "Active GitHub workspace & pull requests", query: "open my repo", badge: "Dev" },
-      { iconType: "media", title: "Play Focus Playlist", subtitle: "Play verified focus soundtrack on Spotify", query: "play playlist", badge: "Music" },
+      { iconType: "media", title: "Play Focus Music", subtitle: "Play focus playlist on Spotify", query: "play playlist", badge: "Music" },
       { iconType: "math", title: "Quick Calculation", subtitle: "Evaluate arithmetic expression", query: "125 * 40 + 15", badge: "Math" }
     ];
 
@@ -1474,8 +1486,8 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         if (q.toLowerCase().includes("meet") || q.toLowerCase().includes("granola") || q.toLowerCase().includes("call") || q.toLowerCase().includes("sync")) {
           currentSuggestions.push({
             iconType: "app",
-            title: "Meeting Companion Intent",
-            subtitle: "Launch bound meeting workspace & notes",
+            title: "Meeting Notes & Calendar",
+            subtitle: "Open meeting notes and calendar context",
             query: q,
             badge: "Meeting"
           });
@@ -1484,18 +1496,18 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         if (q.toLowerCase().includes("onboard") || q.toLowerCase().includes("top app") || q.toLowerCase().includes("most used") || q.toLowerCase().includes("graph")) {
           currentSuggestions.push({
             iconType: "app",
-            title: "Top Apps & Brain Topology",
-            subtitle: "Inspect discovered apps and semantic graph",
+            title: "Workspace Setup & Integrations",
+            subtitle: "Connected tools, calendar, and repositories",
             query: "/onboard",
-            badge: "Brain"
+            badge: "Setup"
           });
         }
 
         if (q.startsWith("/model") || q === "models" || q === "status") {
           currentSuggestions.push({
             iconType: "model",
-            title: "Active Intelligence Engine",
-            subtitle: "Local neural weights & fast-path intent router",
+            title: "Engine Status",
+            subtitle: "Local neural model and intent router",
             query: "/model",
             badge: "Engine"
           });
@@ -1551,8 +1563,8 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         if (q.toLowerCase().includes("screen") || q.toLowerCase().includes("window")) {
           currentSuggestions.push({
             iconType: "screen",
-            title: "Inspect Active Screen",
-            subtitle: "Extract semantic UI hierarchy",
+            title: "Inspect Screen",
+            subtitle: "Capture active window context",
             query: q,
             badge: "Screen"
           });
@@ -1561,7 +1573,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         if (q.startsWith("/settings") || q.toLowerCase().includes("setting") || q === "config" || q === "preferences") {
           currentSuggestions.push({
             iconType: "app",
-            title: "Memory & Collaborator Settings",
+            title: "Settings & Preferences",
             subtitle: "Manage profile, collaborators & app bindings",
             query: "/settings",
             badge: "Config"
@@ -1571,9 +1583,9 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         currentSuggestions.push({
           iconType: "search",
           title: q,
-          subtitle: "Execute intent via local intelligence",
+          subtitle: "Run command",
           query: q,
-          badge: "Intent"
+          badge: "Command"
         });
       }
 
@@ -1666,7 +1678,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       commandSection.style.display = "block";
       isDrawerOpen = false;
       badgeText.innerText = "Ready";
-      statusDot.style.background = "#38bdf8";
+      statusDot.style.background = "#10b981";
       card.classList.remove("executing");
       progress.classList.remove("active");
       input.value = "";
@@ -1775,7 +1787,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       commandSection.style.display = "block";
       isDrawerOpen = false;
       badgeText.innerText = "Ready";
-      statusDot.style.background = "#38bdf8";
+      statusDot.style.background = "#10b981";
       card.classList.remove("executing");
       updateSuggestions();
       notifyResize();
@@ -1792,7 +1804,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       } else {
         micBtn.classList.remove("active");
         badgeText.innerText = "Ready";
-        statusDot.style.background = "#38bdf8";
+        statusDot.style.background = "#10b981";
         window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({ action: "stop_listening" }));
       }
     }
@@ -1838,7 +1850,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       if (action === "send_message" && payload.recipient) {
         resultBody.innerHTML = `
           <div class="result-math-highlight" style="font-size: 18px; font-weight: 600; color: #f4f4f5; margin-bottom: 4px;">${escapeHtml(payload.recipient)}</div>
-          <div class="result-math-sub" style="font-size: 12px; color: #38bdf8; display: flex; align-items: center; gap: 6px;">
+          <div class="result-math-sub" style="font-size: 12px; color: #a1a1aa; display: flex; align-items: center; gap: 6px;">
             <span>${escapeHtml(payload.email || "")}</span>
             <span style="color: #52525b;">·</span>
             <span style="color: #a1a1aa;">${escapeHtml(payload.client || "Microsoft Outlook")}</span>
@@ -1847,8 +1859,8 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         `;
       } else if (action === "spotify_playlist" && payload.playlist) {
         resultBody.innerHTML = `
-          <div class="result-math-highlight" style="font-size: 18px; font-weight: 600; color: #10b981; margin-bottom: 4px;">${escapeHtml(payload.playlist)}</div>
-          <div class="result-math-sub" style="font-size: 12px; color: #a1a1aa;">Habitual Playlist · Spotify Native AppleScript</div>
+          <div class="result-math-highlight" style="font-size: 18px; font-weight: 600; color: #f4f4f5; margin-bottom: 4px;">${escapeHtml(payload.playlist)}</div>
+          <div class="result-math-sub" style="font-size: 12px; color: #a1a1aa;">Playlist · Spotify</div>
         `;
       } else if (action === "meeting_intent" && payload.tool) {
         const pName = payload.participant && payload.participant.name ? payload.participant.name : "";
@@ -1865,18 +1877,18 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
           metaHtml += `${metaHtml ? `<span style="color: #52525b;">·</span> ` : ""}<span>Topic: <b>${escapeHtml(payload.topic)}</b></span>`;
         }
         resultBody.innerHTML = `
-          <div class="result-math-highlight" style="font-size: 18px; font-weight: 600; color: #38bdf8; margin-bottom: 4px;">${escapeHtml(payload.tool)}</div>
+          <div class="result-math-highlight" style="font-size: 18px; font-weight: 600; color: #f4f4f5; margin-bottom: 4px;">${escapeHtml(payload.tool)}</div>
           <div class="result-math-sub" style="font-size: 12px; color: #a1a1aa; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-            <span>Meeting Companion · Level 2.5 Ghost Launch</span>
+            <span>Meeting Notes & Audio</span>
             ${metaHtml ? `<span style="color: #52525b;">·</span> ${metaHtml}` : ""}
           </div>
         `;
       } else if (action.endsWith("_intent") && payload.tool) {
         const intentDisplay = action.replace("_intent", "").toUpperCase();
         resultBody.innerHTML = `
-          <div class="result-math-highlight" style="font-size: 18px; font-weight: 600; color: #a78bfa; margin-bottom: 4px;">${escapeHtml(payload.tool)}</div>
+          <div class="result-math-highlight" style="font-size: 18px; font-weight: 600; color: #f4f4f5; margin-bottom: 4px;">${escapeHtml(payload.tool)}</div>
           <div class="result-math-sub" style="font-size: 12px; color: #a1a1aa; display: flex; align-items: center; gap: 6px;">
-            <span>${escapeHtml(intentDisplay)} Capability · Knowledge Graph Bound</span>
+            <span>${escapeHtml(intentDisplay)} Action</span>
           </div>
         `;
       } else if (action === "calculate" && payload.result) {
@@ -2153,10 +2165,10 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         pCard.className = "project-card" + (isAct ? " active" : "");
         pCard.innerHTML = `
           <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: ${isAct ? '#38bdf8' : '#71717a'};"></span>
+            <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: ${isAct ? '#10b981' : '#71717a'};"></span>
             <span style="font-size: 13px; font-weight: 500; color: #f4f4f5;">${escapeHtml(p)}</span>
           </div>
-          <span style="font-size: 11px; color: ${isAct ? '#38bdf8' : '#71717a'};">
+          <span style="font-size: 11px; color: ${isAct ? '#10b981' : '#71717a'};">
             ${isAct ? 'Active' : 'Switch'}
           </span>
         `;
@@ -2198,8 +2210,8 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       onboardingDrawer.classList.add("visible");
       isDrawerOpen = true;
 
-      badgeText.innerText = "Onboarding";
-      statusDot.style.background = "#38bdf8";
+      badgeText.innerText = "Setup";
+      statusDot.style.background = "#10b981";
 
       if (data && data.user) {
         onbName.value = data.user.name || "";
@@ -2231,8 +2243,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         chip.setAttribute("data-app-name", app.name);
         chip.setAttribute("data-app-cat", app.category || "application");
         chip.title = "Click to toggle application binding";
-        const icon = { browser: "🌐", communication: "💬", developer: "💻", ai_assistant: "🤖", media: "🎵", meeting: "🗓️", notes: "📝", design: "🎨", tasks: "✅" }[app.category] || "📦";
-        chip.innerHTML = `<span>${icon}</span> <span>${escapeHtml(app.name)}</span> <span style="opacity: 0.6; font-size: 10px; margin-left: 2px;">(${escapeHtml(app.category || "app")})</span>`;
+        chip.innerHTML = `<span style="font-weight: 500;">${escapeHtml(app.name)}</span> <span style="opacity: 0.5; font-size: 10px; margin-left: 2px;">(${escapeHtml(app.category || "app")})</span>`;
         chip.addEventListener("click", () => {
           chip.classList.toggle("active");
         });
@@ -2240,20 +2251,21 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       });
 
       if (data && data.verified) {
-        onbStatusBadge.innerText = "✓ Verified Ground Truth";
+        onbStatusBadge.innerText = "✓ Configured";
         onbStatusBadge.style.color = "#34d399";
-        onbStatusBadge.style.background = "rgba(16, 185, 129, 0.12)";
+        onbStatusBadge.style.background = "rgba(16, 185, 129, 0.1)";
       } else {
-        onbStatusBadge.innerText = "Ambient Hydrated";
-        onbStatusBadge.style.color = "#38bdf8";
-        onbStatusBadge.style.background = "rgba(56, 189, 248, 0.12)";
+        onbStatusBadge.innerText = "Local Discovery";
+        onbStatusBadge.style.color = "#a1a1aa";
+        onbStatusBadge.style.background = "rgba(255, 255, 255, 0.05)";
       }
 
       const accountsOnb = (data && (data.composio_accounts || data.connected_accounts)) || currentComposioStatus;
       renderComposioCards("onb-composio-grid", accountsOnb);
 
-      onbConfirmBtn.innerText = "Confirm & Seal Knowledge Graph";
-      onbConfirmBtn.style.background = "#0284c7";
+      onbConfirmBtn.innerText = "Save & Continue";
+      onbConfirmBtn.style.background = "#f4f4f5";
+      onbConfirmBtn.style.color = "#09090b";
       onbConfirmBtn.disabled = false;
       notifyResize();
       setTimeout(() => {
@@ -2263,16 +2275,17 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     };
 
     window.auraOnboardingSaved = function(result) {
-      onbStatusBadge.innerText = "✓ Sealed with Pure Data";
+      onbStatusBadge.innerText = "✓ Saved";
       onbStatusBadge.style.color = "#34d399";
-      onbStatusBadge.style.background = "rgba(16, 185, 129, 0.15)";
-      onbConfirmBtn.innerText = "✓ Knowledge Graph Sealed";
-      onbConfirmBtn.style.background = "#059669";
-      badgeText.innerText = "Verified";
+      onbStatusBadge.style.background = "rgba(16, 185, 129, 0.12)";
+      onbConfirmBtn.innerText = "✓ Saved";
+      onbConfirmBtn.style.background = "#f4f4f5";
+      onbConfirmBtn.style.color = "#09090b";
+      badgeText.innerText = "Ready";
       statusDot.style.background = "#10b981";
 
       const footerOnbText = document.getElementById("footer-onb-text");
-      if (footerOnbText) footerOnbText.innerText = "Brain: Verified";
+      if (footerOnbText) footerOnbText.innerText = "Ready";
       const footerDot = document.getElementById("onb-footer-dot");
       if (footerDot) footerDot.className = "dot-green";
 
@@ -2281,10 +2294,10 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         if (result) {
           window.displayResult({
             action: "onboard_complete",
-            response: `✓ Knowledge Graph Verified & Sealed with Pure User Data\n• Identity: ${result.user_name} (${result.user_role} @ ${result.user_company})\n• Work Circle: ${result.collaborators_count} collaborators locked in graph\n• Cluster Isolation: STRICT_DISJOINT Active (Zero Leakage)\n• Intent Grounding: Level 2 & Level 2.5 Active (<0.5ms resolution)`
+            response: `✓ Profile & Workspace Setup Saved\n• Identity: ${result.user_name || "User"}${result.user_role ? ` (${result.user_role})` : ""}${result.user_company ? ` · ${result.user_company}` : ""}\n• Collaborators: ${result.collaborators_count} saved\n• Integrations: Configured locally`
           });
         }
-      }, 1100);
+      }, 900);
     };
 
     const onbCloseBtn = document.getElementById("onb-close-btn");
@@ -2330,8 +2343,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
           chip.setAttribute("data-app-name", appName);
           chip.setAttribute("data-app-cat", appCat);
           chip.title = "Click to toggle application binding";
-          const icon = { browser: "🌐", communication: "💬", developer: "💻", ai_assistant: "🤖", media: "🎵", meeting: "🗓️", notes: "📝", design: "🎨", tasks: "✅", utility: "⚙️", productivity: "📝" }[appCat] || "📦";
-          chip.innerHTML = `<span>${icon}</span> <span>${escapeHtml(appName)}</span> <span style="opacity: 0.6; font-size: 10px; margin-left: 2px;">(${escapeHtml(appCat)})</span>`;
+          chip.innerHTML = `<span style="font-weight: 500;">${escapeHtml(appName)}</span> <span style="opacity: 0.5; font-size: 10px; margin-left: 2px;">(${escapeHtml(appCat)})</span>`;
           chip.addEventListener("click", () => {
             chip.classList.toggle("active");
           });
@@ -2447,7 +2459,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       isDrawerOpen = true;
 
       badgeText.innerText = "Settings";
-      statusDot.style.background = "#a78bfa";
+      statusDot.style.background = "#10b981";
 
       currentSettingsData = data || {};
       const user = currentSettingsData.user || {};
@@ -2475,14 +2487,12 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       apps.forEach(a => {
         const row = document.createElement("div");
         row.className = "settings-collab-row";
-        const icon = { browser: "🌐", communication: "💬", developer: "💻", ai_assistant: "🤖", media: "🎵", meeting: "🗓️", notes: "📝", design: "🎨", tasks: "✅" }[a.category] || "📦";
         const intentOrCat = a.intent || a.category || a.role || "App";
         row.innerHTML = `
           <div class="settings-collab-info">
-            <span>${icon}</span>
             <span style="font-weight: 500; color: #f4f4f5;">${escapeHtml(a.name)}</span>
             <span style="color: #71717a;">·</span>
-            <span style="color: #a1a1aa; font-size: 11px;">Capability: <b style="color: #c4b5fd;">${escapeHtml(intentOrCat)}</b></span>
+            <span style="color: #a1a1aa; font-size: 11px;">Capability: <b style="color: #e4e4e7;">${escapeHtml(intentOrCat)}</b></span>
           </div>
           <button class="settings-del-btn" title="Delete application" data-id="${escapeHtml(a.id || a.name)}">✕</button>
         `;
