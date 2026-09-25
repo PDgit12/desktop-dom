@@ -274,3 +274,20 @@ Eliminates vision agent flaws (>90% token waste, 3–6 second latency, pixel coo
     - Native macOS application bundle rebuilt and verified via `./scripts/build_app.sh`, deployed to `/Users/piyushdua/Applications/Aura.app`.
     - Committed, pushed to `develop`, and fast-forward merged to `main`.
 
+- **IPC Lifecycle Hardening, Main-Thread Cocoa Dispatch & Non-Blocking UI (Certified):**
+  - **Single-Instance IPC Hardening (`omnibar.py`):**
+    - Implemented two-way ACK handshake (`b"ACK\n"`) with 0.8s timeout in `check_or_start_instance()`. If an existing socket is connected to an unresponsive/dead process, it automatically purges the stale socket file and takes over as the active primary instance.
+    - Registered `atexit.register` socket cleanup so `/tmp/desktop_dom_aura.sock` is deleted on clean shutdown.
+    - Routed all IPC commands (`show`, `onboard`, `hide`, `toggle`) to the main Cocoa runloop using `self.dispatch_main(...)` to ensure AppKit window ordering and activation occur strictly on the main thread.
+  - **Zero-Latency Non-Blocking Cloud Reconciliation (`omnibar.py`):**
+    - Rendered local SQLite cached accounts instantly (0ms) in `on_get_onboarding_requested` and `on_get_settings_requested`, moving the 1-second cloud API call (`get_composio_status`) into a background worker thread that pushes updates to the WebKit view asynchronously.
+    - Added immediate visual feedback (`AUTHORIZING`) in `window.connectComposioApp` when clicking "Connect".
+  - **GUI Bundle Launcher Path Resolution (`scripts/build_app.py`):**
+    - Prepend `/opt/anaconda3/bin` and `/opt/homebrew/bin` to `PATH` in `MacOS/Aura` launcher script so Finder and Spotlight launches locate Python 3.13 and `desktop-dom` without PATH friction.
+    - Replaced `desktop_dom.cli.main` with `desktop_dom` module execution to eliminate runpy package warnings.
+  - **Testing & Verification:**
+    - 277 / 277 tests passing across the entire test suite.
+    - Recompiled and verified `~/Applications/Aura.app`.
+    - Synced `develop` and `main` branches with origin.
+
+
