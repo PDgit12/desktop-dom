@@ -146,6 +146,14 @@ set -e
 
 DIR="$( cd "$( dirname "${{BASH_SOURCE[0]}}" )" && pwd )"
 
+# Prepend Anaconda / Homebrew paths for GUI Finder launches
+if [ -d "/opt/anaconda3/bin" ]; then
+    export PATH="/opt/anaconda3/bin:$PATH"
+fi
+if [ -d "/opt/homebrew/bin" ]; then
+    export PATH="/opt/homebrew/bin:$PATH"
+fi
+
 # Check if desktop-dom CLI is directly in PATH
 if command -v desktop-dom >/dev/null 2>&1; then
     exec desktop-dom assistant "$@"
@@ -183,7 +191,7 @@ if [ -d "$DIR/../Resources/src" ]; then
 elif [ -d "$DIR/../../../../src" ]; then
     export PYTHONPATH="$DIR/../../../../src:$PYTHONPATH"
 fi
-exec "$PYTHON" -m desktop_dom.cli.main assistant "$@"
+exec "$PYTHON" -m desktop_dom assistant "$@"
 """
     launcher_path = macos_dir / "Aura"
     with open(launcher_path, "w", encoding="utf-8") as f:

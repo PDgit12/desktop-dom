@@ -2110,6 +2110,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     }
 
     window.connectComposioApp = function(toolkit) {
+      window.updateComposioCardStatus(toolkit, 'AUTHORIZING', '');
       window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify({
         action: "connect_composio_app",
         toolkit: toolkit
@@ -3444,6 +3445,7 @@ class FloatingOmnibar:
 
             if self._app:
                 self._app.activateIgnoringOtherApps_(True)
+            self._panel.setIsVisible_(True)
             self._panel.makeKeyAndOrderFront_(None)
             self._panel.orderFrontRegardless()
             if self._webview:
@@ -3531,7 +3533,7 @@ class FloatingOmnibar:
         try:
             is_ver = self.brain.memory.is_onboarding_verified()
             self.evaluate_js(f"if (window.updateOnboardingTag) {{ window.updateOnboardingTag({json.dumps(is_ver)}); }}")
-            if not is_ver:
+            if not is_ver or getattr(self, "_force_onboard", False):
                 self.on_get_onboarding_requested()
         except Exception as e:
             logger.warning(f"Error checking onboarding status: {e}")
@@ -3542,14 +3544,30 @@ class FloatingOmnibar:
             return
         try:
             profile = self.brain.memory.get_verified_onboarding_profile()
-            if hasattr(self.brain, "get_composio_status"):
-                try:
-                    c_stat = self.brain.get_composio_status()
-                    if isinstance(c_stat, dict) and isinstance(c_stat.get("accounts"), dict):
-                        profile["composio_accounts"] = c_stat["accounts"]
-                except Exception:
-                    pass
+            local_accounts = self.brain.memory.list_connected_accounts()
+            if local_accounts:
+                acc_map = {}
+                for a in local_accounts:
+                    tk = a.get("toolkit", "").lower()
+                    acc_map[tk] = {
+                        "connected": a.get("status") == "ACTIVE",
+                        "status": a.get("status", "DISCONNECTED"),
+                        "external_id": a.get("external_id", ""),
+                        "redirect_url": a.get("redirect_url"),
+                        "last_synced_at": a.get("last_synced_at"),
+                    }
+                profile["composio_accounts"] = acc_map
             self.evaluate_js(f"window.displayOnboardingDrawer({json.dumps(profile)});")
+
+            def _async_cloud_reconcile():
+                if hasattr(self.brain, "get_composio_status"):
+                    try:
+                        c_stat = self.brain.get_composio_status()
+                        if isinstance(c_stat, dict) and isinstance(c_stat.get("accounts"), dict):
+                            self.evaluate_js(f"if (window.renderComposioStatuses) {{ window.renderComposioStatuses({json.dumps(c_stat)}); }}")
+                    except Exception as ex:
+                        logger.debug(f"Async cloud reconcile skipped: {ex}")
+            threading.Thread(target=_async_cloud_reconcile, daemon=True).start()
         except Exception as e:
             logger.warning(f"Error fetching onboarding profile: {e}")
 
@@ -3569,16 +3587,30 @@ class FloatingOmnibar:
             return
         try:
             settings_data = self.brain.memory.get_user_settings()
-            if hasattr(self.brain, "get_composio_status"):
-                try:
-                    c_stat = self.brain.get_composio_status()
-                    if isinstance(c_stat, dict):
-                        if isinstance(c_stat.get("accounts"), dict):
-                            settings_data["composio_accounts"] = c_stat["accounts"]
-                        settings_data["composio_configured"] = c_stat.get("composio_configured", False)
-                except Exception:
-                    pass
+            local_accounts = self.brain.memory.list_connected_accounts()
+            if local_accounts:
+                acc_map = {}
+                for a in local_accounts:
+                    tk = a.get("toolkit", "").lower()
+                    acc_map[tk] = {
+                        "connected": a.get("status") == "ACTIVE",
+                        "status": a.get("status", "DISCONNECTED"),
+                        "external_id": a.get("external_id", ""),
+                        "redirect_url": a.get("redirect_url"),
+                        "last_synced_at": a.get("last_synced_at"),
+                    }
+                settings_data["composio_accounts"] = acc_map
             self.evaluate_js(f"window.displaySettingsDrawer({json.dumps(settings_data)});")
+
+            def _async_settings_reconcile():
+                if hasattr(self.brain, "get_composio_status"):
+                    try:
+                        c_stat = self.brain.get_composio_status()
+                        if isinstance(c_stat, dict):
+                            self.evaluate_js(f"if (window.renderComposioStatuses) {{ window.renderComposioStatuses({json.dumps(c_stat)}); }}")
+                    except Exception as ex:
+                        logger.debug(f"Async settings composio status check error: {ex}")
+            threading.Thread(target=_async_settings_reconcile, daemon=True).start()
         except Exception as e:
             logger.warning(f"Error fetching user settings: {e}")
 
@@ -3886,19 +3918,23 @@ class FloatingOmnibar:
         """
         import socket
         import os
+        import atexit
 
         socket_path = "/tmp/desktop_dom_aura.sock"
 
-        # Attempt to communicate with already-running instance
+        # Attempt to communicate with already-running instance and expect ACK
         try:
             s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            s.settimeout(0.6)
+            s.settimeout(0.8)
             s.connect(socket_path)
             s.sendall(command)
+            ack = s.recv(16)
             s.close()
-            logger.info("Aura already running; sent IPC command.")
-            return False
-        except (socket.error, FileNotFoundError, ConnectionRefusedError):
+            if ack.strip() == b"ACK" or not isinstance(ack, bytes):
+                logger.info("Aura already running; sent IPC command and confirmed active.")
+                return False
+            logger.warning("Existing Aura socket did not ACK command; taking over instance.")
+        except (socket.error, FileNotFoundError, ConnectionRefusedError, socket.timeout, BrokenPipeError):
             pass
 
         # Clean up stale socket file
@@ -3908,6 +3944,14 @@ class FloatingOmnibar:
         except Exception:
             pass
 
+        def _cleanup():
+            try:
+                if os.path.exists(socket_path):
+                    os.remove(socket_path)
+            except Exception:
+                pass
+        atexit.register(_cleanup)
+
         def _ipc_server():
             try:
                 srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -3915,15 +3959,29 @@ class FloatingOmnibar:
                 srv.listen(5)
                 while True:
                     conn, _ = srv.accept()
-                    data = conn.recv(1024)
+                    data = b""
+                    try:
+                        conn.settimeout(1.0)
+                        data = conn.recv(1024)
+                        conn.sendall(b"ACK\n")
+                    except Exception:
+                        pass
+                    finally:
+                        try:
+                            conn.close()
+                        except Exception:
+                            pass
+
                     if b"onboard" in data:
-                        self.show()
-                        self.on_get_onboarding_requested()
+                        self._force_onboard = True
+                        def _show_onboard():
+                            self.show()
+                            self.on_get_onboarding_requested()
+                        self.dispatch_main(_show_onboard)
                     elif b"show" in data or b"toggle" in data:
-                        self.show()
+                        self.dispatch_main(self.show)
                     elif b"hide" in data:
-                        self.hide()
-                    conn.close()
+                        self.dispatch_main(self.hide)
             except Exception as e:
                 logger.debug(f"IPC socket server terminated: {e}")
 
