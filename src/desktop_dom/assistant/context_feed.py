@@ -318,23 +318,31 @@ class ContextFeedEngine:
             repo_match = re.search(r"github\.com/([^/]+/[^/]+)", browser_url or "", flags=re.IGNORECASE)
             if repo_match:
                 topic = f"GitHub: {repo_match.group(1)}"
-            elif "desktop-dom" in combined_text:
-                topic = "desktop-dom Core Development"
             elif window_title and not window_title.startswith("Untitled"):
                 topic = f"Code: {window_title.split('—')[0].split('-')[0].strip()}"
-            suggested = "Deep Focus"
+            suggested = "Focus Flow"
             if self.memory:
-                suggested = self.memory.resolve_habit("spotify.playlist.coding") or self.memory.get_preference("spotify.playlist.coding", self.memory.get_preference("spotify.favorite_playlist", "Deep Focus"))
+                suggested = (
+                    self.memory.resolve_habit("spotify.playlist.coding")
+                    or self.memory.resolve_habit("spotify.favorite_playlist")
+                    or self.memory.get_preference("spotify.playlist.coding")
+                    or self.memory.get_preference("spotify.favorite_playlist")
+                    or "Focus Flow"
+                )
             return "Engineering", topic, suggested, "Focus Beats"
 
         # 3. Communication & Messaging Context
         comm_apps = ["microsoft outlook", "outlook", "mail", "slack", "messages", "discord", "zoom", "teams", "whatsapp"]
         if any(sig in app_low for sig in comm_apps) or "mail.google.com" in b_url_low:
             topic = "Email & Communications"
-            if "josh" in combined_text:
-                topic = "Crcle.ai Discussion with Josh"
-            elif "cyril" in combined_text:
-                topic = "Architecture Sync with Cyril"
+            if self.memory:
+                for ent in self.memory._entity_cache:
+                    if ent.get("category") == "contact" and ent.get("name"):
+                        first = ent["name"].split()[0].lower()
+                        if first in combined_text or ent["name"].lower() in combined_text:
+                            comp = f" at {ent['company']}" if ent.get("company") else ""
+                            topic = f"Discussion with {ent['name']}{comp}"
+                            break
             return "Communication", topic, "Discover Weekly", "Ambient Focus"
 
         # 4. Design & Creative Context

@@ -1747,7 +1747,7 @@ class AuraMemory:
         # 3. Determine Primary Context Topic (Strictly for Connected Entities)
         primary_topic = None
         if status == "connected":
-            project_match = next((p["name"] for p in shared_projects if p["category"] == "project" or p["name"] == "desktop-dom"), None)
+            project_match = next((p["name"] for p in shared_projects if p.get("category") == "project"), None)
             if project_match:
                 primary_topic = project_match
             elif shared_projects:
@@ -2997,7 +2997,8 @@ class AuraMemory:
                     })
 
             repos_val = self.get_preference("work.repos")
-            repos = json.loads(repos_val) if repos_val else ["desktop-dom"]
+            def_repo = self.get_default_github_repo()
+            repos = json.loads(repos_val) if repos_val else ([def_repo] if def_repo else [])
 
             apps_list = []
             for ent in self._entity_cache:

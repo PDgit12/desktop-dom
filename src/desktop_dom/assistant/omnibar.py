@@ -651,7 +651,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     flex-direction: column;
     padding: 12px 16px;
     gap: 10px;
-    max-height: 320px;
+    max-height: 380px;
     overflow-y: auto;
     border-top: 1px solid rgba(255, 255, 255, 0.06);
     opacity: 0;
@@ -823,7 +823,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     flex-direction: column;
     padding: 12px 16px;
     gap: 10px;
-    max-height: 330px;
+    max-height: 380px;
     overflow-y: auto;
     border-top: 1px solid rgba(255, 255, 255, 0.06);
     opacity: 0;
@@ -911,6 +911,44 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     grid-template-columns: 1fr 1fr;
     gap: 8px;
     margin-top: 4px;
+    max-height: 200px;
+    overflow-y: auto;
+    padding-right: 2px;
+  }
+  .composio-connect-grid::-webkit-scrollbar {
+    width: 4px;
+  }
+  .composio-connect-grid::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+  }
+  .composio-filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+    margin-bottom: 2px;
+  }
+  .composio-search-input {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    padding: 5px 9px;
+    font-size: 11px;
+    color: #f4f4f5;
+    outline: none;
+    flex: 1;
+    transition: all 0.12s ease;
+  }
+  .composio-search-input:focus {
+    border-color: rgba(255, 255, 255, 0.22);
+    background: rgba(255, 255, 255, 0.08);
+  }
+  .composio-custom-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+    align-items: center;
   }
   .composio-card {
     display: flex;
@@ -1224,8 +1262,15 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       </div>
 
       <div class="onb-field" style="margin-top: 2px;">
+        <div class="composio-filter-bar">
+          <input type="text" class="composio-search-input" id="onb-composio-search" placeholder="Search apps (Notion, Spotify, Linear, Slack, Zoom...)" oninput="filterComposioGrid('onb-composio-grid', this.value)" />
+        </div>
         <div class="composio-connect-grid" id="onb-composio-grid">
           <!-- Dynamically populated Composio integration cards -->
+        </div>
+        <div class="composio-custom-row">
+          <input type="text" class="composio-search-input" id="onb-custom-toolkit" placeholder="Connect any toolkit (e.g. notion, linear, stripe, figma, hubspot)..." onkeydown="if(event.key==='Enter') connectCustomApp('onb-custom-toolkit')" />
+          <button class="composio-btn composio-btn-connect" type="button" onclick="connectCustomApp('onb-custom-toolkit')" style="white-space: nowrap;">+ Connect Tool</button>
         </div>
       </div>
 
@@ -1352,8 +1397,15 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
           <span>Integrations</span>
           <span style="font-size: 9px; color: #a1a1aa; text-transform: uppercase; letter-spacing: 0.05em;">Private & Local</span>
         </label>
+        <div class="composio-filter-bar">
+          <input type="text" class="composio-search-input" id="settings-composio-search" placeholder="Search apps (Notion, Spotify, Linear, Slack, Zoom...)" oninput="filterComposioGrid('settings-composio-grid', this.value)" />
+        </div>
         <div class="composio-connect-grid" id="settings-composio-grid">
           <!-- Dynamically populated Composio integration cards -->
+        </div>
+        <div class="composio-custom-row">
+          <input type="text" class="composio-search-input" id="settings-custom-toolkit" placeholder="Connect any toolkit (e.g. notion, linear, stripe, figma, hubspot)..." onkeydown="if(event.key==='Enter') connectCustomApp('settings-custom-toolkit')" />
+          <button class="composio-btn composio-btn-connect" type="button" onclick="connectCustomApp('settings-custom-toolkit')" style="white-space: nowrap;">+ Connect Tool</button>
         </div>
       </div>
       <div class="onb-btn-bar">
@@ -2027,15 +2079,101 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         toolkit: "gmail",
         name: "Gmail",
         icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>',
-        desc: "Frequent Contacts"
+        desc: "Emails & Contacts"
       },
       {
         toolkit: "slack",
         name: "Slack",
         icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 10c-.83 0-1.5-.67-1.5-1.5v-5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5z"/><path d="M20.5 10H19V8.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/><path d="M9.5 14c.83 0 1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5S8 21.33 8 20.5v-5c0-.83.67-1.5 1.5-1.5z"/><path d="M3.5 14H5v1.5c0 .83-.67 1.5-1.5 1.5S2 16.33 2 15.5 2.67 14 3.5 14z"/><path d="M14 14.5c0-.83.67-1.5 1.5-1.5h5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-5c-.83 0-1.5-.67-1.5-1.5z"/><path d="M15.5 20.5c0 .83-.67 1.5-1.5 1.5s-1.5-.67-1.5-1.5.67-1.5 1.5-1.5h1.5v1.5z"/><path d="M10 9.5C10 10.33 9.33 11 8.5 11h-5C2.67 11 2 10.33 2 9.5S2.67 8 3.5 8h5c.83 0 1.5.67 1.5 1.5z"/><path d="M8.5 3.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5H8.5V3.5z"/></svg>',
         desc: "Channels & Messages"
+      },
+      {
+        toolkit: "notion",
+        name: "Notion",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v16h16V4H4zm3 3h10v10H7V7zm2 2v6l3-3 3 3V9"/></svg>',
+        desc: "Pages & Databases"
+      },
+      {
+        toolkit: "spotify",
+        name: "Spotify",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 11.5c2.5-1 5.5-.8 8 .5"/><path d="M9 14.5c2-.8 4.2-.6 6 .4"/><path d="M10 17.5c1.5-.6 3.2-.5 4.5.3"/></svg>',
+        desc: "Playlists & Playback"
+      },
+      {
+        toolkit: "linear",
+        name: "Linear",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6"/><path d="M9 9l6 6"/></svg>',
+        desc: "Issues, Cycles & Sprints"
+      },
+      {
+        toolkit: "zoom",
+        name: "Zoom",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>',
+        desc: "Video Meetings"
+      },
+      {
+        toolkit: "googledrive",
+        name: "Google Drive",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 19h20L12 2z"/><line x1="2" y1="19" x2="12" y2="12"/><line x1="22" y1="19" x2="12" y2="12"/></svg>',
+        desc: "Cloud Files & Docs"
+      },
+      {
+        toolkit: "discord",
+        name: "Discord",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6h-12a3 3 0 0 0-3 3v8l4-3h11a3 3 0 0 0 3-3V9a3 3 0 0 0-3-3z"/><circle cx="9" cy="11" r="1"/><circle cx="15" cy="11" r="1"/></svg>',
+        desc: "Servers & Community"
+      },
+      {
+        toolkit: "trello",
+        name: "Trello",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><rect x="7" y="7" width="3" height="9"/><rect x="14" y="7" width="3" height="5"/></svg>',
+        desc: "Boards & Cards"
+      },
+      {
+        toolkit: "asana",
+        name: "Asana",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="3"/><circle cx="6" cy="16" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
+        desc: "Tasks & Timelines"
+      },
+      {
+        toolkit: "clickup",
+        name: "ClickUp",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14l8-7 8 7"/><path d="M12 7v14"/></svg>',
+        desc: "Tasks & Goals"
+      },
+      {
+        toolkit: "jira",
+        name: "Jira",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="3"/><path d="M7 12l5-5 5 5-5 5-5-5z"/></svg>',
+        desc: "Sprints & Backlog"
+      },
+      {
+        toolkit: "msteams",
+        name: "Microsoft Teams",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+        desc: "Meetings & Chat"
+      },
+      {
+        toolkit: "twitter",
+        name: "X / Twitter",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>',
+        desc: "Social Feed & DMs"
+      },
+      {
+        toolkit: "airtable",
+        name: "Airtable",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>',
+        desc: "Bases & Grids"
+      },
+      {
+        toolkit: "figma",
+        name: "Figma",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5.5A3.5 3.5 0 0 1 8.5 2H12v7H8.5A3.5 3.5 0 0 1 5 5.5z"/><path d="M12 2h3.5a3.5 3.5 0 1 1 0 7H12V2z"/><path d="M12 12.5a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0z"/><path d="M5 19.5A3.5 3.5 0 0 1 8.5 16H12v3.5a3.5 3.5 0 1 1-7 0z"/><path d="M12 9h3.5a3.5 3.5 0 1 1 0 7H12V9z"/></svg>',
+        desc: "Designs & Canvases"
       }
     ];
+
+    const DEFAULT_TOOLKIT_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="3"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>';
 
     let currentComposioStatus = {};
 
@@ -2055,14 +2193,44 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       return map;
     }
 
-    function renderComposioCards(containerId, accounts) {
+    function renderComposioCards(containerId, accounts, filterQuery = "") {
       const container = document.getElementById(containerId);
       if (!container) return;
       container.innerHTML = "";
       const map = normalizeComposioMap(accounts);
+      const query = (filterQuery || "").trim().toLowerCase();
 
-      COMPOSIO_APPS_DEF.forEach(app => {
-        const acc = map[app.toolkit] || { connected: false, status: "DISCONNECTED" };
+      // Collect all app definitions plus any custom connected toolkits
+      const allApps = [...COMPOSIO_APPS_DEF];
+      Object.keys(map).forEach(tk => {
+        if (!allApps.find(a => a.toolkit.toLowerCase() === tk.toLowerCase())) {
+          allApps.push({
+            toolkit: tk,
+            name: tk.charAt(0).toUpperCase() + tk.slice(1),
+            icon: DEFAULT_TOOLKIT_ICON,
+            desc: "Custom Integration"
+          });
+        }
+      });
+
+      const filtered = query
+        ? allApps.filter(a => a.name.toLowerCase().includes(query) || a.toolkit.toLowerCase().includes(query) || a.desc.toLowerCase().includes(query))
+        : allApps;
+
+      if (filtered.length === 0) {
+        const empty = document.createElement("div");
+        empty.style.gridColumn = "1 / -1";
+        empty.style.padding = "16px";
+        empty.style.textAlign = "center";
+        empty.style.color = "#71717a";
+        empty.style.fontSize = "11px";
+        empty.innerText = "No matching integrations found.";
+        container.appendChild(empty);
+        return;
+      }
+
+      filtered.forEach(app => {
+        const acc = map[app.toolkit.toLowerCase()] || { connected: false, status: "DISCONNECTED" };
         const isConnected = acc.connected || (acc.status === "ACTIVE");
         const isPending = acc.status === "PENDING" || acc.status === "INITIATED" || acc.status === "AWAITING_USER_AUTH" || acc.status === "INITIALIZING" || acc.status === "INITIATING";
 
@@ -2108,6 +2276,19 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         container.appendChild(card);
       });
     }
+
+    window.filterComposioGrid = function(containerId, query) {
+      renderComposioCards(containerId, currentComposioStatus, query);
+    };
+
+    window.connectCustomApp = function(inputId) {
+      const el = document.getElementById(inputId);
+      if (!el) return;
+      const tk = el.value.trim().toLowerCase();
+      if (!tk) return;
+      el.value = "";
+      window.connectComposioApp(tk);
+    };
 
     window.connectComposioApp = function(toolkit) {
       window.updateComposioCardStatus(toolkit, 'AUTHORIZING', '');

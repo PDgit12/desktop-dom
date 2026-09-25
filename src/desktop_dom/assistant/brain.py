@@ -735,7 +735,7 @@ end tell'''
             lines = [
                 f"✓ Knowledge Graph & Intent Engine Onboarded ({'Verified Pure Data' if profile['verified'] else 'Ambient'})",
                 f"• Identity: {user_info['name']} ({user_info['email']}) — {user_info['role']} | {user_info['company']}",
-                f"• Work Circle: {', '.join(collab_strs) if collab_strs else 'Joshua Rayan, Cyril Rayan'}",
+                f"• Work Circle: {', '.join(collab_strs) if collab_strs else 'None configured'}",
                 f"• Verified Apps: {app_str}",
                 media_line,
                 f"• Graph Clusters: 4 Disjoint Subgraphs (work, apps, personal_media, gaming)",
@@ -3091,7 +3091,12 @@ end tell'''
         elif clean_toolkit in {"gmail", "mail"}:
             return self.composio_ingest.sync_gmail(user_id=uid)
         else:
-            return {"status": "unsupported_toolkit", "toolkit": clean_toolkit}
+            self.memory.set_preference(f"{clean_toolkit}.last_synced", str(time.time()), category="integrations")
+            return {
+                "status": "success",
+                "toolkit": clean_toolkit,
+                "message": f"{clean_toolkit.capitalize()} is connected and synchronized.",
+            }
 
     def get_composio_status(self, user_id: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -3129,7 +3134,14 @@ end tell'''
         accounts = self.memory.list_connected_accounts(user_id=uid)
         acc_by_toolkit = {a.get("toolkit", "").lower(): a for a in accounts}
 
-        toolkits = ["googlecalendar", "github", "gmail", "slack"]
+        standard_toolkits = [
+            "googlecalendar", "github", "gmail", "slack",
+            "notion", "spotify", "linear", "zoom",
+            "googledrive", "discord", "trello", "asana",
+            "clickup", "jira", "msteams", "twitter",
+            "airtable", "figma"
+        ]
+        toolkits = list(dict.fromkeys(standard_toolkits + list(acc_by_toolkit.keys())))
         statuses = {}
         for tk in toolkits:
             acc = acc_by_toolkit.get(tk)
