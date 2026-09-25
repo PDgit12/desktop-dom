@@ -285,9 +285,24 @@ Eliminates vision agent flaws (>90% token waste, 3–6 second latency, pixel coo
   - **GUI Bundle Launcher Path Resolution (`scripts/build_app.py`):**
     - Prepend `/opt/anaconda3/bin` and `/opt/homebrew/bin` to `PATH` in `MacOS/Aura` launcher script so Finder and Spotlight launches locate Python 3.13 and `desktop-dom` without PATH friction.
     - Replaced `desktop_dom.cli.main` with `desktop_dom` module execution to eliminate runpy package warnings.
-  - **Testing & Verification:**
-    - 277 / 277 tests passing across the entire test suite.
-    - Recompiled and verified `~/Applications/Aura.app`.
-    - Synced `develop` and `main` branches with origin.
+- **Schedule & Habits Pipeline Grounding Across Composio & Sovereign Memory (284 Tests Certified):**
+  - **Eliminated Web Search Fallback for Schedule & Personal Queries (`brain.py`):**
+    - Intercepted all calendar and schedule queries (`"Piyush Dua schedule"`, `"my schedule"`, `"check schedule"`, `"today's schedule"`, `"calendar"`, `"upcoming meetings"`) and routed them to `_handle_calendar_schedule_query()`.
+    - Added an absolute search guard (`search_match` in `_try_deterministic_fast_path`) preventing any queries with personal keywords (`schedule`, `calendar`, `meeting`, `events`, `agenda`, `playlist`, `email`) from falling through to Google web search.
+    - Synchronizes live Google Calendar data via Composio if cache is older than 5 minutes, launches native macOS Calendar app, and formats clean briefing.
+    - Updated local LLM system prompt instructions with explicit guardrails and actions (`ACTION: schedule`, `ACTION: meeting`), injecting today's calendar events and habits context directly into the prompt.
+  - **Autonomous Habit Learning & Recall (`memory.py`, `non_binary.py`, `brain.py`):**
+    - **Meeting Platform Habit:** Automatically parses meeting links (`meet.google.com`, `zoom.us`, `teams.microsoft.com`) from calendar briefings and "I have a meeting" intents to reinforce `meeting.platform` in memory.
+    - **Notes Companion Habit:** Detects primary meeting companion app (`Granola` or configured app), launches it on "I have a meeting", and stores `meeting.notes_companion`.
+    - **Daily Playlist Habit:** Supports explicit setting (`"set daily playlist to <Name>"`) with anti-drift locking (`confidence=1.0`), and natural recall (`"play my playlist"`, `"play my daily playlist"`) with seamless Spotify control and fallback safety.
+    - Added `get_today_schedule()` and `get_habits_summary()` on `AuraMemory`, surfaced in `get_summary()` and `get_user_profile()`.
+  - **Hermetic Testing & Verification:**
+    - Built comprehensive 7-test suite in `tests/test_schedule_habits_pipeline.py`.
+    - Isolated `test_brain_composio_connect_and_status` in `tests/test_composio_integration.py` from live API connection leakage.
+    - **284 / 284 tests passing across all 24 test suites** (100% green, 0 errors, 0 failures).
+    - Native macOS application bundle recompiled and installed to `/Users/piyushdua/Applications/Aura.app`.
+    - Removed stale `/tmp/desktop_dom_aura.sock`.
+    - Synced `develop` and `main` branches with remote repository.
+
 
 
