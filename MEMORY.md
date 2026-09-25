@@ -257,3 +257,20 @@ Eliminates vision agent flaws (>90% token waste, 3–6 second latency, pixel coo
     - 276 / 276 tests passing (100% green, 0 errors, 0 failures).
     - Native macOS application bundle recompiled and installed to `/Users/piyushdua/Applications/Aura.app`.
     - Committed and synced to both `origin/develop` and `origin/main`.
+
+- **Composio Live Integration & Minimalist Design System (277 Tests Certified):**
+  - **Live Connection & OAuth Flow Fixes (`brain.py`, `omnibar.py`, `composio_ingest.py`, `composio.py`):**
+    - Mapped Composio SDK's `AWAITING_USER_AUTH` and `INITIALIZING` statuses to save `PENDING` accounts in SQLite memory with `connection_id` and `redirect_url`.
+    - Resolved `ConnectedAccountState` vs `dict` unpacking in WebKit IPC bridge so `webbrowser.open(redirect_url)` pops up the default browser automatically upon clicking "Connect" / "Authorize", and background polling (`_start_composio_polling`) starts immediately.
+    - Added automated cloud connection reconciliation in `get_composio_status` to pull and reflect active connections without requiring manual sync.
+    - Persisted Composio API keys to disk (`~/.config/desktop-dom/composio.key`) and user preferences upon saving from the Settings drawer.
+  - **Minimalist Monochromatic Composio Design System (`omnibar.py`):**
+    - Replaced all emojis in `COMPOSIO_APPS_DEF` with clean vector monochrome SVGs for Google Calendar, GitHub, Gmail, and Slack.
+    - Re-styled `.composio-card`, `.composio-icon`, and buttons to match the sleek dark zinc / Linear / Raycast monochromatic aesthetic.
+    - Replaced neon badges with clean monochrome status indicators and subtle status dots.
+  - **Automated Verification & Release:**
+    - Added `test_connect_composio_app_awaiting_user_auth_flow` in `tests/test_composio_integration.py`.
+    - All 277 / 277 tests in pytest passing across all 23 test suites (100% green, 0 warnings, 0 failures in 182s).
+    - Native macOS application bundle rebuilt and verified via `./scripts/build_app.sh`, deployed to `/Users/piyushdua/Applications/Aura.app`.
+    - Committed, pushed to `develop`, and fast-forward merged to `main`.
+
