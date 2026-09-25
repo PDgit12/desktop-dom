@@ -1099,6 +1099,7 @@ class AuraMemory:
         value: str,
         category: str = "media",
         is_explicit: bool = False,
+        confidence: Optional[float] = None,
     ) -> Dict[str, Any]:
         """
         Records or updates a habit observation with strict anti-drift hysteresis:
@@ -1116,7 +1117,7 @@ class AuraMemory:
             row = cursor.fetchone()
 
             if not row:
-                conf = 1.0 if is_explicit else 0.50
+                conf = 1.0 if is_explicit else (confidence if confidence is not None else 0.50)
                 exp = 1 if is_explicit else 0
                 cursor.execute("""
                 INSERT INTO habits (habit_key, habit_value, category, confidence, occurrence_count, is_explicit, last_confirmed)
@@ -1855,6 +1856,55 @@ class AuraMemory:
         lines.append("===========================================================")
         return "\n".join(lines)
 
+    def get_today_schedule(self) -> List[Dict[str, Any]]:
+        """
+        Retrieves today's canonical calendar events cached in sovereign memory
+        from Composio Google Calendar sync or native OS calendar ingestion.
+        """
+        with self._lock:
+            cached_raw = self.get_preference("calendar.events.today")
+            if cached_raw:
+                try:
+                    events = json.loads(cached_raw)
+                    if isinstance(events, list):
+                        return events
+                except Exception as e:
+                    logger.warning(f"Failed to parse cached calendar events: {e}")
+            return []
+
+    def get_habits_summary(self) -> Dict[str, Any]:
+        """
+        Returns a synthesized dictionary of learned user habits, including
+        meeting platforms, notes companion apps, daily playlists, and preferred tools.
+        """
+        with self._lock:
+            meeting_platform = self.resolve_habit("meeting.platform") or self.resolve_habit("meeting.preferred_platform") or "Zoom"
+            notes_companion = (
+                self.resolve_app_for_intent("meeting")
+                or self.resolve_habit("meeting.notes_companion")
+                or self.get_preference("apps.primary_meeting")
+                or "Granola"
+            )
+            fav_playlist = (
+                self.resolve_habit("spotify.favorite_playlist")
+                or self.get_preference("spotify.favorite_playlist")
+                or self.resolve_habit("music.daily_playlist")
+                or self.get_preference("music.daily_playlist")
+                or ""
+            )
+            music_platform = self.resolve_app_for_intent("music") or self.get_preference("music.preferred_player", "Spotify")
+            mail_client = self.resolve_app_for_intent("mail") or self.get_preference("mail.preferred_client", "Microsoft Outlook")
+
+            return {
+                "meeting_platform": meeting_platform,
+                "notes_companion": notes_companion,
+                "favorite_playlist": fav_playlist,
+                "music_platform": music_platform,
+                "mail_client": mail_client,
+                "default_repo": self.get_default_github_repo(),
+                "all_habits": self.list_habits(),
+            }
+
     def get_summary(self) -> Dict[str, Any]:
         """Returns high-level statistics and recent memory context."""
         with self._lock:
@@ -1873,6 +1923,8 @@ class AuraMemory:
             default_repo = self.get_default_github_repo()
 
             habits = self.list_habits()
+            habits_summary = self.get_habits_summary()
+            today_schedule = self.get_today_schedule()
 
             return {
                 "user": {
@@ -1886,6 +1938,8 @@ class AuraMemory:
                 "top_contacts": top_contacts,
                 "top_apps": self.get_most_used_apps(limit=6),
                 "habits_count": len(habits),
+                "habits_summary": habits_summary,
+                "today_schedule": today_schedule,
                 "graph": {
                     "nodes_count": len(self._entity_cache),
                     "edges_count": len(self._graph_edges),
@@ -1931,6 +1985,8 @@ class AuraMemory:
 
             # Get habits
             habits = self.list_habits()
+            habits_summary = self.get_habits_summary()
+            today_schedule = self.get_today_schedule()
 
             # Top web sites
             top_sites = []
@@ -1958,6 +2014,8 @@ class AuraMemory:
                 "exact_track_order": True,
                 "signature": signature,
                 "habits": habits,
+                "habits_summary": habits_summary,
+                "today_schedule": today_schedule,
                 "top_sites": top_sites,
                 "top_apps": self.get_most_used_apps(limit=8),
                 "core_contacts": core_contacts,

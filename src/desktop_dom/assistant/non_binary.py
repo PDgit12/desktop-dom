@@ -121,6 +121,18 @@ def get_calendar_briefing(calendar_client: str = "Calendar", timeout: float = 4.
                         else:
                             att_str = ""
                         formatted_lines.append(f"• {time_str}: {title}{join_str}{att_str}")
+                    # Self-learn meeting platform habits from canonical events
+                    if hasattr(memory, "record_habit_observation"):
+                        for ev in cached_events:
+                            m_url = ev.get("meeting_url")
+                            if m_url:
+                                if "meet.google.com" in m_url:
+                                    memory.record_habit_observation("meeting.platform", "Google Meet", category="meeting", confidence=0.85)
+                                elif "zoom.us" in m_url:
+                                    memory.record_habit_observation("meeting.platform", "Zoom", category="meeting", confidence=0.85)
+                                elif "teams.microsoft.com" in m_url or "teams.live.com" in m_url:
+                                    memory.record_habit_observation("meeting.platform", "Microsoft Teams", category="meeting", confidence=0.85)
+
                     resp = f"Today's Calendar Briefing ({len(cached_events)} events):\n" + "\n".join(formatted_lines)
                     return {
                         "status": "success",
@@ -419,6 +431,17 @@ end tell
                 line += f" | Attendees: {', '.join(ev['attendees'])}"
             lines.append(line)
         resp = "\n".join(lines)
+
+    if events and memory and hasattr(memory, "record_habit_observation"):
+        for ev in events:
+            m_url = ev.get("meeting_url")
+            if m_url:
+                if "meet.google.com" in m_url:
+                    memory.record_habit_observation("meeting.platform", "Google Meet", category="meeting", confidence=0.85)
+                elif "zoom.us" in m_url:
+                    memory.record_habit_observation("meeting.platform", "Zoom", category="meeting", confidence=0.85)
+                elif "teams.microsoft.com" in m_url or "teams.live.com" in m_url:
+                    memory.record_habit_observation("meeting.platform", "Microsoft Teams", category="meeting", confidence=0.85)
 
     return {
         "status": "success",

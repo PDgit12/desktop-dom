@@ -890,7 +890,7 @@ end tell'''
                 "response": f"Updated verified company to '{new_company}'. Knowledge Graph updated.",
             }
 
-        set_playlist_match = re.match(r"^(?:set|change|update)\s+(?:my\s+)?(?:focus\s+|favorite\s+)?playlist\s+to\s+(.+)$", raw_prompt, re.IGNORECASE)
+        set_playlist_match = re.match(r"^(?:set|change|update)\s+(?:my\s+)?(?:focus\s+|favorite\s+|daily\s+|usual\s+)?playlist\s+to\s+(.+)$", raw_prompt, re.IGNORECASE)
         if set_playlist_match:
             new_playlist = set_playlist_match.group(1).strip().strip('"\'')
             self.memory.record_habit_observation("spotify.favorite_playlist", new_playlist, category="music", is_explicit=True)
@@ -905,7 +905,7 @@ end tell'''
                 "action": "set_profile",
                 "field": "playlist",
                 "value": new_playlist,
-                "response": f"Locked focus playlist to '{new_playlist}' (Confidence: 1.0, Anti-Drift Active).",
+                "response": f"Locked daily playlist to '{new_playlist}' (Confidence: 1.0, Anti-Drift Active).",
             }
 
         add_collab_match = re.match(r"^(?:add\s+(?:collaborator|teammate|contact)|my\s+teammate\s+is)\s+([a-zA-Z\s]+?)(?:\s+([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+))?$", raw_prompt, re.IGNORECASE)
@@ -1269,32 +1269,54 @@ end tell'''
             else:
                 resp = f"Opened {meeting_app} for your meeting notes."
 
-            # Enrich with canonical calendar meeting URL if available
+            # Enrich with canonical calendar meeting URL if available and self-learn habits
             meeting_url = None
+            detected_platform = None
             if hasattr(self, "memory") and self.memory:
-                cal_events_raw = self.memory.get_preference("calendar.events.today")
-                if cal_events_raw:
-                    try:
-                        cal_events = json.loads(cal_events_raw)
-                        for ev in cal_events:
-                            ev_url = ev.get("meeting_url")
-                            ev_att = [str(a).lower() for a in ev.get("attendees", [])]
-                            if collab_query and any(collab_query.lower() in a for a in ev_att):
-                                meeting_url = ev_url
-                                break
-                            elif not meeting_url and ev_url:
-                                meeting_url = ev_url
-                    except Exception:
-                        pass
+                cal_events = self.memory.get_today_schedule() if hasattr(self.memory, "get_today_schedule") else []
+                if not cal_events:
+                    raw_ev = self.memory.get_preference("calendar.events.today")
+                    if raw_ev:
+                        try:
+                            cal_events = json.loads(raw_ev)
+                        except Exception:
+                            cal_events = []
+                for ev in cal_events:
+                    ev_url = ev.get("meeting_url")
+                    ev_att = [str(a).lower() for a in ev.get("attendees", [])]
+                    if collab_query and any(collab_query.lower() in a for a in ev_att):
+                        meeting_url = ev_url
+                        break
+                    elif not meeting_url and ev_url:
+                        meeting_url = ev_url
 
             if meeting_url:
+                if "meet.google.com" in meeting_url:
+                    detected_platform = "Google Meet"
+                elif "zoom.us" in meeting_url:
+                    detected_platform = "Zoom"
+                elif "teams.microsoft.com" in meeting_url or "teams.live.com" in meeting_url:
+                    detected_platform = "Microsoft Teams"
+                elif "webex.com" in meeting_url:
+                    detected_platform = "Webex"
+
+                if detected_platform and hasattr(self.memory, "record_habit_observation"):
+                    self.memory.record_habit_observation("meeting.platform", detected_platform, category="meeting", confidence=0.90)
+
                 resp += f"\n• Meeting Link: {meeting_url}"
+
+            # Self-learn notes companion habit
+            if hasattr(self.memory, "record_habit_observation") and meeting_app:
+                self.memory.record_habit_observation("meeting.notes_companion", meeting_app, category="meeting", confidence=0.85)
+
+            resolved_plat = detected_platform or (self.memory.resolve_habit("meeting.platform") if hasattr(self.memory, "resolve_habit") else None) or "Zoom"
 
             return {
                 "status": "success",
                 "action": "meeting_intent",
                 "level": "2.5",
                 "tool": meeting_app,
+                "meeting_platform": resolved_plat,
                 "participant": ParticipantRef(participant_info) if participant_info else None,
                 "participant_entity": participant_info,
                 "topic": meeting_topic,
@@ -1329,9 +1351,9 @@ end tell'''
                         "response": f"Opened {bound_app} for {raw_intent_key}.",
                     }
 
-        # 3. Habitual Playlist Recall ("open my playlist", "play my playlist", "play my music", "play focus playlist", "play coding playlist")
+        # 3. Habitual Playlist Recall ("open my playlist", "play my playlist", "play my daily playlist", "play daily playlist", "play focus playlist")
         playlist_regex = re.compile(
-            r"^(?:open|play)\s+(?:my\s+)?(?:favorite\s+|favourite\s+)?(?:spotify\s+)?(?:focus\s+|coding\s+|work\s+|gaming\s+|personal\s+)?(?:playlist|music|songs?)$",
+            r"^(?:open|play|start|resume)\s+(?:my\s+)?(?:favorite\s+|favourite\s+|daily\s+|usual\s+)?(?:spotify\s+)?(?:focus\s+|coding\s+|work\s+|gaming\s+|personal\s+)?(?:playlist|music|songs?)$",
             re.IGNORECASE
         )
         if playlist_regex.match(raw_prompt.strip()):
@@ -1346,7 +1368,12 @@ end tell'''
 
             # Strict Anti-Drift Habit Resolution Hierarchy:
             # 1. Tier 1: Explicit User Lock in habits table or preferences (ground truth)
-            explicit_fav = self.memory.resolve_habit("spotify.favorite_playlist") or self.memory.get_preference("spotify.favorite_playlist")
+            explicit_fav = (
+                self.memory.resolve_habit("spotify.favorite_playlist")
+                or self.memory.get_preference("spotify.favorite_playlist")
+                or self.memory.resolve_habit("music.daily_playlist")
+                or self.memory.get_preference("music.daily_playlist")
+            )
 
             # Check if user explicitly asked for gaming vs coding/focus vs personal
             req_gaming = any(w in prompt for w in ["gaming", "game", "fifa"])
@@ -1381,9 +1408,22 @@ end tell'''
                 fav_playlist = self.memory.get_preference("spotify.playlist.research", snapshot.suggested_playlist or "Lofi Beats")
             else:
                 contextual_genre = "Personal"
-                fav_playlist = self.memory.get_preference("spotify.favorite_playlist", "")
+                fav_playlist = explicit_fav or self.memory.get_preference("spotify.favorite_playlist", "")
+
+            if not fav_playlist:
+                self._notify_action("completed", "Opening Spotify")
+                if sys.platform == "darwin":
+                    subprocess.run(["open", "-a", "Spotify"], capture_output=True)
+                return {
+                    "status": "success",
+                    "action": "spotify_playlist",
+                    "level": "2.0",
+                    "playlist": "",
+                    "response": "Opened Spotify. You haven't set a default daily playlist yet. Say 'set favorite playlist to <Name>' to lock your daily playlist into memory.",
+                }
 
             # Prevent drift: record observation to reinforce this habit
+            self.memory.record_habit_observation("spotify.favorite_playlist", fav_playlist, category="music", is_explicit=False)
             self.memory.record_habit_observation("spotify.last_played_playlist", fav_playlist, category="music", is_explicit=False)
 
             self._notify_action("executing", f"Playing {contextual_genre} playlist '{fav_playlist}' on Spotify in exact order")
@@ -1675,17 +1715,17 @@ end tell'''
                         "response": f"{res.get('message', 'GitHub is not connected.')}\nTo create GitHub issues directly from Aura, connect GitHub in Settings.",
                     }
 
-        # 7. Calendar & Daily Schedule Intent ("check my schedule", "calendar", "what's my schedule")
-        if any(p in prompt for p in ["check my schedule", "what is my schedule", "what's my schedule", "show schedule", "open my calendar", "open calendar"]):
-            self._notify_action("executing", "Opening Calendar")
-            if sys.platform == "darwin":
-                subprocess.run(["open", "-a", "Calendar"], capture_output=True)
-            return {
-                "status": "success",
-                "action": "open_calendar",
-                "level": "2.0",
-                "response": "Opened your Calendar for today's schedule.",
-            }
+        # 7. Calendar & Daily Schedule Intent ("check my schedule", "calendar", "what's my schedule", "Piyush Dua schedule", etc.)
+        sched_create_flow = bool(re.search(r"^(?:please\s+)?(?:schedule\s+(?:a\s+)?meeting|book\s+(?:a\s+)?meeting|book\s+\d+m|create\s+(?:calendar\s+)?event)\b", prompt))
+        git_pr_flow = any(k in prompt for k in ["pr status", "git pr", "linear", "last email", "last mail"])
+        if not sched_create_flow and not git_pr_flow:
+            schedule_triggers = [
+                "schedule", "calendar", "agenda", "what do i have today", "what do i have scheduled",
+                "upcoming meetings", "today's meetings", "todays meetings", "any meetings today",
+                "what meetings do i have", "my meetings"
+            ]
+            if any(t in prompt for t in schedule_triggers):
+                return self._handle_calendar_schedule_query(raw_prompt)
 
         # 7b. Google Calendar Direct Scheduling Flow ("schedule meeting with <person>", "book 30m with <person>")
         sched_triggers = ["schedule meeting", "schedule a meeting", "book meeting", "book a meeting", "book 30m", "book 1h", "calendar event"]
@@ -2037,9 +2077,19 @@ end tell'''
             return {"status": "success", "action": "open_app", "target": resolved_target, "response": f"Opened {resolved_target}."}
 
         # 11. Web Search / Browser
-        search_match = re.search(r"(?:search|google|look up)\s+(?:for\s+)?(.+)", raw_prompt, re.IGNORECASE)
+        # 11. Web Search / Browser
+        search_match = re.search(r"^(?:search|google|look up)\s+(?:for\s+)?(.+)$", raw_prompt.strip(), re.IGNORECASE)
         if search_match:
             query = search_match.group(1).strip()
+            query_lower = query.lower()
+            # Absolute Guard: Never perform web search for personal user queries
+            if any(term in query_lower for term in ["schedule", "calendar", "meeting", "events", "agenda"]):
+                return self._handle_calendar_schedule_query(raw_prompt)
+            if any(term in query_lower for term in ["playlist", "songs", "song"]):
+                return self._try_deterministic_fast_path("play my playlist", raw_prompt="play my playlist")
+            if any(term in query_lower for term in ["last email", "recent email", "my email", "inbox"]):
+                return self._try_deterministic_fast_path("last email", raw_prompt="last email")
+
             self._notify_action("executing", f"Searching web for: {query}")
             url = f"https://www.google.com/search?q={urllib.parse.quote(query)}"
             webbrowser.open(url)
@@ -2677,6 +2727,24 @@ end tell'''
         """Plays a song or artist in Spotify using desktop-dom or native OSA dispatch."""
         if sys.platform == "darwin":
             import urllib.parse
+            if not query or not query.strip():
+                osa = '''
+                tell application "Spotify"
+                    activate
+                    play
+                end tell
+                '''
+                try:
+                    subprocess.run(["osascript", "-e", osa], capture_output=True, text=True, timeout=3.0)
+                    return {
+                        "status": "success",
+                        "action": "spotify_play",
+                        "query": "",
+                        "response": "Resumed Spotify playback.",
+                    }
+                except Exception as e:
+                    return {"status": "error", "action": "spotify_play", "query": "", "response": f"Spotify error: {e}"}
+
             encoded_query = urllib.parse.quote(query)
             target_uri = query if query.startswith("spotify:") else f"spotify:search:{encoded_query}"
             osa = f'''
@@ -2748,6 +2816,52 @@ end tell'''
                 return {"status": "error", "action": f"spotify_{command}", "response": f"Spotify error: {e}"}
         return {"status": "error", "action": f"spotify_{command}", "response": "Spotify control is only supported on macOS."}
 
+    def _handle_calendar_schedule_query(self, prompt: str) -> Dict[str, Any]:
+        """
+        Coordinates schedule retrieval across Composio canonical cache,
+        Apple Calendar, and Microsoft Outlook. Learns meeting platform habits.
+        """
+        self._notify_action("executing", "Checking today's schedule")
+
+        # Sync live from Google Calendar via Composio if connected and cache is older than 5 min
+        if hasattr(self, "composio_ingest") and hasattr(self.composio_ingest, "sync_calendar"):
+            try:
+                conn = self.memory.get_connected_account(toolkit="googlecalendar")
+                if conn and conn.get("status") == "ACTIVE":
+                    last_synced = float(self.memory.get_preference("calendar.last_synced", "0"))
+                    if time.time() - last_synced > 300:
+                        uid = conn.get("user_id") or self.memory.get_user_email() or "user_local"
+                        self.composio_ingest.sync_calendar(uid)
+            except Exception as e:
+                logger.debug(f"Calendar sync check skipped: {e}")
+
+        # Retrieve briefing from non-binary adapter
+        briefing = get_calendar_briefing(memory=self.memory)
+
+        # Launch native Calendar app on macOS
+        if sys.platform == "darwin":
+            subprocess.run(["open", "-a", "Calendar"], capture_output=True)
+
+        # Self-learn meeting platform habits from any detected meeting links
+        events = briefing.get("events", [])
+        for ev in events:
+            m_url = ev.get("meeting_url")
+            if m_url and hasattr(self.memory, "record_habit_observation"):
+                if "meet.google.com" in m_url:
+                    self.memory.record_habit_observation("meeting.platform", "Google Meet", category="meeting", confidence=0.85)
+                elif "zoom.us" in m_url:
+                    self.memory.record_habit_observation("meeting.platform", "Zoom", category="meeting", confidence=0.85)
+                elif "teams.microsoft.com" in m_url or "teams.live.com" in m_url:
+                    self.memory.record_habit_observation("meeting.platform", "Microsoft Teams", category="meeting", confidence=0.85)
+
+        briefing["status"] = "success"
+        briefing["action"] = "open_calendar"
+        briefing["level"] = "2.0"
+        briefing["engine"] = "fast_path"
+        if not briefing.get("response") or "Failed to retrieve" in briefing.get("response", ""):
+            briefing["response"] = "Opened your Calendar for today's schedule."
+        return briefing
+
     def _sync_calculator(self, expr: str):
         """Attempts to sync calculation on macOS Calculator if attached."""
         try:
@@ -2805,18 +2919,38 @@ end tell'''
         learned_strs = [f"{l['pattern']} -> {l['target_action']}" for l in learnings]
         learned_ctx = f"Learned Habits: {', '.join(learned_strs)}." if learned_strs else ""
 
+        # Extract calendar and habits summary
+        today_events = self.memory.get_today_schedule() if hasattr(self.memory, "get_today_schedule") else []
+        if today_events:
+            events_str = "; ".join(f"{e.get('start_time', '')}: {e.get('title', 'Event')}" for e in today_events[:3])
+            cal_ctx = f"Today's Calendar: {events_str}."
+        else:
+            cal_ctx = "Today's Calendar: No events scheduled today."
+
+        habits_info = self.memory.get_habits_summary() if hasattr(self.memory, "get_habits_summary") else {}
+        meeting_plat = habits_info.get("meeting_platform", "Zoom")
+        notes_comp = habits_info.get("notes_companion", "Granola")
+        fav_pl = habits_info.get("favorite_playlist", "")
+        habits_details = [f"Meeting Platform: {meeting_plat}", f"Notes Companion: {notes_comp}"]
+        if fav_pl:
+            habits_details.append(f"Daily Playlist: '{fav_pl}'")
+        habits_full_ctx = f"Active Habits: {', '.join(habits_details)}."
+
         system_prompt = (
             "You are Aura, an autonomous personal desktop assistant powered by desktop-dom. "
             "You have direct access to native OS controls. Answer helpfully and concisely. "
             f"{user_ctx} {contacts_ctx} Preferred Email: {pref_mail}. Preferred Music: {pref_music}. "
+            f"{cal_ctx} {habits_full_ctx} "
             f"{ignited_ctx} {learned_ctx} "
             f"{screen_context} Running applications: {', '.join(apps_summary)}. "
             "If the user wants you to perform an action, output an ACTION line: "
+            "ACTION: schedule | ACTION: meeting | ACTION: play <song|playlist> on spotify | "
             "ACTION: open <app_name> | ACTION: quit <app_name> | ACTION: open <downloads|documents|desktop> | "
             "ACTION: message <name> saying <body> | ACTION: email <name> about <subject> | "
-            "ACTION: play <song|playlist> on spotify | ACTION: volume <0-100|up|down|mute|unmute> | "
+            "ACTION: volume <0-100|up|down|mute|unmute> | "
             "ACTION: note <title>: <body> | ACTION: search <query> | ACTION: calculate <expr> | ACTION: screenshot. "
-            "Otherwise, provide a direct, concise 1-2 sentence answer."
+            "IMPORTANT: NEVER use ACTION: search for personal data like schedule, calendar, meetings, contacts, emails, or playlists. "
+            "Use ACTION: schedule, ACTION: meeting, or provide a direct concise 1-2 sentence answer."
         )
 
         payload = {
@@ -2841,6 +2975,10 @@ end tell'''
                 action_match = re.search(r"ACTION:\s*([^\n\r]+)", reply, re.IGNORECASE)
                 if action_match:
                     action_cmd = action_match.group(1).strip()
+                    if action_cmd.lower() in ["schedule", "calendar", "check schedule", "my schedule"]:
+                        return self._handle_calendar_schedule_query(prompt)
+                    if action_cmd.lower() in ["meeting", "join meeting", "i have a meeting"]:
+                        return self._try_deterministic_fast_path("i have a meeting", raw_prompt="i have a meeting")
                     fast_res = self._try_deterministic_fast_path(action_cmd.lower(), raw_prompt=action_cmd)
                     if fast_res:
                         return fast_res

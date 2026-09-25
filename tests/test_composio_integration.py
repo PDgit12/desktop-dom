@@ -382,35 +382,36 @@ def test_brain_composio_connect_and_status(tmp_path):
     mem = AuraMemory(db_path=str(tmp_path / "brain_composio.db"))
     brain = AssistantBrain(memory=mem)
 
-    # Mock client connection response
+    # Mock client connection response and isolate from live cloud connections
     mock_connect_res = {
         "status": "INITIATED",
         "connection_id": "ca_test_gcal_99",
         "redirect_url": "https://connect.composio.dev/auth/mock-gcal",
     }
-    with patch.object(brain.composio_ingest.client, "initiate_connection", return_value=mock_connect_res):
+    with patch.object(brain.composio_ingest.client, "initiate_connection", return_value=mock_connect_res), \
+         patch.object(brain.composio_ingest.client, "list_connections", return_value=[]):
         res = brain.connect_composio_app("googlecalendar")
         assert res["status"] == "INITIATED"
         assert res["redirect_url"] == "https://connect.composio.dev/auth/mock-gcal"
 
-    # Verify status reflects PENDING
-    status = brain.get_composio_status()
-    assert "googlecalendar" in status["accounts"]
-    assert status["accounts"]["googlecalendar"]["status"] == "PENDING"
+        # Verify status reflects PENDING
+        status = brain.get_composio_status()
+        assert "googlecalendar" in status["accounts"]
+        assert status["accounts"]["googlecalendar"]["status"] == "PENDING"
 
-    # Simulate connection becoming ACTIVE
-    mem.update_connected_account("ca_test_gcal_99", status="ACTIVE")
-    status_active = brain.get_composio_status()
-    assert status_active["accounts"]["googlecalendar"]["connected"] is True
-    assert status_active["accounts"]["googlecalendar"]["status"] == "ACTIVE"
+        # Simulate connection becoming ACTIVE
+        mem.update_connected_account("ca_test_gcal_99", status="ACTIVE")
+        status_active = brain.get_composio_status()
+        assert status_active["accounts"]["googlecalendar"]["connected"] is True
+        assert status_active["accounts"]["googlecalendar"]["status"] == "ACTIVE"
 
-    # Disconnect & Purge
-    with patch.object(brain.composio_ingest.client, "disconnect_account", return_value=True):
-        disc_res = brain.disconnect_composio_app("googlecalendar")
-        assert disc_res["toolkit"] == "googlecalendar"
+        # Disconnect & Purge
+        with patch.object(brain.composio_ingest.client, "disconnect_account", return_value=True):
+            disc_res = brain.disconnect_composio_app("googlecalendar")
+            assert disc_res["toolkit"] == "googlecalendar"
 
-    status_revoked = brain.get_composio_status()
-    assert status_revoked["accounts"]["googlecalendar"]["connected"] is False
+        status_revoked = brain.get_composio_status()
+        assert status_revoked["accounts"]["googlecalendar"]["connected"] is False
 
 
 def test_omnibar_webkit_composio_bridge(tmp_path):
