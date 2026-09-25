@@ -2881,21 +2881,56 @@ end tell'''
             scopes=scopes,
         )
 
-        if res.get("status") in {"INITIATED", "PENDING"}:
+        # Normalize res to dict for universal caller compatibility
+        if hasattr(res, "model_dump"):
+            res_dict = res.model_dump()
+            res_dict["redirect_url"] = getattr(res, "redirect_url", None) or res_dict.get("auth_url")
+            res_dict["connection_id"] = getattr(res, "account_id", None) or res_dict.get("account_id")
+        elif hasattr(res, "dict"):
+            res_dict = res.dict()
+            res_dict["redirect_url"] = getattr(res, "redirect_url", None) or res_dict.get("auth_url")
+            res_dict["connection_id"] = getattr(res, "account_id", None) or res_dict.get("account_id")
+        elif isinstance(res, dict):
+            res_dict = dict(res)
+        else:
+            res_dict = {
+                "status": getattr(res, "status", "UNKNOWN"),
+                "redirect_url": getattr(res, "redirect_url", None) or getattr(res, "auth_url", None),
+                "connection_id": getattr(res, "account_id", None) or getattr(res, "id", None),
+            }
+
+        raw_status = str(res_dict.get("status", "")).upper()
+        ext_id = res_dict.get("connection_id") or res_dict.get("account_id") or res_dict.get("id")
+        redirect_url = res_dict.get("redirect_url") or res_dict.get("auth_url")
+
+        if raw_status in {"INITIATED", "PENDING", "AWAITING_USER_AUTH", "INITIALIZING", "INITIATING"}:
             self.memory.upsert_connected_account({
                 "provider": "composio",
                 "user_id": uid,
                 "toolkit": clean_toolkit,
                 "auth_config_id": auth_config_id,
-                "external_id": res.get("connection_id") or res.get("id"),
+                "external_id": ext_id,
                 "status": "PENDING",
                 "consent_version": "v1",
                 "data_scopes": scopes,
-                "redirect_url": res.get("redirect_url"),
+                "redirect_url": redirect_url,
+                "metadata": {"provenance": "user_onboarding"},
+            })
+        elif raw_status in {"ACTIVE", "CONNECTED"}:
+            self.memory.upsert_connected_account({
+                "provider": "composio",
+                "user_id": uid,
+                "toolkit": clean_toolkit,
+                "auth_config_id": auth_config_id,
+                "external_id": ext_id,
+                "status": "ACTIVE",
+                "consent_version": "v1",
+                "data_scopes": scopes,
+                "redirect_url": redirect_url,
                 "metadata": {"provenance": "user_onboarding"},
             })
 
-        return res
+        return res_dict
 
     def disconnect_composio_app(self, toolkit: str, user_id: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -2923,8 +2958,36 @@ end tell'''
     def get_composio_status(self, user_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Returns connection statuses for all supported cloud apps.
+        Reconciles with Composio cloud when active connections exist.
         """
         uid = user_id or self.memory.get_preference("user.id") or self.memory.get_preference("user.email") or "user_local"
+
+        # Reconcile any accounts that are ACTIVE on Composio cloud
+        if hasattr(self, "composio_ingest") and hasattr(self.composio_ingest, "client") and self.composio_ingest.client.is_configured():
+            try:
+                if not self.composio_ingest.client._is_mocked():
+                    cloud_conns = self.composio_ingest.client.list_connections(uid)
+                    for conn in cloud_conns:
+                        tk = (getattr(conn, "app", None) or (conn.get("app") if isinstance(conn, dict) else "") or "").lower()
+                        c_st = (getattr(conn, "status", None) or (conn.get("status") if isinstance(conn, dict) else "") or "").upper()
+                        c_id = getattr(conn, "account_id", None) or (conn.get("account_id") if isinstance(conn, dict) else "")
+                        if tk and c_st in ["ACTIVE", "CONNECTED"] and c_id:
+                            existing = self.memory.get_connected_account(toolkit=tk, user_id=uid)
+                            if not existing or existing.get("status") != "REVOKED":
+                                self.memory.upsert_connected_account({
+                                    "provider": "composio",
+                                    "user_id": uid,
+                                    "toolkit": tk,
+                                    "auth_config_id": f"ac_{tk}",
+                                    "external_id": c_id,
+                                    "status": "ACTIVE",
+                                    "consent_version": "v1",
+                                    "data_scopes": getattr(conn, "scopes", ["profile"]) or ["profile"],
+                                    "metadata": {"provenance": "cloud_reconciliation"},
+                                })
+            except Exception as e:
+                logger.debug(f"Cloud connection reconciliation skipped: {e}")
+
         accounts = self.memory.list_connected_accounts(user_id=uid)
         acc_by_toolkit = {a.get("toolkit", "").lower(): a for a in accounts}
 
@@ -2962,6 +3025,13 @@ end tell'''
         self.memory.set_preference("composio.api_key", cleaned, category="integrations")
         if hasattr(self, "composio_ingest") and hasattr(self.composio_ingest, "client"):
             self.composio_ingest.client.set_api_key(cleaned)
+        try:
+            key_path = os.path.expanduser("~/.config/desktop-dom/composio.key")
+            os.makedirs(os.path.dirname(key_path), exist_ok=True)
+            with open(key_path, "w", encoding="utf-8") as f:
+                f.write(cleaned)
+        except Exception:
+            pass
         is_conf = bool(cleaned and len(cleaned) > 5)
         return {
             "status": "success" if is_conf else "invalid_key",

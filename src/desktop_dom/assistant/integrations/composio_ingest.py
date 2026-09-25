@@ -24,7 +24,7 @@ class ComposioIngest:
 
     def __init__(self, memory: Optional[AuraMemory] = None, client: Optional[ComposioHttpClient] = None):
         self.memory = memory or AuraMemory()
-        self.client = client or ComposioHttpClient()
+        self.client = client or ComposioHttpClient(memory=self.memory)
 
     def sync_calendar(self, user_id: str, limit: int = 20) -> Dict[str, Any]:
         """

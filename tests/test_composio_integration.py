@@ -745,6 +745,50 @@ def test_composio_auto_polling_background_thread(tmp_path):
         assert any("window.renderComposioStatuses" in js for js in all_js_calls)
 
 
+def test_connect_composio_app_awaiting_user_auth_flow(tmp_path):
+    """Verifies that initiate_connection returning AWAITING_USER_AUTH saves PENDING state and opens browser."""
+    from desktop_dom.assistant.brain import AssistantBrain
+    from desktop_dom.assistant.omnibar import FloatingOmnibar
+
+    mem = AuraMemory(db_path=str(tmp_path / "brain_awaiting_auth.db"))
+    brain = AssistantBrain(memory=mem)
+
+    # Return ConnectedAccountState with status AWAITING_USER_AUTH
+    mock_state = ConnectedAccountState(
+        app="github",
+        status="AWAITING_USER_AUTH",
+        account_id="ca_awaiting_456",
+        auth_url="https://connect.composio.dev/link/lk_test_github",
+    )
+
+    with patch.object(brain.composio_ingest.client, "initiate_connection", return_value=mock_state):
+        res = brain.connect_composio_app("github")
+        assert res["status"] == "AWAITING_USER_AUTH"
+        assert res["redirect_url"] == "https://connect.composio.dev/link/lk_test_github"
+        assert res["connection_id"] == "ca_awaiting_456"
+
+    # Verify that account is saved in SQLite memory as PENDING
+    acc = mem.get_connected_account(toolkit="github")
+    assert acc is not None
+    assert acc["status"] == "PENDING"
+    assert acc["external_id"] == "ca_awaiting_456"
+    assert acc["redirect_url"] == "https://connect.composio.dev/link/lk_test_github"
+
+    # Test Omnibar on_connect_composio_app with this state
+    bar = FloatingOmnibar(brain=brain)
+    bar._webview = MagicMock()
+
+    with patch.object(brain, "connect_composio_app", return_value=res), \
+         patch("webbrowser.open") as mock_browser, \
+         patch.object(bar, "_start_composio_polling") as mock_poll:
+        bar.on_connect_composio_app("github")
+        mock_browser.assert_called_once_with("https://connect.composio.dev/link/lk_test_github")
+        mock_poll.assert_called_once_with("github", "ca_awaiting_456")
+        all_js = [c[0][0] for c in bar._webview.evaluateJavaScript_completionHandler_.call_args_list]
+        assert any("window.updateComposioCardStatus('github', 'AWAITING_USER_AUTH'" in js for js in all_js)
+
+
+
 
 
 

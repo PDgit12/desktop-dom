@@ -905,51 +905,55 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     color: #ffffff;
   }
 
-  /* Composio Cloud Integration Cards */
+  /* Composio Cloud Integration Cards - Minimalist Monochromatic UI */
   .composio-connect-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 6px;
-    margin-top: 2px;
+    gap: 8px;
+    margin-top: 4px;
   }
   .composio-card {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 7px 10px;
+    padding: 8px 12px;
     border-radius: 6px;
-    background: rgba(255, 255, 255, 0.025);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    transition: all 0.1s ease;
+    background: #141416;
+    border: 1px solid #27272a;
+    transition: all 0.12s ease;
   }
   .composio-card:hover {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(255, 255, 255, 0.1);
+    background: #18181b;
+    border-color: #3f3f46;
   }
   .composio-card.connected {
-    background: rgba(16, 185, 129, 0.05);
-    border-color: rgba(16, 185, 129, 0.2);
+    background: #121214;
+    border-color: #27272a;
   }
   .composio-card.pending {
-    background: rgba(234, 179, 8, 0.05);
-    border-color: rgba(234, 179, 8, 0.2);
+    background: #18181b;
+    border-color: #3f3f46;
   }
   .composio-info {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 9px;
     min-width: 0;
   }
   .composio-icon {
-    font-size: 14px;
-    width: 22px;
-    height: 22px;
+    width: 26px;
+    height: 26px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 4px;
-    background: rgba(255, 255, 255, 0.06);
+    border-radius: 5px;
+    background: #1c1c1f;
+    border: 1px solid #27272a;
+    color: #e4e4e7;
     flex-shrink: 0;
+  }
+  .composio-icon svg {
+    display: block;
   }
   .composio-details {
     display: flex;
@@ -958,15 +962,16 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
   }
   .composio-name {
     font-size: 11px;
-    font-weight: 550;
-    color: #f1f5f9;
+    font-weight: 500;
+    color: #f4f4f5;
+    letter-spacing: -0.01em;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
   .composio-sub {
     font-size: 9.5px;
-    color: #64748b;
+    color: #71717a;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -974,44 +979,47 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
   .composio-actions {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 5px;
     flex-shrink: 0;
   }
   .composio-btn {
-    font-size: 10px;
+    font-size: 10.5px;
     font-weight: 500;
-    padding: 3px 8px;
+    padding: 3.5px 9px;
     border-radius: 4px;
     cursor: pointer;
-    transition: all 0.1s ease;
+    transition: all 0.12s ease;
     border: none;
   }
   .composio-btn-connect {
     background: #f4f4f5;
     color: #09090b;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    font-weight: 600;
+    border: 1px solid #ffffff;
+    font-weight: 550;
   }
   .composio-btn-connect:hover {
     background: #ffffff;
+    color: #000000;
   }
   .composio-btn-disconnect {
-    background: rgba(239, 68, 68, 0.08);
-    color: #f87171;
-    border: 1px solid rgba(239, 68, 68, 0.18);
+    background: transparent;
+    color: #71717a;
+    border: 1px solid #27272a;
   }
   .composio-btn-disconnect:hover {
-    background: rgba(239, 68, 68, 0.18);
-    border-color: rgba(239, 68, 68, 0.35);
+    background: #27272a;
+    color: #f4f4f5;
+    border-color: #3f3f46;
   }
   .composio-btn-sync {
-    background: rgba(255, 255, 255, 0.05);
-    color: #cbd5e1;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: #18181b;
+    color: #d4d4d8;
+    border: 1px solid #27272a;
   }
   .composio-btn-sync:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: #27272a;
     color: #ffffff;
+    border-color: #3f3f46;
   }
 
   .settings-btn {
@@ -2003,10 +2011,30 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     };
 
     const COMPOSIO_APPS_DEF = [
-      { toolkit: "googlecalendar", name: "Google Calendar", icon: "🗓️", desc: "Agenda & Zoom/Meet Links" },
-      { toolkit: "github", name: "GitHub", icon: "🐙", desc: "Repositories & Open PRs" },
-      { toolkit: "gmail", name: "Gmail", icon: "✉️", desc: "Frequent Work Contacts" },
-      { toolkit: "slack", name: "Slack", icon: "💬", desc: "Channels & Direct Messages" }
+      {
+        toolkit: "googlecalendar",
+        name: "Google Calendar",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
+        desc: "Agenda & Meetings"
+      },
+      {
+        toolkit: "github",
+        name: "GitHub",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>',
+        desc: "Repositories & Pull Requests"
+      },
+      {
+        toolkit: "gmail",
+        name: "Gmail",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>',
+        desc: "Frequent Contacts"
+      },
+      {
+        toolkit: "slack",
+        name: "Slack",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 10c-.83 0-1.5-.67-1.5-1.5v-5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5z"/><path d="M20.5 10H19V8.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/><path d="M9.5 14c.83 0 1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5S8 21.33 8 20.5v-5c0-.83.67-1.5 1.5-1.5z"/><path d="M3.5 14H5v1.5c0 .83-.67 1.5-1.5 1.5S2 16.33 2 15.5 2.67 14 3.5 14z"/><path d="M14 14.5c0-.83.67-1.5 1.5-1.5h5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-5c-.83 0-1.5-.67-1.5-1.5z"/><path d="M15.5 20.5c0 .83-.67 1.5-1.5 1.5s-1.5-.67-1.5-1.5.67-1.5 1.5-1.5h1.5v1.5z"/><path d="M10 9.5C10 10.33 9.33 11 8.5 11h-5C2.67 11 2 10.33 2 9.5S2.67 8 3.5 8h5c.83 0 1.5.67 1.5 1.5z"/><path d="M8.5 3.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5H8.5V3.5z"/></svg>',
+        desc: "Channels & Messages"
+      }
     ];
 
     let currentComposioStatus = {};
@@ -2036,7 +2064,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       COMPOSIO_APPS_DEF.forEach(app => {
         const acc = map[app.toolkit] || { connected: false, status: "DISCONNECTED" };
         const isConnected = acc.connected || (acc.status === "ACTIVE");
-        const isPending = acc.status === "PENDING" || acc.status === "INITIATED";
+        const isPending = acc.status === "PENDING" || acc.status === "INITIATED" || acc.status === "AWAITING_USER_AUTH" || acc.status === "INITIALIZING" || acc.status === "INITIATING";
 
         const card = document.createElement("div");
         card.className = "composio-card" + (isConnected ? " connected" : (isPending ? " pending" : ""));
@@ -2046,19 +2074,19 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         let actionButtons = "";
 
         if (isConnected) {
-          statusBadge = '<span style="font-size: 9px; color: #34d399; font-weight: 500; margin-right: 4px;">Connected</span>';
+          statusBadge = '<span style="font-size: 10px; color: #a1a1aa; font-family: ui-monospace, monospace; margin-right: 6px; display: inline-flex; align-items: center; gap: 4px;"><span style="width: 5px; height: 5px; border-radius: 50%; background: #34d399; display: inline-block;"></span>Connected</span>';
           actionButtons = `
             <button class="composio-btn composio-btn-sync" title="Sync now" type="button" onclick="syncComposioApp('${app.toolkit}')">Sync</button>
             <button class="composio-btn composio-btn-disconnect" title="Disconnect & Purge Data" type="button" onclick="disconnectComposioApp('${app.toolkit}')">Disconnect</button>
           `;
         } else if (isPending) {
-          statusBadge = '<span style="font-size: 9px; color: #facc15; font-weight: 500; margin-right: 4px;">Pending...</span>';
+          statusBadge = '<span style="font-size: 10px; color: #a1a1aa; font-family: ui-monospace, monospace; margin-right: 6px; display: inline-flex; align-items: center; gap: 4px;"><span style="width: 5px; height: 5px; border-radius: 50%; background: #f59e0b; display: inline-block;"></span>Authorizing</span>';
           actionButtons = `
             <button class="composio-btn composio-btn-connect" type="button" onclick="connectComposioApp('${app.toolkit}')">Authorize</button>
             <button class="composio-btn composio-btn-disconnect" type="button" onclick="disconnectComposioApp('${app.toolkit}')">Cancel</button>
           `;
         } else {
-          statusBadge = '<span style="font-size: 9px; color: #64748b; margin-right: 4px;">Not Connected</span>';
+          statusBadge = '';
           actionButtons = `
             <button class="composio-btn composio-btn-connect" type="button" onclick="connectComposioApp('${app.toolkit}')">Connect</button>
           `;
@@ -2111,9 +2139,9 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       const keyBadge = document.getElementById("composio-key-badge");
       if (keyBadge) {
         if (payload && payload.composio_configured) {
-          keyBadge.innerHTML = '<span style="color: #10b981; font-weight: 500;">✓ Active</span>';
+          keyBadge.innerHTML = '<span style="color: #34d399; font-weight: 500;">✓ Active</span>';
         } else {
-          keyBadge.innerHTML = '<span style="color: #f59e0b; font-weight: 500;">Unconfigured</span>';
+          keyBadge.innerHTML = '<span style="color: #71717a; font-weight: 500;">Unconfigured</span>';
         }
       }
       notifyResize();
@@ -2474,6 +2502,14 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       renderSettingsCollabs(currentSettingsData.collaborators || []);
       const accountsSet = (currentSettingsData && (currentSettingsData.composio_accounts || currentSettingsData.connected_accounts)) || currentComposioStatus;
       renderComposioCards("settings-composio-grid", accountsSet);
+      const keyBadge = document.getElementById("composio-key-badge");
+      if (keyBadge) {
+        if (currentSettingsData && currentSettingsData.composio_configured) {
+          keyBadge.innerHTML = '<span style="color: #34d399; font-weight: 500;">✓ Active</span>';
+        } else {
+          keyBadge.innerHTML = '<span style="color: #71717a; font-weight: 500;">Unconfigured</span>';
+        }
+      }
       notifyResize();
     };
 
@@ -3536,8 +3572,10 @@ class FloatingOmnibar:
             if hasattr(self.brain, "get_composio_status"):
                 try:
                     c_stat = self.brain.get_composio_status()
-                    if isinstance(c_stat, dict) and isinstance(c_stat.get("accounts"), dict):
-                        settings_data["composio_accounts"] = c_stat["accounts"]
+                    if isinstance(c_stat, dict):
+                        if isinstance(c_stat.get("accounts"), dict):
+                            settings_data["composio_accounts"] = c_stat["accounts"]
+                        settings_data["composio_configured"] = c_stat.get("composio_configured", False)
                 except Exception:
                     pass
             self.evaluate_js(f"window.displaySettingsDrawer({json.dumps(settings_data)});")
@@ -3659,7 +3697,7 @@ class FloatingOmnibar:
                     if not client or not hasattr(client, "get_connection_status"):
                         break
                     state = client.get_connection_status(connection_id)
-                    st = getattr(state, "status", "")
+                    st = getattr(state, "status", "") if hasattr(state, "status") else (state.get("status", "") if isinstance(state, dict) else "")
                     if st in ["ACTIVE", "CONNECTED"]:
                         if hasattr(self.brain, "memory") and hasattr(self.brain.memory, "update_connected_account"):
                             self.brain.memory.update_connected_account(connection_id, status="ACTIVE")
@@ -3686,14 +3724,14 @@ class FloatingOmnibar:
             return {"status": "error", "message": "Brain does not support Composio"}
         try:
             res = self.brain.connect_composio_app(toolkit)
-            redirect_url = res.get("redirect_url") if isinstance(res, dict) else None
-            status = res.get("status", "PENDING") if isinstance(res, dict) else "PENDING"
-            conn_id = (res.get("connection_id") or res.get("id")) if isinstance(res, dict) else None
+            redirect_url = (res.get("redirect_url") or res.get("auth_url")) if hasattr(res, "get") else (getattr(res, "redirect_url", None) or getattr(res, "auth_url", None))
+            status = res.get("status", "PENDING") if hasattr(res, "get") else getattr(res, "status", "PENDING")
+            conn_id = (res.get("connection_id") or res.get("account_id") or res.get("id")) if hasattr(res, "get") else (getattr(res, "account_id", None) or getattr(res, "id", None))
             if redirect_url and str(redirect_url).startswith("http"):
-                webbrowser.open(redirect_url)
+                webbrowser.open(str(redirect_url))
             self.evaluate_js(f"window.updateComposioCardStatus('{toolkit}', '{status}', '{redirect_url or ''}');")
-            if conn_id and status in {"PENDING", "INITIATED", "AWAITING_USER_AUTH"}:
-                self._start_composio_polling(toolkit, conn_id)
+            if conn_id and status in {"PENDING", "INITIATED", "AWAITING_USER_AUTH", "INITIALIZING", "INITIATING"}:
+                self._start_composio_polling(toolkit, str(conn_id))
             return res
         except Exception as e:
             logger.warning(f"Error connecting Composio app {toolkit}: {e}")

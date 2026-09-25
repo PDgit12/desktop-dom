@@ -95,6 +95,14 @@ class ComposioSDKClient:
 
         resolved_key = api_key or os.environ.get("COMPOSIO_API_KEY")
         if not resolved_key:
+            key_path = os.path.expanduser("~/.config/desktop-dom/composio.key")
+            if os.path.exists(key_path):
+                try:
+                    with open(key_path, "r", encoding="utf-8") as f:
+                        resolved_key = f.read().strip()
+                except Exception:
+                    pass
+        if not resolved_key:
             raise RuntimeError("COMPOSIO_API_KEY is required to use Composio onboarding")
         self._client = Composio(api_key=resolved_key, allow_tracking=False)
 
