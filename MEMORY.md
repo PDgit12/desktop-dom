@@ -301,8 +301,22 @@ Eliminates vision agent flaws (>90% token waste, 3–6 second latency, pixel coo
     - Isolated `test_brain_composio_connect_and_status` in `tests/test_composio_integration.py` from live API connection leakage.
     - **284 / 284 tests passing across all 24 test suites** (100% green, 0 errors, 0 failures).
     - Native macOS application bundle recompiled and installed to `/Users/piyushdua/Applications/Aura.app`.
-    - Removed stale `/tmp/desktop_dom_aura.sock`.
-    - Synced `develop` and `main` branches with remote repository.
+- **App Integration Catalog Expansion & Pristine First-Time User State:**
+  - **Comprehensive 18-Tool Integration Catalog (`omnibar.py`):**
+    - Expanded Composio integration catalogue from 4 to 18 popular tools with bespoke monochrome vector SVGs: Google Calendar, GitHub, Gmail, Slack, Notion, Spotify, Linear, Zoom, Google Drive, Discord, Trello, Asana, ClickUp, Jira, Microsoft Teams, X/Twitter, Airtable, and Figma.
+    - Added real-time app search filter (`filterComposioGrid`) to quickly locate any integration in both Onboarding and Settings drawers.
+    - Added custom toolkit connector input (`connectCustomApp`) allowing users to connect ANY of Composio's 250+ integrations on-demand.
+    - Dynamically renders cards for any custom connected toolkits detected during cloud reconciliation.
+  - **Zero-Mock Pristine First-Time User State:**
+    - Purged legacy development mock databases (`~/.desktop_dom/aura_memory.db*`).
+    - Verified dynamic discovery: on fresh startup, user entity is created from system identity with zero mock collaborators, zero fake meetings, and unverified onboarding status (`is_onboarding_verified() == False`).
+    - Cleaned remaining hardcoded mock project names and contact fallbacks in `context_feed.py` and `memory.py`.
+  - **Verification & Deployment:**
+    - Verified with targeted test suites (`test_composio_onboarding.py`, `test_composio_integration.py`, `test_fresh_user_onboarding.py`, `test_schedule_habits_pipeline.py`, `test_context_feed.py`).
+    - Native macOS application bundle recompiled and deployed to `/Users/piyushdua/Applications/Aura.app`.
+    - Fresh Aura instance running and listening on `/tmp/desktop_dom_aura.sock` with verified two-way IPC handshake.
+    - `develop` and `main` branches synced with remote origin.
+
 
 
 
