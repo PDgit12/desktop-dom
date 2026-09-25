@@ -2243,7 +2243,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       statusDot.style.background = "#10b981";
 
       if (data && data.user) {
-        onbName.value = data.user.name || "";
+        onbName.value = data.user.name || (data.discovered_identity && data.discovered_identity.name) || "";
         onbRole.value = data.user.role || "";
         onbCompany.value = data.user.company || "";
       }

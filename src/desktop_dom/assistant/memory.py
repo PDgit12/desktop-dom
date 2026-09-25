@@ -2889,6 +2889,7 @@ class AuraMemory:
                 "user_email": profile["email"] if verified else "",
                 "mode": self.get_preference("onboarding.mode", "ambient"),
                 "verified_at": self.get_preference("onboarding.verified_at"),
+                "discovered_identity": self.system_identity,
                 "user": {
                     "name": profile["name"] if verified else "",
                     "email": profile["email"] if verified else "",
