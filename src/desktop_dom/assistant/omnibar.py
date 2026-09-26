@@ -922,6 +922,77 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     background: rgba(255, 255, 255, 0.15);
     border-radius: 4px;
   }
+  .catalog-tabs {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    margin-top: 4px;
+    margin-bottom: 2px;
+  }
+  .catalog-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .catalog-tab-btn {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    color: #a1a1aa;
+    border-radius: 5px;
+    padding: 3px 8px;
+    font-size: 10px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.1s ease;
+  }
+  .catalog-tab-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #f4f4f5;
+  }
+  .catalog-tab-btn.active {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.22);
+    color: #ffffff;
+    font-weight: 600;
+  }
+  .data-scopes-box {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin-top: 6px;
+  }
+  .data-scope-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #d4d4d8;
+  }
+  .data-scope-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .data-scope-title {
+    font-weight: 500;
+    color: #f4f4f5;
+    font-size: 11px;
+  }
+  .data-scope-desc {
+    font-size: 9.5px;
+    color: #71717a;
+  }
+  .data-scope-checkbox {
+    accent-color: #3b82f6;
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+  }
   .composio-filter-bar {
     display: flex;
     align-items: center;
@@ -1262,8 +1333,16 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       </div>
 
       <div class="onb-field" style="margin-top: 2px;">
+        <div class="catalog-tabs" id="onb-catalog-tabs">
+          <button class="catalog-tab-btn active" data-cat="all" onclick="selectCatalogCategory(this, 'onb-composio-grid')">All (38+)</button>
+          <button class="catalog-tab-btn" data-cat="productivity" onclick="selectCatalogCategory(this, 'onb-composio-grid')">Productivity</button>
+          <button class="catalog-tab-btn" data-cat="dev" onclick="selectCatalogCategory(this, 'onb-composio-grid')">Engineering</button>
+          <button class="catalog-tab-btn" data-cat="communication" onclick="selectCatalogCategory(this, 'onb-composio-grid')">Communication</button>
+          <button class="catalog-tab-btn" data-cat="meetings" onclick="selectCatalogCategory(this, 'onb-composio-grid')">Calendar & Media</button>
+          <button class="catalog-tab-btn" data-cat="crm" onclick="selectCatalogCategory(this, 'onb-composio-grid')">CRM & Growth</button>
+        </div>
         <div class="composio-filter-bar">
-          <input type="text" class="composio-search-input" id="onb-composio-search" placeholder="Search apps (Notion, Spotify, Linear, Slack, Zoom...)" oninput="filterComposioGrid('onb-composio-grid', this.value)" />
+          <input type="text" class="composio-search-input" id="onb-composio-search" placeholder="Search apps (Notion, Spotify, Linear, Slack, Zoom, HubSpot...)" oninput="filterComposioGrid('onb-composio-grid', this.value)" />
         </div>
         <div class="composio-connect-grid" id="onb-composio-grid">
           <!-- Dynamically populated Composio integration cards -->
@@ -1271,6 +1350,47 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         <div class="composio-custom-row">
           <input type="text" class="composio-search-input" id="onb-custom-toolkit" placeholder="Connect any toolkit (e.g. notion, linear, stripe, figma, hubspot)..." onkeydown="if(event.key==='Enter') connectCustomApp('onb-custom-toolkit')" />
           <button class="composio-btn composio-btn-connect" type="button" onclick="connectCustomApp('onb-custom-toolkit')" style="white-space: nowrap;">+ Connect Tool</button>
+        </div>
+      </div>
+
+      <div class="data-scopes-box">
+        <div style="font-size: 10px; font-weight: 600; color: #a1a1aa; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;">
+          Sovereign Data Scopes & Permissions
+        </div>
+        <div class="data-scope-row">
+          <div class="data-scope-info">
+            <span class="data-scope-title">Calendar & Meetings</span>
+            <span class="data-scope-desc">Synchronize agenda events, meeting URLs, and attendee graph</span>
+          </div>
+          <input type="checkbox" class="data-scope-checkbox" id="onb-scope-calendar" checked />
+        </div>
+        <div class="data-scope-row">
+          <div class="data-scope-info">
+            <span class="data-scope-title">Code & Repositories</span>
+            <span class="data-scope-desc">Index repositories, commits, and open pull requests</span>
+          </div>
+          <input type="checkbox" class="data-scope-checkbox" id="onb-scope-repos" checked />
+        </div>
+        <div class="data-scope-row">
+          <div class="data-scope-info">
+            <span class="data-scope-title">Communications & Contacts</span>
+            <span class="data-scope-desc">Index VIP collaborators and frequent correspondence</span>
+          </div>
+          <input type="checkbox" class="data-scope-checkbox" id="onb-scope-contacts" checked />
+        </div>
+        <div class="data-scope-row">
+          <div class="data-scope-info">
+            <span class="data-scope-title">Documents & Notes</span>
+            <span class="data-scope-desc">Index pages, workspaces, and documentation</span>
+          </div>
+          <input type="checkbox" class="data-scope-checkbox" id="onb-scope-notes" checked />
+        </div>
+        <div class="data-scope-row">
+          <div class="data-scope-info">
+            <span class="data-scope-title">Media & Habitual Playlists</span>
+            <span class="data-scope-desc">Enforce daily focus playlists and ambient music routines</span>
+          </div>
+          <input type="checkbox" class="data-scope-checkbox" id="onb-scope-media" checked />
         </div>
       </div>
 
@@ -1397,8 +1517,16 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
           <span>Integrations</span>
           <span style="font-size: 9px; color: #a1a1aa; text-transform: uppercase; letter-spacing: 0.05em;">Private & Local</span>
         </label>
+        <div class="catalog-tabs" id="settings-catalog-tabs">
+          <button class="catalog-tab-btn active" data-cat="all" onclick="selectCatalogCategory(this, 'settings-composio-grid')">All (38+)</button>
+          <button class="catalog-tab-btn" data-cat="productivity" onclick="selectCatalogCategory(this, 'settings-composio-grid')">Productivity</button>
+          <button class="catalog-tab-btn" data-cat="dev" onclick="selectCatalogCategory(this, 'settings-composio-grid')">Engineering</button>
+          <button class="catalog-tab-btn" data-cat="communication" onclick="selectCatalogCategory(this, 'settings-composio-grid')">Communication</button>
+          <button class="catalog-tab-btn" data-cat="meetings" onclick="selectCatalogCategory(this, 'settings-composio-grid')">Calendar & Media</button>
+          <button class="catalog-tab-btn" data-cat="crm" onclick="selectCatalogCategory(this, 'settings-composio-grid')">CRM & Growth</button>
+        </div>
         <div class="composio-filter-bar">
-          <input type="text" class="composio-search-input" id="settings-composio-search" placeholder="Search apps (Notion, Spotify, Linear, Slack, Zoom...)" oninput="filterComposioGrid('settings-composio-grid', this.value)" />
+          <input type="text" class="composio-search-input" id="settings-composio-search" placeholder="Search apps (Notion, Spotify, Linear, Slack, Zoom, HubSpot...)" oninput="filterComposioGrid('settings-composio-grid', this.value)" />
         </div>
         <div class="composio-connect-grid" id="settings-composio-grid">
           <!-- Dynamically populated Composio integration cards -->
@@ -1406,6 +1534,47 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         <div class="composio-custom-row">
           <input type="text" class="composio-search-input" id="settings-custom-toolkit" placeholder="Connect any toolkit (e.g. notion, linear, stripe, figma, hubspot)..." onkeydown="if(event.key==='Enter') connectCustomApp('settings-custom-toolkit')" />
           <button class="composio-btn composio-btn-connect" type="button" onclick="connectCustomApp('settings-custom-toolkit')" style="white-space: nowrap;">+ Connect Tool</button>
+        </div>
+      </div>
+
+      <div class="data-scopes-box">
+        <div style="font-size: 10px; font-weight: 600; color: #a1a1aa; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;">
+          Sovereign Data Scopes & Permissions
+        </div>
+        <div class="data-scope-row">
+          <div class="data-scope-info">
+            <span class="data-scope-title">Calendar & Meetings</span>
+            <span class="data-scope-desc">Synchronize agenda events, meeting URLs, and attendee graph</span>
+          </div>
+          <input type="checkbox" class="data-scope-checkbox" id="settings-scope-calendar" checked />
+        </div>
+        <div class="data-scope-row">
+          <div class="data-scope-info">
+            <span class="data-scope-title">Code & Repositories</span>
+            <span class="data-scope-desc">Index repositories, commits, and open pull requests</span>
+          </div>
+          <input type="checkbox" class="data-scope-checkbox" id="settings-scope-repos" checked />
+        </div>
+        <div class="data-scope-row">
+          <div class="data-scope-info">
+            <span class="data-scope-title">Communications & Contacts</span>
+            <span class="data-scope-desc">Index VIP collaborators and frequent correspondence</span>
+          </div>
+          <input type="checkbox" class="data-scope-checkbox" id="settings-scope-contacts" checked />
+        </div>
+        <div class="data-scope-row">
+          <div class="data-scope-info">
+            <span class="data-scope-title">Documents & Notes</span>
+            <span class="data-scope-desc">Index pages, workspaces, and documentation</span>
+          </div>
+          <input type="checkbox" class="data-scope-checkbox" id="settings-scope-notes" checked />
+        </div>
+        <div class="data-scope-row">
+          <div class="data-scope-info">
+            <span class="data-scope-title">Media & Habitual Playlists</span>
+            <span class="data-scope-desc">Enforce daily focus playlists and ambient music routines</span>
+          </div>
+          <input type="checkbox" class="data-scope-checkbox" id="settings-scope-media" checked />
         </div>
       </div>
       <div class="onb-btn-bar">
@@ -2063,119 +2232,343 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     };
 
     const COMPOSIO_APPS_DEF = [
+      // 1. Calendar, Meetings & Audio
       {
         toolkit: "googlecalendar",
         name: "Google Calendar",
+        category: "meetings",
         icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
         desc: "Agenda & Meetings"
       },
       {
-        toolkit: "github",
-        name: "GitHub",
-        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>',
-        desc: "Repositories & Pull Requests"
-      },
-      {
-        toolkit: "gmail",
-        name: "Gmail",
-        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>',
-        desc: "Emails & Contacts"
-      },
-      {
-        toolkit: "slack",
-        name: "Slack",
-        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 10c-.83 0-1.5-.67-1.5-1.5v-5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5z"/><path d="M20.5 10H19V8.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/><path d="M9.5 14c.83 0 1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5S8 21.33 8 20.5v-5c0-.83.67-1.5 1.5-1.5z"/><path d="M3.5 14H5v1.5c0 .83-.67 1.5-1.5 1.5S2 16.33 2 15.5 2.67 14 3.5 14z"/><path d="M14 14.5c0-.83.67-1.5 1.5-1.5h5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-5c-.83 0-1.5-.67-1.5-1.5z"/><path d="M15.5 20.5c0 .83-.67 1.5-1.5 1.5s-1.5-.67-1.5-1.5.67-1.5 1.5-1.5h1.5v1.5z"/><path d="M10 9.5C10 10.33 9.33 11 8.5 11h-5C2.67 11 2 10.33 2 9.5S2.67 8 3.5 8h5c.83 0 1.5.67 1.5 1.5z"/><path d="M8.5 3.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5H8.5V3.5z"/></svg>',
-        desc: "Channels & Messages"
-      },
-      {
-        toolkit: "notion",
-        name: "Notion",
-        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v16h16V4H4zm3 3h10v10H7V7zm2 2v6l3-3 3 3V9"/></svg>',
-        desc: "Pages & Databases"
-      },
-      {
-        toolkit: "spotify",
-        name: "Spotify",
-        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 11.5c2.5-1 5.5-.8 8 .5"/><path d="M9 14.5c2-.8 4.2-.6 6 .4"/><path d="M10 17.5c1.5-.6 3.2-.5 4.5.3"/></svg>',
-        desc: "Playlists & Playback"
-      },
-      {
-        toolkit: "linear",
-        name: "Linear",
-        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6"/><path d="M9 9l6 6"/></svg>',
-        desc: "Issues, Cycles & Sprints"
-      },
-      {
         toolkit: "zoom",
         name: "Zoom",
+        category: "meetings",
         icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>',
         desc: "Video Meetings"
       },
       {
-        toolkit: "googledrive",
-        name: "Google Drive",
-        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 19h20L12 2z"/><line x1="2" y1="19" x2="12" y2="12"/><line x1="22" y1="19" x2="12" y2="12"/></svg>',
-        desc: "Cloud Files & Docs"
+        toolkit: "spotify",
+        name: "Spotify",
+        category: "meetings",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 11.5c2.5-1 5.5-.8 8 .5"/><path d="M9 14.5c2-.8 4.2-.6 6 .4"/><path d="M10 17.5c1.5-.6 3.2-.5 4.5.3"/></svg>',
+        desc: "Playlists & Playback"
       },
       {
-        toolkit: "discord",
-        name: "Discord",
-        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6h-12a3 3 0 0 0-3 3v8l4-3h11a3 3 0 0 0 3-3V9a3 3 0 0 0-3-3z"/><circle cx="9" cy="11" r="1"/><circle cx="15" cy="11" r="1"/></svg>',
-        desc: "Servers & Community"
+        toolkit: "googlemeet",
+        name: "Google Meet",
+        category: "meetings",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 10l5-5v14l-5-5z"/><rect x="2" y="6" width="13" height="12" rx="2"/></svg>',
+        desc: "Cloud Video Calls"
       },
       {
-        toolkit: "trello",
-        name: "Trello",
-        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><rect x="7" y="7" width="3" height="9"/><rect x="14" y="7" width="3" height="5"/></svg>',
-        desc: "Boards & Cards"
+        toolkit: "calendly",
+        name: "Calendly",
+        category: "meetings",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 6 12 12 16 14"/></svg>',
+        desc: "Automated Scheduling"
       },
       {
-        toolkit: "asana",
-        name: "Asana",
-        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="3"/><circle cx="6" cy="16" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
-        desc: "Tasks & Timelines"
+        toolkit: "loom",
+        name: "Loom",
+        category: "meetings",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/></svg>',
+        desc: "Async Screen Recording"
       },
       {
-        toolkit: "clickup",
-        name: "ClickUp",
-        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14l8-7 8 7"/><path d="M12 7v14"/></svg>',
-        desc: "Tasks & Goals"
+        toolkit: "applemusic",
+        name: "Apple Music",
+        category: "meetings",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
+        desc: "Spatial Audio & Library"
+      },
+
+      // 2. Engineering & DevOps
+      {
+        toolkit: "github",
+        name: "GitHub",
+        category: "dev",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>',
+        desc: "Repositories & Pull Requests"
+      },
+      {
+        toolkit: "gitlab",
+        name: "GitLab",
+        category: "dev",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22.65 14.39L12 22.13 1.35 14.39a.84.84 0 0 1-.3-.94l1.22-3.78 2.44-7.51A.42.42 0 0 1 5.5 2a.4.4 0 0 1 .4.28l2.22 6.81h7.76l2.22-6.81a.4.4 0 0 1 .4-.28.42.42 0 0 1 .4.16l2.44 7.51 1.22 3.78a.84.84 0 0 1-.31.94z"/></svg>',
+        desc: "Pipelines & Repositories"
       },
       {
         toolkit: "jira",
         name: "Jira",
+        category: "dev",
         icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="3"/><path d="M7 12l5-5 5 5-5 5-5-5z"/></svg>',
         desc: "Sprints & Backlog"
       },
       {
+        toolkit: "bitbucket",
+        name: "Bitbucket",
+        category: "dev",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 3 21 3 19 21 5 21 3 3"/><polygon points="9 16 15 16 16 9 8 9 9 16"/></svg>',
+        desc: "Source Code & Repos"
+      },
+      {
+        toolkit: "sentry",
+        name: "Sentry",
+        category: "dev",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+        desc: "Errors & Performance"
+      },
+      {
+        toolkit: "pagerduty",
+        name: "PagerDuty",
+        category: "dev",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>',
+        desc: "Incidents & On-Call"
+      },
+      {
+        toolkit: "supabase",
+        name: "Supabase",
+        category: "dev",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+        desc: "Postgres & Auth Services"
+      },
+      {
+        toolkit: "vercel",
+        name: "Vercel",
+        category: "dev",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 24 22 0 22"/></svg>',
+        desc: "Deployments & Previews"
+      },
+      {
+        toolkit: "postman",
+        name: "Postman",
+        category: "dev",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 12l-4-4-4 4M12 8v8"/></svg>',
+        desc: "API Collections & Tests"
+      },
+      {
+        toolkit: "datadog",
+        name: "Datadog",
+        category: "dev",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>',
+        desc: "Cloud Metrics & APM"
+      },
+
+      // 3. Communication & Social
+      {
+        toolkit: "slack",
+        name: "Slack",
+        category: "communication",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 10c-.83 0-1.5-.67-1.5-1.5v-5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5z"/><path d="M20.5 10H19V8.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/><path d="M9.5 14c.83 0 1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5S8 21.33 8 20.5v-5c0-.83.67-1.5 1.5-1.5z"/><path d="M3.5 14H5v1.5c0 .83-.67 1.5-1.5 1.5S2 16.33 2 15.5 2.67 14 3.5 14z"/><path d="M14 14.5c0-.83.67-1.5 1.5-1.5h5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-5c-.83 0-1.5-.67-1.5-1.5z"/><path d="M15.5 20.5c0 .83-.67 1.5-1.5 1.5s-1.5-.67-1.5-1.5.67-1.5 1.5-1.5h1.5v1.5z"/><path d="M10 9.5C10 10.33 9.33 11 8.5 11h-5C2.67 11 2 10.33 2 9.5S2.67 8 3.5 8h5c.83 0 1.5.67 1.5 1.5z"/><path d="M8.5 3.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5H8.5V3.5z"/></svg>',
+        desc: "Channels & Messages"
+      },
+      {
+        toolkit: "gmail",
+        name: "Gmail",
+        category: "communication",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>',
+        desc: "Emails & Contacts"
+      },
+      {
+        toolkit: "discord",
+        name: "Discord",
+        category: "communication",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6h-12a3 3 0 0 0-3 3v8l4-3h11a3 3 0 0 0 3-3V9a3 3 0 0 0-3-3z"/><circle cx="9" cy="11" r="1"/><circle cx="15" cy="11" r="1"/></svg>',
+        desc: "Servers & Communities"
+      },
+      {
         toolkit: "msteams",
         name: "Microsoft Teams",
+        category: "communication",
         icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
-        desc: "Meetings & Chat"
+        desc: "Meetings & Chats"
       },
       {
         toolkit: "twitter",
         name: "X / Twitter",
+        category: "communication",
         icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>',
-        desc: "Social Feed & DMs"
+        desc: "Social Broadcasts & DMs"
+      },
+      {
+        toolkit: "whatsapp",
+        name: "WhatsApp",
+        category: "communication",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>',
+        desc: "Instant Messaging"
+      },
+      {
+        toolkit: "telegram",
+        name: "Telegram",
+        category: "communication",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>',
+        desc: "Channels & Direct Messages"
+      },
+      {
+        toolkit: "outlook",
+        name: "Outlook",
+        category: "communication",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="12" r="3"/><polyline points="15,9 15,15"/></svg>',
+        desc: "Exchange Email & Inbox"
+      },
+
+      // 4. Productivity & Documents
+      {
+        toolkit: "notion",
+        name: "Notion",
+        category: "productivity",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v16h16V4H4zm3 3h10v10H7V7zm2 2v6l3-3 3 3V9"/></svg>',
+        desc: "Pages & Databases"
+      },
+      {
+        toolkit: "linear",
+        name: "Linear",
+        category: "productivity",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6"/><path d="M9 9l6 6"/></svg>',
+        desc: "Issues, Cycles & Sprints"
+      },
+      {
+        toolkit: "googledrive",
+        name: "Google Drive",
+        category: "productivity",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 19h20L12 2z"/><line x1="2" y1="19" x2="12" y2="12"/><line x1="22" y1="19" x2="12" y2="12"/></svg>',
+        desc: "Cloud Files & Storage"
+      },
+      {
+        toolkit: "googledocs",
+        name: "Google Docs",
+        category: "productivity",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>',
+        desc: "Collaborative Documents"
       },
       {
         toolkit: "airtable",
         name: "Airtable",
+        category: "productivity",
         icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>',
         desc: "Bases & Grids"
       },
       {
         toolkit: "figma",
         name: "Figma",
+        category: "productivity",
         icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5.5A3.5 3.5 0 0 1 8.5 2H12v7H8.5A3.5 3.5 0 0 1 5 5.5z"/><path d="M12 2h3.5a3.5 3.5 0 1 1 0 7H12V2z"/><path d="M12 12.5a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0z"/><path d="M5 19.5A3.5 3.5 0 0 1 8.5 16H12v3.5a3.5 3.5 0 1 1-7 0z"/><path d="M12 9h3.5a3.5 3.5 0 1 1 0 7H12V9z"/></svg>',
         desc: "Designs & Canvases"
+      },
+      {
+        toolkit: "trello",
+        name: "Trello",
+        category: "productivity",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="7" y="7" width="3" height="9"/><rect x="14" y="7" width="3" height="5"/></svg>',
+        desc: "Boards & Kanban Cards"
+      },
+      {
+        toolkit: "asana",
+        name: "Asana",
+        category: "productivity",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="3"/><circle cx="6" cy="16" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
+        desc: "Tasks & Timelines"
+      },
+      {
+        toolkit: "clickup",
+        name: "ClickUp",
+        category: "productivity",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14l8-7 8 7"/><path d="M12 7v14"/></svg>',
+        desc: "Tasks, Docs & Goals"
+      },
+      {
+        toolkit: "coda",
+        name: "Coda",
+        category: "productivity",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/></svg>',
+        desc: "Interactive Docs & Tables"
+      },
+      {
+        toolkit: "microsoft365",
+        name: "Microsoft 365",
+        category: "productivity",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="9" height="9"/><rect x="13" y="2" width="9" height="9"/><rect x="2" y="13" width="9" height="9"/><rect x="13" y="13" width="9" height="9"/></svg>',
+        desc: "Office Suite & OneDrive"
+      },
+      {
+        toolkit: "evernote",
+        name: "Evernote",
+        category: "productivity",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M9 9h6M9 13h6M9 17h4"/></svg>',
+        desc: "Notebooks & Clippings"
+      },
+      {
+        toolkit: "onenote",
+        name: "OneNote",
+        category: "productivity",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/></svg>',
+        desc: "Digital Notebooks"
+      },
+      {
+        toolkit: "todoist",
+        name: "Todoist",
+        category: "productivity",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+        desc: "Daily Tasks & Reminders"
+      },
+
+      // 5. CRM & Business Growth
+      {
+        toolkit: "hubspot",
+        name: "HubSpot",
+        category: "crm",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M16 8l5-5M12 4v4M12 16v4"/></svg>',
+        desc: "CRM & Sales Pipeline"
+      },
+      {
+        toolkit: "salesforce",
+        name: "Salesforce",
+        category: "crm",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>',
+        desc: "Accounts & Opportunities"
+      },
+      {
+        toolkit: "stripe",
+        name: "Stripe",
+        category: "crm",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>',
+        desc: "Billing & Revenue"
+      },
+      {
+        toolkit: "intercom",
+        name: "Intercom",
+        category: "crm",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+        desc: "Customer Support & Inbox"
+      },
+      {
+        toolkit: "zendesk",
+        name: "Zendesk",
+        category: "crm",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 8h8L8 16h8"/></svg>',
+        desc: "Help Desk & Tickets"
+      },
+      {
+        toolkit: "posthog",
+        name: "PostHog",
+        category: "crm",
+        icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 8l-8 8M8 8l8 8"/></svg>',
+        desc: "Product Analytics & Funnels"
       }
     ];
 
     const DEFAULT_TOOLKIT_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="3"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>';
 
     let currentComposioStatus = {};
+    let currentCatalogCategory = {
+      "onb-composio-grid": "all",
+      "settings-composio-grid": "all"
+    };
+    let currentFilterQuery = {
+      "onb-composio-grid": "",
+      "settings-composio-grid": ""
+    };
 
     function normalizeComposioMap(input) {
       const map = {};
@@ -2193,12 +2586,25 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       return map;
     }
 
-    function renderComposioCards(containerId, accounts, filterQuery = "") {
+    window.selectCatalogCategory = function(btn, containerId) {
+      if (!btn) return;
+      const cat = btn.getAttribute("data-cat") || "all";
+      currentCatalogCategory[containerId] = cat;
+      const parent = btn.parentElement;
+      if (parent) {
+        parent.querySelectorAll(".catalog-tab-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+      }
+      renderComposioCards(containerId, currentComposioStatus, currentFilterQuery[containerId] || "", cat);
+    };
+
+    function renderComposioCards(containerId, accounts, filterQuery = "", activeCategory = "") {
       const container = document.getElementById(containerId);
       if (!container) return;
       container.innerHTML = "";
       const map = normalizeComposioMap(accounts);
-      const query = (filterQuery || "").trim().toLowerCase();
+      const query = (filterQuery !== undefined ? filterQuery : (currentFilterQuery[containerId] || "")).trim().toLowerCase();
+      const selectedCategory = (activeCategory || currentCatalogCategory[containerId] || "all").toLowerCase();
 
       // Collect all app definitions plus any custom connected toolkits
       const allApps = [...COMPOSIO_APPS_DEF];
@@ -2207,15 +2613,20 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
           allApps.push({
             toolkit: tk,
             name: tk.charAt(0).toUpperCase() + tk.slice(1),
+            category: "custom",
             icon: DEFAULT_TOOLKIT_ICON,
             desc: "Custom Integration"
           });
         }
       });
 
-      const filtered = query
-        ? allApps.filter(a => a.name.toLowerCase().includes(query) || a.toolkit.toLowerCase().includes(query) || a.desc.toLowerCase().includes(query))
-        : allApps;
+      let filtered = allApps;
+      if (selectedCategory !== "all") {
+        filtered = filtered.filter(a => (a.category || "productivity").toLowerCase() === selectedCategory);
+      }
+      if (query) {
+        filtered = filtered.filter(a => a.name.toLowerCase().includes(query) || a.toolkit.toLowerCase().includes(query) || a.desc.toLowerCase().includes(query));
+      }
 
       if (filtered.length === 0) {
         const empty = document.createElement("div");
@@ -2278,7 +2689,8 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
     }
 
     window.filterComposioGrid = function(containerId, query) {
-      renderComposioCards(containerId, currentComposioStatus, query);
+      currentFilterQuery[containerId] = query || "";
+      renderComposioCards(containerId, currentComposioStatus, query, currentCatalogCategory[containerId] || "all");
     };
 
     window.connectCustomApp = function(inputId) {
@@ -2435,6 +2847,20 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         onbCollabs.value = data.collaborators.map(c => `${c.name} (${c.email || "no email"})`).join(", ");
       } else {
         onbCollabs.value = "";
+      }
+
+      if (data && data.data_scopes) {
+        const scopes = data.data_scopes;
+        const cbCal = document.getElementById("onb-scope-calendar");
+        const cbRepos = document.getElementById("onb-scope-repos");
+        const cbContacts = document.getElementById("onb-scope-contacts");
+        const cbNotes = document.getElementById("onb-scope-notes");
+        const cbMedia = document.getElementById("onb-scope-media");
+        if (cbCal && scopes.calendar !== undefined) cbCal.checked = !!scopes.calendar;
+        if (cbRepos && scopes.repos !== undefined) cbRepos.checked = !!scopes.repos;
+        if (cbContacts && scopes.contacts !== undefined) cbContacts.checked = !!scopes.contacts;
+        if (cbNotes && scopes.notes !== undefined) cbNotes.checked = !!scopes.notes;
+        if (cbMedia && scopes.media !== undefined) cbMedia.checked = !!scopes.media;
       }
 
       onbAppsChips.innerHTML = "";
@@ -2624,6 +3050,14 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
         }
       });
 
+      const dataScopes = {
+        calendar: document.getElementById("onb-scope-calendar") ? document.getElementById("onb-scope-calendar").checked : true,
+        repos: document.getElementById("onb-scope-repos") ? document.getElementById("onb-scope-repos").checked : true,
+        contacts: document.getElementById("onb-scope-contacts") ? document.getElementById("onb-scope-contacts").checked : true,
+        notes: document.getElementById("onb-scope-notes") ? document.getElementById("onb-scope-notes").checked : true,
+        media: document.getElementById("onb-scope-media") ? document.getElementById("onb-scope-media").checked : true
+      };
+
       const profilePayload = {
         action: "save_onboarding",
         profile: {
@@ -2634,7 +3068,8 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
             focus: onbPlaylist.value.trim()
           },
           collaborators: collabsParsed,
-          connected_apps: activeApps
+          connected_apps: activeApps,
+          data_scopes: dataScopes
         }
       };
 
@@ -2679,6 +3114,20 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       
       const playlists = currentSettingsData.playlists || {};
       if (settingsPlaylist) settingsPlaylist.value = playlists.focus || "";
+
+      if (currentSettingsData && currentSettingsData.data_scopes) {
+        const scopes = currentSettingsData.data_scopes;
+        const cbCal = document.getElementById("settings-scope-calendar");
+        const cbRepos = document.getElementById("settings-scope-repos");
+        const cbContacts = document.getElementById("settings-scope-contacts");
+        const cbNotes = document.getElementById("settings-scope-notes");
+        const cbMedia = document.getElementById("settings-scope-media");
+        if (cbCal && scopes.calendar !== undefined) cbCal.checked = !!scopes.calendar;
+        if (cbRepos && scopes.repos !== undefined) cbRepos.checked = !!scopes.repos;
+        if (cbContacts && scopes.contacts !== undefined) cbContacts.checked = !!scopes.contacts;
+        if (cbNotes && scopes.notes !== undefined) cbNotes.checked = !!scopes.notes;
+        if (cbMedia && scopes.media !== undefined) cbMedia.checked = !!scopes.media;
+      }
 
       renderSettingsApps(currentSettingsData.connected_apps || []);
       renderSettingsCollabs(currentSettingsData.collaborators || []);
@@ -2820,6 +3269,13 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       settingsSaveBtn.addEventListener("click", () => {
         settingsSaveBtn.innerText = "Saving...";
         settingsSaveBtn.disabled = true;
+        const dataScopes = {
+          calendar: document.getElementById("settings-scope-calendar") ? document.getElementById("settings-scope-calendar").checked : true,
+          repos: document.getElementById("settings-scope-repos") ? document.getElementById("settings-scope-repos").checked : true,
+          contacts: document.getElementById("settings-scope-contacts") ? document.getElementById("settings-scope-contacts").checked : true,
+          notes: document.getElementById("settings-scope-notes") ? document.getElementById("settings-scope-notes").checked : true,
+          media: document.getElementById("settings-scope-media") ? document.getElementById("settings-scope-media").checked : true
+        };
         const payload = {
           action: "save_settings",
           settings: {
@@ -2830,7 +3286,8 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
             },
             playlists: {
               focus: settingsPlaylist ? settingsPlaylist.value.trim() : ""
-            }
+            },
+            data_scopes: dataScopes
           }
         };
         window.webkit.messageHandlers.desktopDom.postMessage(JSON.stringify(payload));

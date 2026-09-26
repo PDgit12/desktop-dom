@@ -30,6 +30,14 @@ class ComposioIngest:
         """
         Ingests Google Calendar agenda, extracts meeting links, and adds attendees as collaborators.
         """
+        if hasattr(self.memory, "is_data_scope_enabled") and not self.memory.is_data_scope_enabled("calendar"):
+            return {
+                "status": "skipped",
+                "reason": "Calendar data scope is disabled by user",
+                "synced_events": 0,
+                "synced_contacts": 0,
+            }
+
         if not self.client.is_configured():
             return {"status": "unconfigured", "synced_events": 0, "synced_contacts": 0}
 
@@ -88,6 +96,13 @@ class ComposioIngest:
         """
         Ingests user repositories and open pull requests from GitHub into the Knowledge Graph.
         """
+        if hasattr(self.memory, "is_data_scope_enabled") and not self.memory.is_data_scope_enabled("repos"):
+            return {
+                "status": "skipped",
+                "reason": "Repositories data scope is disabled by user",
+                "synced_repos": 0,
+            }
+
         if not self.client.is_configured():
             return {"status": "unconfigured", "synced_repos": 0}
 
@@ -145,6 +160,13 @@ class ComposioIngest:
         """
         Discovers top correspondents from recent Gmail messages and populates work contacts.
         """
+        if hasattr(self.memory, "is_data_scope_enabled") and not self.memory.is_data_scope_enabled("contacts"):
+            return {
+                "status": "skipped",
+                "reason": "Contacts/Communications data scope is disabled by user",
+                "synced_contacts": 0,
+            }
+
         if not self.client.is_configured():
             return {"status": "unconfigured", "synced_contacts": 0}
 

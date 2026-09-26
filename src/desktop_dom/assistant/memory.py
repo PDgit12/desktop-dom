@@ -19,6 +19,13 @@ DEFAULT_DB_DIR = Path.home() / ".desktop_dom"
 DEFAULT_DB_PATH = DEFAULT_DB_DIR / "aura_memory.db"
 
 _CONNECTED_ACCOUNT_STATUSES = {"PENDING", "ACTIVE", "INACTIVE", "ERROR", "REVOKED"}
+DEFAULT_DATA_SCOPES = {
+    "calendar": True,
+    "repos": True,
+    "contacts": True,
+    "notes": True,
+    "media": True,
+}
 _EXTERNAL_PROFILE_FIELDS = {
     "user.name": "user",
     "user.email": "user",
@@ -2733,6 +2740,11 @@ class AuraMemory:
         self.set_preference("onboarding.verified_at", str(now), category="onboarding")
         self.set_preference("onboarding.mode", "pure_user_data", category="onboarding")
 
+        # Data Scopes & Granular Privacy Controls
+        data_scopes = p.get("data_scopes")
+        if data_scopes and isinstance(data_scopes, dict):
+            self.set_data_scopes(data_scopes)
+
         # 4. Lock in Explicit Habits with Confidence=1.0 (Zero Speculation)
         self.record_habit_observation("spotify.favorite_playlist", focus_playlist, category="music", is_explicit=True)
         self.record_habit_observation("spotify.playlist.coding", focus_playlist, category="music", is_explicit=True)
@@ -2918,6 +2930,7 @@ class AuraMemory:
             },
             "graph_clusters": ["work", "apps", "personal_media", "gaming"],
             "cluster_isolation_verified": True,
+            "data_scopes": self.get_data_scopes(),
             "configured_intents": self.get_all_configured_intents(),
             "elapsed_ms": elapsed_ms,
         }
@@ -2973,8 +2986,67 @@ class AuraMemory:
                 "graph_topology": graph_summary,
                 "top_apps": top_apps,
                 "connected_accounts": self.list_connected_accounts(),
+                "data_scopes": self.get_data_scopes(),
                 "cluster_isolation_status": "STRICT_DISJOINT",
             }
+
+    def get_data_scopes(self) -> Dict[str, bool]:
+        """Returns the user's granular data synchronization permissions."""
+        with self._lock:
+            scopes = {}
+            for scope, default_val in DEFAULT_DATA_SCOPES.items():
+                pref_val = self.get_preference(f"data_scope.{scope}")
+                if pref_val is not None:
+                    scopes[scope] = pref_val.lower() == "true"
+                else:
+                    scopes[scope] = default_val
+            return scopes
+
+    def set_data_scopes(self, scopes: Dict[str, Any]) -> Dict[str, bool]:
+        """Updates granular data synchronization permissions."""
+        with self._lock:
+            for scope in DEFAULT_DATA_SCOPES:
+                if scope in scopes:
+                    val = bool(scopes[scope])
+                    self.set_preference(f"data_scope.{scope}", "true" if val else "false", category="privacy")
+            return self.get_data_scopes()
+
+    def is_data_scope_enabled(self, scope: str) -> bool:
+        """Returns whether a specific data scope is permitted by the user."""
+        clean = scope.strip().lower()
+        scopes = self.get_data_scopes()
+        return scopes.get(clean, True)
+
+    def purge_data_scope(self, scope: str) -> Dict[str, Any]:
+        """Purges cached memory entities and preferences belonging to a specific data scope."""
+        clean = scope.strip().lower()
+        with self._lock, self._get_connection() as conn:
+            purged_entities = 0
+            if clean == "calendar":
+                self.set_preference("calendar.events.today", "[]", category="calendar")
+                self.set_preference("calendar.last_synced", "0", category="calendar")
+            elif clean == "repos":
+                self.set_preference("work.repos", "[]", category="developer")
+                cursor = conn.execute("SELECT id FROM entities WHERE category = 'project' AND metadata LIKE '%composio:github%';")
+                ids = [r[0] for r in cursor.fetchall()]
+                if ids:
+                    conn.execute(f"DELETE FROM graph_edges WHERE source_id IN ({','.join('?'*len(ids))}) OR target_id IN ({','.join('?'*len(ids))});", ids + ids)
+                    conn.execute(f"DELETE FROM entities WHERE id IN ({','.join('?'*len(ids))});", ids)
+                    purged_entities = len(ids)
+            elif clean == "contacts":
+                cursor = conn.execute("SELECT id FROM entities WHERE category = 'contact' AND metadata LIKE '%composio%';")
+                ids = [r[0] for r in cursor.fetchall()]
+                if ids:
+                    conn.execute(f"DELETE FROM graph_edges WHERE source_id IN ({','.join('?'*len(ids))}) OR target_id IN ({','.join('?'*len(ids))});", ids + ids)
+                    conn.execute(f"DELETE FROM entities WHERE id IN ({','.join('?'*len(ids))});", ids)
+                    purged_entities = len(ids)
+            elif clean == "media":
+                self.set_preference("spotify.favorite_playlist", "", category="music")
+                self.set_preference("spotify.playlist.gaming", "", category="music")
+                self.set_preference("spotify.favorite_artist", "", category="music")
+            conn.commit()
+            self._reload_cache()
+            return {"status": "success", "scope": clean, "purged_entities": purged_entities}
 
     def is_onboarding_verified(self) -> bool:
         """Returns True if the user has completed explicit verified onboarding."""
@@ -3042,14 +3114,18 @@ class AuraMemory:
                     "repos": repos,
                 },
                 "connected_accounts": self.list_connected_accounts(),
+                "data_scopes": self.get_data_scopes(),
                 "collaborators": collabs,
                 "verified": self.is_onboarding_verified(),
             }
 
     def update_user_settings(self, settings: Dict[str, Any]) -> Dict[str, Any]:
-        """Updates user profile, app bindings, playlists, and repos from Settings."""
+        """Updates user profile, app bindings, playlists, repos, and data scopes from Settings."""
         if not isinstance(settings, dict):
             return {"status": "error", "message": "Invalid settings payload"}
+
+        if "data_scopes" in settings and isinstance(settings["data_scopes"], dict):
+            self.set_data_scopes(settings["data_scopes"])
 
         if "user" in settings and isinstance(settings["user"], dict):
             u = settings["user"]
