@@ -332,10 +332,21 @@ Eliminates vision agent flaws (>90% token waste, 3–6 second latency, pixel coo
     - Added `/memory` and `"audit memory"` / `"what data do you have on me"` fast-paths providing a transparent privacy breakdown: local SQLite storage path, ZERO OAuth token custody guarantee, enabled data scopes, and cluster topology.
     - Local LLM prompt enriched with active integrations, enabled data scopes, and strict zero-hallucination guardrails prohibiting web searches for personal queries.
   - **Hermetic Testing & Release Verification:**
-    - Added dedicated test suite `tests/test_data_scopes_and_catalog.py` (8 tests).
-    - **292 / 292 tests passing across all 25 test suites** (100% green, 0 errors, 0 failures).
+    - Added dedicated test suite `tests/test_data_scopes_and_catalog.py` (11 tests).
+    - **295 / 295 tests passing across all 25 test suites** (100% green, 0 errors, 0 failures).
     - Pristine fresh database seeded at `/Users/piyushdua/.desktop_dom/aura_memory.db` with unverified onboarding state and 0 mock data.
     - Native macOS application bundle recompiled and verified at `/Users/piyushdua/Applications/Aura.app`.
+- **Institutional-Grade Sovereign Storage Audit & Zero-Postgres Architecture:**
+  - **Local-Only Architecture Guarantee:**
+    - Zero external database dependencies: completely decoupled from PostgreSQL, MySQL, Supabase, or external server daemons.
+    - 100% on-device embedded SQLite engine with WAL mode (`PRAGMA journal_mode=WAL`), `PRAGMA synchronous=NORMAL`, and foreign key enforcement (`PRAGMA foreign_keys=ON`).
+    - Local storage location: `~/.desktop_dom/aura_memory.db` with strict user-isolated file permissions (`0o600` on db file, `0o700` on directory).
+  - **Automated Security & Zero-Token Custody Audit (`memory.py`):**
+    - Implemented `AuraMemory.get_audit_report()` which performs live introspection across all 10 SQLite tables (`entities`, `preferences`, `connected_accounts`, `habits`, `activity_log`, `context_feed`, `graph_edges`, `learnings`, `misfires`, `disambiguations`).
+    - Scans metadata and preferences asserting 0 plaintext access tokens, secrets, or bearer credentials exist locally.
+  - **Interactive CLI & Natural Language Audit Interface:**
+    - Added `desktop-dom audit` and `desktop-dom audit --json` CLI commands rendering Rich status dashboards of database integrity, security compliance, data scopes, and record distributions.
+    - Integrated with Assistant Omnibar (`/memory`, `audit my data`, `what data do you have on me`) returning transparent real-time storage breakdowns and zero-token custody certification.
 
 
 

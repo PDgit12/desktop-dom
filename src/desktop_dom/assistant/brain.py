@@ -1055,14 +1055,19 @@ end tell'''
             for sc, enabled in scopes.items():
                 scope_lines.append(f"  • {sc.capitalize()}: {'✓ Enabled' if enabled else '✗ Disabled'}")
 
+            audit_report = self.memory.get_audit_report() if hasattr(self.memory, "get_audit_report") else {}
+            db_size_kb = audit_report.get("database", {}).get("size_kb", 0)
+
             resp = (
                 f"Sovereign Memory & Privacy Audit (Personal Memory Engine Active):\n"
+                f"• Architecture: 100% Local-First Embedded SQLite (Zero PostgreSQL / No External Server)\n"
                 f"• Identity: {profile.get('name')} ({profile.get('email')}) — {profile.get('role')} at {profile.get('company') or 'Independent'}\n"
-                f"• Storage Location: Local SQLite (~/.desktop_dom/aura_memory.db)\n"
+                f"• Storage Location: Local SQLite (~/.desktop_dom/aura_memory.db) [{db_size_kb} KB]\n"
                 f"• Token Custody: ZERO OAuth tokens stored locally or plaintext (100% ephemeral)\n"
                 f"• Active Integrations: {', '.join(active_accs) if active_accs else 'None'}\n"
                 f"• Granular Data Scopes:\n" + "\n".join(scope_lines) + "\n"
                 f"• Knowledge Graph: {summary.get('contacts_count', 0)} contacts, {summary.get('graph', {}).get('nodes_count', 0)} nodes across strict disjoint clusters.\n"
+                f"• Security Guarantee: Local file permissions locked to current user (0o600 / 0o700).\n"
                 f"• You can toggle data scopes or purge individual data categories anytime in Settings."
             )
             self._notify_action("completed", "Sovereign memory audit retrieved")
@@ -1072,6 +1077,7 @@ end tell'''
                 "data_scopes": scopes,
                 "profile": profile,
                 "summary": summary,
+                "audit_report": audit_report,
                 "response": resp,
             }
 

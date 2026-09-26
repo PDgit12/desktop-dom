@@ -10,6 +10,7 @@ Verifies:
 
 import json
 import re
+from pathlib import Path
 import pytest
 from unittest.mock import MagicMock, patch
 
@@ -214,3 +215,58 @@ def test_omnibar_webkit_ipc_data_scopes(tmp_path):
     assert mem.is_data_scope_enabled("contacts") is True
     assert mem.is_data_scope_enabled("media") is True
     assert "window.auraSettingsSaved" in bar.evaluate_js.call_args[0][0]
+
+
+def test_get_audit_report_local_storage_and_zero_tokens(clean_memory):
+    """Verifies that get_audit_report generates a comprehensive local-only report with zero token violations."""
+    report = clean_memory.get_audit_report()
+    assert isinstance(report, dict)
+    assert report.get("engine") == "Aura Sovereign Local Memory Engine"
+    assert "100% Local-First" in report.get("architecture", "")
+    assert "PostgreSQL" in report.get("architecture", "")
+
+    db_info = report.get("database", {})
+    assert Path(db_info.get("path")).exists()
+    assert db_info.get("journal_mode") == "WAL"
+    assert db_info.get("foreign_keys") is True
+    assert "0o600" in db_info.get("file_permissions", "")
+
+    sec_info = report.get("security_and_privacy", {})
+    assert sec_info.get("zero_token_custody_verified") is True
+    assert sec_info.get("token_violations_count") == 0
+    assert sec_info.get("network_isolated_storage") is True
+
+    record_counts = report.get("record_counts", {})
+    assert "entities" in record_counts
+    assert "graph_edges" in record_counts
+    assert "preferences" in record_counts
+    assert "habits" in record_counts
+
+
+def test_cli_audit_command():
+    """Verifies that desktop-dom audit command executes cleanly and prints Rich audit dashboard."""
+    from typer.testing import CliRunner
+    from desktop_dom.cli.main import app
+
+    runner = CliRunner()
+    res = runner.invoke(app, ["audit"])
+    assert res.exit_code == 0
+    assert "Aura Sovereign Memory & Storage Audit" in res.output
+    assert "SQLite 3" in res.output
+    assert "No PostgreSQL" in res.output
+    assert "Zero-Token Custody Verified" in res.output
+    assert "Sovereign Data Scopes Governance" in res.output
+
+
+def test_cli_audit_json():
+    """Verifies that desktop-dom audit --json produces valid JSON audit report."""
+    from typer.testing import CliRunner
+    from desktop_dom.cli.main import app
+
+    runner = CliRunner()
+    res = runner.invoke(app, ["audit", "--json"])
+    assert res.exit_code == 0
+    data = json.loads(res.output)
+    assert data["architecture"] == "100% Local-First Embedded SQLite (Zero PostgreSQL / No External Server)"
+    assert data["security_and_privacy"]["zero_token_custody_verified"] is True
+    assert data["security_and_privacy"]["token_violations_count"] == 0
