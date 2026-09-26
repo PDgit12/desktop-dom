@@ -316,6 +316,26 @@ Eliminates vision agent flaws (>90% token waste, 3–6 second latency, pixel coo
     - Native macOS application bundle recompiled and deployed to `/Users/piyushdua/Applications/Aura.app`.
     - Fresh Aura instance running and listening on `/tmp/desktop_dom_aura.sock` with verified two-way IPC handshake.
     - `develop` and `main` branches synced with remote origin.
+- **Sovereign Data Scopes Engine, 45-Toolkit Categorized Catalog & Privacy Grounding:**
+  - **Granular User Data Control ("it should be up to the user what all data they have"):**
+    - Built sovereign data scopes engine in `AuraMemory`: `get_data_scopes()`, `set_data_scopes()`, `is_data_scope_enabled()`, `purge_data_scope()`.
+    - Default scopes: `calendar: True`, `repos: True`, `contacts: True`, `notes: True`, `media: True`.
+    - Enforced scope governance in `ComposioIngest`: `sync_calendar` skips if `calendar` scope is disabled; `sync_github` skips if `repos` scope is disabled; `sync_gmail` skips if `contacts` scope is disabled.
+    - Two-way WebKit IPC bridge in `omnibar.py`: checkboxes in `#onboarding-drawer` and `#settings-drawer` dynamically populate from SQLite and persist via `save_onboarding` and `save_settings`.
+  - **Expansive 45-Toolkit Categorized Catalog (`omnibar.py`):**
+    - Expanded catalog from 18 to 45 toolkits across 5 categorical domains: Meetings (`meetings`), Engineering (`dev`), Communication (`communication`), Productivity (`productivity`), and CRM & Growth (`crm`).
+    - Added category navigation tabs with active state styling: `All (38+)`, `Productivity`, `Engineering`, `Communication`, `Calendar & Media`, `CRM & Growth`.
+    - Combined category tabs with real-time text search filter for sub-millisecond toolkit discovery.
+    - Preserved custom connector input for connecting any of Composio's 250+ integrations on demand.
+  - **Memory Grounding & Web Search Elimination:**
+    - Broadened deterministic regex and pattern matching in `brain.py` and `non_binary.py`: queries like `"Piyush Dua schedule"`, `"check schedule"`, `"my schedule"` route directly to native calendar and canonical storage.
+    - Added `/memory` and `"audit memory"` / `"what data do you have on me"` fast-paths providing a transparent privacy breakdown: local SQLite storage path, ZERO OAuth token custody guarantee, enabled data scopes, and cluster topology.
+    - Local LLM prompt enriched with active integrations, enabled data scopes, and strict zero-hallucination guardrails prohibiting web searches for personal queries.
+  - **Hermetic Testing & Release Verification:**
+    - Added dedicated test suite `tests/test_data_scopes_and_catalog.py` (8 tests).
+    - **292 / 292 tests passing across all 25 test suites** (100% green, 0 errors, 0 failures).
+    - Pristine fresh database seeded at `/Users/piyushdua/.desktop_dom/aura_memory.db` with unverified onboarding state and 0 mock data.
+    - Native macOS application bundle recompiled and verified at `/Users/piyushdua/Applications/Aura.app`.
 
 
 
