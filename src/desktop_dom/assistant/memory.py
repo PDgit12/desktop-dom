@@ -892,6 +892,14 @@ class AuraMemory:
             conn.commit()
             self._pref_cache[key] = str(value)
 
+    def delete_preference(self, key: str):
+        """Removes a preference from SQLite and syncs in-memory cache."""
+        with self._lock, self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM preferences WHERE key = ?;", (key,))
+            conn.commit()
+            self._pref_cache.pop(key, None)
+
     def list_preferences(self, category: Optional[str] = None) -> Dict[str, str]:
         """Returns key-value preferences dictionary."""
         with self._lock:

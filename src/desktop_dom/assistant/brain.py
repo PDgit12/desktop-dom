@@ -107,12 +107,18 @@ class AssistantBrain:
         memory: Optional[AuraMemory] = None,
     ):
         self.ollama_host = ollama_host
-        self.preferred_model = preferred_model or self._detect_ollama_model()
+        self.memory = memory or AuraMemory()
+        saved_model = self.memory.get_preference("llm.preferred_model") if self.memory else None
+        if preferred_model:
+            self.preferred_model = preferred_model
+        elif saved_model:
+            self.preferred_model = None if saved_model == "Zero-Model Fast-Path" else saved_model
+        else:
+            self.preferred_model = self._detect_ollama_model()
         self.active_app: Optional[DesktopApp] = None
         self._action_callback: Optional[Callable[[str, str], None]] = None
         self._installed_apps: Dict[str, str] = {}
         self._scan_installed_apps()
-        self.memory = memory or AuraMemory()
         from desktop_dom.assistant.integrations.composio_ingest import ComposioIngest
         self.composio_ingest = ComposioIngest(memory=self.memory)
         self.context_feed = ContextFeedEngine(memory=self.memory)
@@ -234,6 +240,7 @@ class AssistantBrain:
         """Returns connection health and installed models from local Ollama server."""
         import urllib.request
         ping_start = time.time()
+        active_model = self.preferred_model if (self.preferred_model and self.preferred_model != "Zero-Model Fast-Path") else "Zero-Model Fast-Path"
         try:
             req = urllib.request.Request(f"{self.ollama_host}/api/tags", headers={"User-Agent": "desktop-dom"})
             with urllib.request.urlopen(req, timeout=1.2) as resp:
@@ -243,7 +250,7 @@ class AssistantBrain:
                 return {
                     "connected": True,
                     "host": self.ollama_host,
-                    "current_model": self.preferred_model or (models[0] if models else "llama3.2:3b"),
+                    "current_model": active_model,
                     "available_models": models,
                     "latency_ms": latency,
                 }
@@ -251,15 +258,23 @@ class AssistantBrain:
             return {
                 "connected": False,
                 "host": self.ollama_host,
-                "current_model": self.preferred_model or "Zero-Model Fast-Path",
+                "current_model": active_model,
                 "available_models": [],
                 "latency_ms": None,
             }
 
     def set_model(self, model_name: str) -> bool:
-        """Dynamically switches the active reasoning model."""
-        self.preferred_model = model_name
-        logger.info(f"Aura active reasoning model switched to: '{model_name}'")
+        """Dynamically switches the active reasoning model and persists choice in local memory."""
+        if model_name in {"Zero-Model Fast-Path", "none", "fast_path", "off", ""}:
+            self.preferred_model = None
+            if self.memory:
+                self.memory.set_preference("llm.preferred_model", "Zero-Model Fast-Path", category="llm")
+            logger.info("Aura active reasoning model switched to: Zero-Model Fast-Path (0MB RAM, <25ms deterministic)")
+        else:
+            self.preferred_model = model_name
+            if self.memory:
+                self.memory.set_preference("llm.preferred_model", model_name, category="llm")
+            logger.info(f"Aura active reasoning model switched to: '{model_name}'")
         return True
 
     def _get_current_context_dict(self) -> Dict[str, Any]:
@@ -489,10 +504,11 @@ end tell'''
             return fast_result
 
         # 2. General Local LLM ReAct Planning
-        if self.preferred_model:
+        if self.preferred_model and self.preferred_model != "Zero-Model Fast-Path":
             llm_result = self._execute_with_local_llm(prompt)
             llm_result["latency_ms"] = round((time.time() - start_t) * 1000, 1)
             llm_result["engine"] = "ollama"
+            llm_result["model"] = self.preferred_model
             if "level" not in llm_result:
                 llm_result["level"] = "2.0"
             if "confidence" not in llm_result:
@@ -1952,7 +1968,7 @@ end tell'''
             return self._control_dark_mode(prompt)
 
         # 3. Apple Notes Creation
-        note_match = re.match(r"^(?:create note|take a note|take note|new note|write note|note:)\s*(.+)", raw_prompt, re.IGNORECASE)
+        note_match = re.match(r"^(?:create note|take a note|take note|new note|write note|note:|note\b)\s*(.+)", raw_prompt, re.IGNORECASE)
         if note_match:
             return self._control_notes_create(note_match.group(1).strip())
 
@@ -3012,12 +3028,23 @@ end tell'''
 
         # Extract Level 2 personal memory context
         mem_summary = self.memory.get_summary()
-        user_ctx = f"User: {mem_summary['user']['name']} ({mem_summary['user']['role']})."
+        u_name = mem_summary.get("user", {}).get("name", "User")
+        u_role = mem_summary.get("user", {}).get("role", "")
+        u_comp = mem_summary.get("user", {}).get("company", "")
+        u_parts = [f"User: {u_name}"]
+        if u_role:
+            u_parts.append(f"Role: {u_role}")
+        if u_comp:
+            u_parts.append(f"Company: {u_comp}")
+        user_ctx = " | ".join(u_parts) + "."
+
         top_contacts = mem_summary.get("top_contacts", [])
         contacts_str = ", ".join(f"{c['name']} ({c.get('email', '')})" for c in top_contacts if c.get("name")) if top_contacts else "None"
         contacts_ctx = f"Known Contacts: {contacts_str}."
         pref_mail = mem_summary.get("preferences", {}).get("mail.preferred_client", "Microsoft Outlook")
         pref_music = mem_summary.get("preferences", {}).get("spotify.favorite_playlist", "")
+        pref_music_str = f"Preferred Music: '{pref_music}'." if pref_music else "Preferred Music: Not set."
+        pref_mail_str = f"Preferred Email: {pref_mail}."
 
         # Spreading Activation Ignited Nodes & Learned Feedback Patterns
         ignite_res = self.memory.ignite_graph(prompt, context=self._get_current_context_dict())
@@ -3060,7 +3087,7 @@ end tell'''
         system_prompt = (
             "You are Aura, an autonomous personal desktop assistant powered by desktop-dom. "
             "You have direct access to native OS controls. Answer helpfully and concisely. "
-            f"{user_ctx} {contacts_ctx} Preferred Email: {pref_mail}. Preferred Music: {pref_music}. "
+            f"{user_ctx} {contacts_ctx} {pref_mail_str} {pref_music_str} "
             f"{cal_ctx} {habits_full_ctx} {tools_ctx} {scopes_ctx} {proj_ctx} "
             f"{ignited_ctx} {learned_ctx} "
             f"{screen_context} Running applications: {', '.join(apps_summary)}. "
@@ -3074,44 +3101,120 @@ end tell'''
             "Use ACTION: schedule, ACTION: meeting, or provide a direct concise 1-2 sentence answer."
         )
 
-        payload = {
+        chat_payload = {
             "model": self.preferred_model,
-            "prompt": f"{system_prompt}\n\nUser Request: {prompt}\n\nAssistant Response:",
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt},
+            ],
             "stream": False,
+            "options": {
+                "temperature": 0.2,
+                "top_p": 0.9,
+            },
         }
 
+        reply = ""
         try:
             req = urllib.request.Request(
-                f"{self.ollama_host}/api/generate",
-                data=json.dumps(payload).encode("utf-8"),
+                f"{self.ollama_host}/api/chat",
+                data=json.dumps(chat_payload).encode("utf-8"),
                 headers={"Content-Type": "application/json", "User-Agent": "desktop-dom"},
             )
-            with urllib.request.urlopen(req, timeout=35.0) as resp:
+            with urllib.request.urlopen(req, timeout=40.0) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
-                reply = data.get("response", "").strip()
-                if not reply:
-                    return {"status": "empty", "action": "llm_reasoning", "response": "No response from model."}
-                
-                # Check for executable action emitted by LLM
-                action_match = re.search(r"ACTION:\s*([^\n\r]+)", reply, re.IGNORECASE)
-                if action_match:
-                    action_cmd = action_match.group(1).strip()
-                    if action_cmd.lower() in ["schedule", "calendar", "check schedule", "my schedule"]:
-                        return self._handle_calendar_schedule_query(prompt)
-                    if action_cmd.lower() in ["meeting", "join meeting", "i have a meeting"]:
-                        return self._try_deterministic_fast_path("i have a meeting", raw_prompt="i have a meeting")
-                    fast_res = self._try_deterministic_fast_path(action_cmd.lower(), raw_prompt=action_cmd)
-                    if fast_res:
-                        return fast_res
+                msg = data.get("message")
+                if isinstance(msg, dict) and msg.get("content"):
+                    reply = msg["content"].strip()
+                elif data.get("response"):
+                    reply = data["response"].strip()
+        except Exception as chat_err:
+            logger.debug(f"Ollama /api/chat fallback to /api/generate: {chat_err}")
+            try:
+                gen_payload = {
+                    "model": self.preferred_model,
+                    "prompt": f"{system_prompt}\n\nUser Request: {prompt}\n\nAssistant Response:",
+                    "stream": False,
+                    "options": {
+                        "temperature": 0.2,
+                        "top_p": 0.9,
+                    },
+                }
+                req = urllib.request.Request(
+                    f"{self.ollama_host}/api/generate",
+                    data=json.dumps(gen_payload).encode("utf-8"),
+                    headers={"Content-Type": "application/json", "User-Agent": "desktop-dom"},
+                )
+                with urllib.request.urlopen(req, timeout=40.0) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    reply = data.get("response", "").strip()
+            except Exception as gen_err:
+                logger.warning(f"Local LLM call failed: {gen_err}")
+                return {
+                    "status": "error",
+                    "action": "llm_error",
+                    "response": f"Local model error: {gen_err}. Ollama may be offline or busy.",
+                }
 
-                return {"status": "success", "action": "llm_reasoning", "response": reply}
-        except Exception as e:
-            logger.warning(f"Local LLM call failed: {e}")
-            return {
-                "status": "error",
-                "action": "llm_error",
-                "response": f"Local model error: {e}. Ollama may be offline or busy.",
-            }
+        if not reply:
+            return {"status": "empty", "action": "llm_reasoning", "response": "No response from model."}
+
+        # Check for executable action emitted by LLM (supports markdown bold e.g. **ACTION: ...**)
+        action_match = re.search(r"(?:\*\*|__)?ACTION:(?:\*\*|__)?\s*`?([^\n\r`]+)`?", reply, re.IGNORECASE)
+        if action_match:
+            raw_action = action_match.group(1).strip()
+            clean_action = re.sub(r"[\*`\"']", "", raw_action).strip()
+            clean_action = re.sub(r"\(.*?\)", "", clean_action).strip()
+            clean_action = clean_action.rstrip(".;:, ")
+
+            clean_reply = re.sub(r"(?:\*\*|__)?ACTION:.*", "", reply, flags=re.IGNORECASE).strip()
+
+            if clean_action:
+                lower_action = clean_action.lower()
+                if lower_action in ["schedule", "calendar", "check schedule", "my schedule"]:
+                    cal_res = self._handle_calendar_schedule_query(prompt)
+                    if clean_reply and cal_res.get("response"):
+                        cal_res["response"] = f"{clean_reply}\n\n{cal_res['response']}"
+                    return cal_res
+
+                if lower_action in ["meeting", "join meeting", "i have a meeting"]:
+                    meet_res = self._try_deterministic_fast_path("i have a meeting", raw_prompt="i have a meeting")
+                    if meet_res:
+                        if clean_reply and meet_res.get("response"):
+                            meet_res["response"] = f"{clean_reply}\n\n✓ {meet_res['response']}"
+                        return meet_res
+
+                note_match = re.match(r"^note(?::|\s+)\s*(.+)$", clean_action, re.IGNORECASE)
+                if note_match:
+                    note_res = self._control_notes_create(note_match.group(1).strip())
+                    if clean_reply and note_res.get("response"):
+                        note_res["response"] = f"{clean_reply}\n\n✓ {note_res['response']}"
+                    return note_res
+
+                play_match = re.search(r"^play\s+(.+?)(?:\s+on\s+spotify)?$", clean_action, re.IGNORECASE)
+                if play_match:
+                    song = play_match.group(1).strip()
+                    sp_res = self._control_spotify_play(song)
+                    if clean_reply and sp_res.get("response"):
+                        sp_res["response"] = f"{clean_reply}\n\n✓ {sp_res['response']}"
+                    return sp_res
+
+                if lower_action.startswith("search"):
+                    search_query = lower_action[6:].strip()
+                    personal_keywords = ["schedule", "meeting", "calendar", "contact", "email", "playlist", "habit", "team", "app"]
+                    if any(pk in search_query for pk in personal_keywords):
+                        if any(k in search_query for k in ["schedule", "calendar", "meeting"]):
+                            return self._handle_calendar_schedule_query(prompt)
+                        if "team" in search_query or "contact" in search_query:
+                            return self._try_deterministic_fast_path("who is on my team", raw_prompt="who is on my team")
+
+                fast_res = self._try_deterministic_fast_path(lower_action, raw_prompt=clean_action)
+                if fast_res:
+                    if clean_reply and fast_res.get("response"):
+                        fast_res["response"] = f"{clean_reply}\n\n✓ {fast_res['response']}"
+                    return fast_res
+
+        return {"status": "success", "action": "llm_reasoning", "response": reply}
 
     # -------------------------------------------------------------------------
     # Composio Cloud Integrations (OAuth, Sync, Disconnect & Purge)

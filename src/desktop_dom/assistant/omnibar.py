@@ -1921,6 +1921,20 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
 
+    function renderMarkdown(str) {
+      if (!str) return "";
+      let s = escapeHtml(str);
+      s = s.replace(/```(?:[a-zA-Z0-9_-]+)?\n?([\s\S]*?)```/g, '<pre style="background:rgba(0,0,0,0.35);padding:8px 12px;border-radius:6px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;margin:8px 0;overflow-x:auto;border:1px solid rgba(255,255,255,0.06);"><code>$1</code></pre>');
+      s = s.replace(/`([^`]+)`/g, '<code style="background:rgba(255,255,255,0.08);padding:2px 5px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;">$1</code>');
+      s = s.replace(/\*\*([^*]+)\*\*/g, '<b style="color:#ffffff;">$1</b>');
+      s = s.replace(/__([^_]+)__/g, '<b style="color:#ffffff;">$1</b>');
+      s = s.replace(/(^|[^*])\*([^*]+)\*/g, '$1<i>$2</i>');
+      s = s.replace(/^[•\-\*]\s+(.+)$/gm, '<div style="display:flex;gap:6px;margin:2px 0;"><span style="color:#10b981;">•</span><span>$1</span></div>');
+      s = s.replace(/^(\d+)\.\s+(.+)$/gm, '<div style="display:flex;gap:6px;margin:2px 0;"><span style="color:#38bdf8;font-weight:600;">$1.</span><span>$2</span></div>');
+      s = s.replace(/\n/g, '<br/>');
+      return s;
+    }
+
     input.addEventListener("input", () => {
       selectedIndex = 0;
       updateSuggestions();
@@ -2126,7 +2140,7 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
           <div class="result-math-sub">${escapeHtml(payload.expression || "")}</div>
         `;
       } else {
-        resultBody.innerText = respText;
+        resultBody.innerHTML = `<div style="line-height: 1.55; font-size: 13.5px; color: #e4e4e7;">${renderMarkdown(respText)}</div>`;
       }
 
       const engine = payload.engine || "fast_path";
@@ -2137,7 +2151,9 @@ OMNIBAR_HTML = r"""<!DOCTYPE html>
       } else if (engine === "fast_path") {
         resultEnginePill.innerText = latency ? `Fast-Path · ${latency}` : "Fast-Path";
       } else if (engine === "ollama") {
-        resultEnginePill.innerText = latency ? `Ollama · ${latency}` : "Ollama";
+        const rawMod = payload.model || "Ollama";
+        const shortMod = rawMod.split("-instruct")[0];
+        resultEnginePill.innerText = latency ? `${shortMod} · ${latency}` : shortMod;
       } else {
         resultEnginePill.innerText = latency ? `Done · ${latency}` : "Done";
       }

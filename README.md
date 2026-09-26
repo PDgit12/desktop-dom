@@ -1,7 +1,11 @@
 # desktop-dom
 
 <p align="center">
-  <strong>Playwright for Desktop: Semantic Accessibility DOM and Deterministic Action Engine for AI Agents</strong>
+  <img src="https://raw.githubusercontent.com/PDgit12/desktop-dom/main/assets/banner.png" alt="desktop-dom banner" width="100%" onerror="this.style.display='none'" />
+</p>
+
+<p align="center">
+  <strong>Playwright for Desktop: Semantic Accessibility DOM, Deterministic Action Engine, & Sovereign On-Device Assistant for AI Agents</strong>
 </p>
 
 <p align="center">
@@ -10,13 +14,36 @@
   <a href="https://pypi.org/project/desktop-dom/"><img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg?style=flat-square" alt="Python versions" /></a>
   <a href="https://github.com/PDgit12/desktop-dom/actions"><img src="https://img.shields.io/github/actions/workflow/status/PDgit12/desktop-dom/ci.yml?branch=main&label=CI&style=flat-square" alt="CI status" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-green.svg?style=flat-square" alt="License" /></a>
+  <a href="SECURITY.md"><img src="https://img.shields.io/badge/security-sovereign%20zero--cloud-emerald.svg?style=flat-square" alt="Security Policy" /></a>
   <a href="https://x.com/PDgit12"><img src="https://img.shields.io/badge/X-Follow%20%40PDgit12-black.svg?style=flat-square&logo=x&logoColor=white" alt="Follow on X" /></a>
   <a href="https://github.com/PDgit12/desktop-dom/stargazers"><img src="https://img.shields.io/github/stars/PDgit12/desktop-dom?style=flat-square&logo=github" alt="GitHub stars" /></a>
 </p>
 
 ---
 
-`desktop-dom` is an open-source, embeddable SDK and CLI that transforms native desktop applications (**macOS**, **Windows**, **Linux**) into structured, token-pruned JSON trees ("Desktop DOM") and executes deterministic, sub-millisecond OS actions without vision model guessing.
+`desktop-dom` is a unified, cross-platform engine (**macOS**, **Windows**, **Linux**) that solves desktop automation for the AI era. It operates as two complementary layers:
+
+1. **Developer SDK & CLI ("Playwright for Desktop"):** Converts native desktop applications into token-pruned JSON trees ("Desktop DOM") and executes deterministic, sub-millisecond centroid clicks without vision model guessing.
+2. **Aura (Sovereign Desktop Assistant):** A consumer-facing Spotlight / Raycast floating HUD running **100% on-device** via local models (Ollama `ministral-3:8b`, `qwen3:8b`), local speech-to-text (`faster-whisper`), and sovereign SQLite storage (`~/.desktop_dom/aura_memory.db`) with **zero external database dependencies** (Zero-Postgres).
+
+```
+ ┌──────────────────────────────────────────────────────────────────────────┐
+ │                               AURA HUD                                   │
+ │       Spotlight / Raycast Glassmorphic Window (Cmd+Shift+Space)          │
+ └────────────────────────────────────┬─────────────────────────────────────┘
+                                      │
+ ┌────────────────────────────────────▼─────────────────────────────────────┐
+ │                       DESKTOP-DOM DUAL ENGINE                            │
+ ├─────────────────────────────────────┬────────────────────────────────────┤
+ │  ENGINE 1: DEVELOPER OS SDK & MCP   │  ENGINE 2: LOCAL AI BRAIN & MEMORY │
+ │  • Kernel Accessibility Bus (Cocoa) │  • Local Ollama (ministral, qwen3) │
+ │  • Token Pruning (>90% reduction)   │  • Dual /api/chat + Fallback       │
+ │  • 100% Centroid OS Clicks (<80ms)  │  • Sovereign SQLite (WAL, 0o600)   │
+ │  • Reactive DOM (wait_for, observe) │  • Zero Plaintext Token Custody    │
+ │  • Multi-Display & Retina HiDPI     │  • 45-Toolkit Integration Catalog  │
+ │  • Built-in Stdio MCP Server        │  • Built-in Audit Engine (CLI)     │
+ └─────────────────────────────────────┴────────────────────────────────────┘
+```
 
 ---
 
@@ -54,11 +81,11 @@ Traditional "computer-use" AI agents capture fullscreen screenshots, compress mu
 
 ---
 
-## 2. Feature & Architecture Comparison
+## 2. Feature & Architecture Matrix
 
-| Capability | Traditional Vision Agents (e.g. Anthropic/OpenAI) | Scripted Automation (PyAutoGUI / PyWinAuto) | `desktop-dom` Semantic Engine |
+| Capability | Vision Agents (Anthropic/OpenAI) | Scripted Automation (PyAutoGUI) | `desktop-dom` Engine |
 | :--- | :---: | :---: | :---: |
-| **Token Cost per Step** | ❌ 1,500 – 2,500 vision tokens | ❌ Not AI-native (hardcoded scripts) | ✅ **100 – 250 text tokens (<$0.002)** |
+| **Token Cost per Step** | ❌ 1,500 – 2,500 vision tokens | ❌ Not AI-native | ✅ **100 – 250 text tokens (<$0.002)** |
 | **Execution Latency** | ❌ 3,000 – 6,000 ms | ❌ ~50 ms (non-adaptive) | ✅ **15 – 80 ms native query** |
 | **Centroid & Click Accuracy** | ❌ Frequent misclicks on small icons | ❌ Brittle hardcoded pixels | ✅ **100% OS kernel precision** |
 | **HiDPI / Retina Coordinate Drift** | ❌ Broken by OS scale factors | ❌ Requires manual offset math | ✅ **Automatic scale factor calibration** |
@@ -66,7 +93,9 @@ Traditional "computer-use" AI agents capture fullscreen screenshots, compress mu
 | **Stale ID & Dynamic UI Recovery** | ❌ Re-runs expensive vision reasoning | ❌ Crashes on element shift | ✅ **Generational counter + Fuzzy semantic recovery** |
 | **Cross-Platform Unified Schema** | ❌ Untyped images | ❌ Incompatible OS APIs | ✅ **Normalized `DesktopNode` schema** |
 | **Reactive State Engine** | ❌ Polling screenshot loop | ❌ Static `time.sleep` calls | ✅ **`wait_for`, `wait_until_hidden`, `observe`** |
-| **Visual Debugging HUD & Canvas** | ❌ Raw screenshots | ❌ None | ✅ **Transparent HUD overlay & interactive SVG snapshots** |
+| **Local Model Reasoning** | ❌ Cloud-only API | ❌ None | ✅ **Local Ollama (`ministral-3:8b`, `qwen3:8b`)** |
+| **Zero-Postgres Sovereign Storage** | ❌ Remote cloud databases | ❌ None | ✅ **100% Local SQLite (`0o600` permissions)** |
+| **Zero Plaintext Token Custody** | ❌ Tokens in DB | ❌ Stored in config files | ✅ **Stateless OAuth session exchange** |
 | **Native Model Context Protocol (MCP)**| ❌ None | ❌ None | ✅ **Built-in stdio server for Claude, Cursor, Codex** |
 
 ---
@@ -97,7 +126,7 @@ pip install "desktop-dom[all]"
 npm install @desktop-dom/core
 ```
 
-### Zero-Friction Setup: Auto-Fix Permissions & Connect MCP
+### Verify OS Permissions & Auto-Fix
 ```bash
 # Verify and automatically open OS Accessibility Settings if needed:
 desktop-dom doctor --fix
@@ -108,76 +137,88 @@ desktop-dom install-mcp
 
 ---
 
-## 4. Personal Desktop Assistant (Aura): The Local Spotlight / Raycast Omnibar
+## 4. Personal Desktop Assistant (Aura): The Sovereign Spotlight HUD
 
-`desktop-dom` packages all semantic accessibility and deterministic control capabilities into **Aura** — a completely local, consumer-facing desktop assistant.
+`desktop-dom` packages its accessibility DOM, deterministic actions, and local memory into **Aura** — a personal desktop assistant with an interface reminiscent of Raycast/Spotlight.
 
-Instead of slow, fragile cloud vision models, Aura runs **100% on-device** using local Speech-to-Text (`faster-whisper`), local LLM planning (`Ollama`), native zero-latency speech synthesis (`say`), and direct `desktop-dom` hardware execution.
+Aura runs **100% on-device** with zero cloud telemetry and zero external database daemons.
 
-### The Floating Glassmorphic Omnibar & Menu Bar Item
+### The Glassmorphic HUD Omnibar
 * **Global Summon Shortcut:** Press `Cmd+Shift+Space` anywhere on macOS to bring up the floating pill bar over any full-screen app or virtual space.
-* **Liquid Glass HUD:** Built using a native borderless Cocoa `NSPanel` (`NSFloatingWindowLevel`) and WebKit background blur (`backdrop-filter: blur(40px) saturate(210%)` with vibrant cyan/magenta neon glow and specular highlight).
-* **Dynamic Auto-Expanding Tray:** The window smoothly resizes with Cocoa native animation (`setFrame_display_animate_`) from a 70px pill to a 360px suggestion tray as you type or navigate.
-* **Instant Live Computation:** As you type arithmetic (`125 * 40 + 15`), Aura evaluates the expression in real time without executing any cloud request.
-* **Full Keyboard Navigation:** `↑`/`↓` navigate suggestions, `Tab` autocompletes, `↵` executes, `Esc` dismisses.
-* **Triple-Harmonic Audio Waveform:** 3-layer real-time canvas visualizer responsive to speech activity and model thinking.
-* **Native macOS Menu Bar Item:** Sleek `⚡` icon in the macOS menu bar for quick access, model status, permissions check, and graceful exit.
+* **Liquid Glass HUD:** Built using a native borderless Cocoa `NSPanel` (`NSFloatingWindowLevel`) and WebKit background blur (`backdrop-filter: blur(40px) saturate(210%)` with neon cyan/magenta styling).
+* **Settings & Sovereign Scopes:** Press `Cmd+,` to manage user profile, toggle data scopes, and configure integrations.
+* **Workspace Switcher:** Press `Cmd+P` to quickly switch between projects (`Personal`, `Work`, `Custom`).
+* **Active Engine Pill:** Displays real-time model execution badge (`ministral-3:8b · 1.2s`, `Fast-Path · 12ms`, `Memory · 4ms`). Click the pill to open the **Local Model Drawer** and switch models dynamically.
 
-### Fast-Path Actions vs. Local LLM Reasoning
+### Local Neural Model Reasoning (Ollama)
+Aura connects natively to local LLMs via `localhost:11434`:
+* **Auto-Discovery:** Detects installed Ollama models, prioritizing instruction models like `ministral-3:8b-instruct-2512-q4_K_M` and `qwen3:8b`.
+* **Dual Chat Protocol:** Employs `/api/chat` with structured role templates (Mistral `[INST]` tags, Qwen ChatML) with automatic fallback to `/api/generate`.
+* **Markdown Action Sanitization:** Handles actions emitted by local models (e.g. `**ACTION: open Granola** *(to take notes)*`), stripping formatting artifacts and dispatching deterministic actions to the desktop.
+* **Zero-Leakage Markdown HUD:** Renders bullet points, numbered lists, bold text, and code blocks inside the WebKit HUD with clean typography.
+* **Anti-Hallucination Search Guardrail:** Strictly blocks local models from performing external web searches for personal schedules, meetings, contacts, emails, or playlists.
 
-| Action Category | Example Natural Language Query | Execution Mechanism | Latency |
-| :--- | :--- | :--- | :--- |
-| **Media Playback** | *"Play Starboy on Spotify"*, *"Pause music"*, *"Next track"* | AppleScript + `desktop-dom` Spotify DOM search | **<120 ms** |
-| **Instant Math** | *"Calculate 125 * 40 + 15"*, *"What is 250 / 5"* | Restricted Python AST evaluation + GUI Calculator sync | **<25 ms** |
-| **System Audio** | *"Set volume to 80"*, *"Mute volume"*, *"Volume up"* | Native OS Audio Hardware Bus | **<30 ms** |
-| **App Launching** | *"Open Calculator"*, *"Switch to Slack"* | `DesktopApp.attach` + Native Window Activation | **<80 ms** |
-| **Instant Search** | *"Search for quantum computing"* | Default Web Browser Direct Query | **<90 ms** |
-| **Screen Capture** | *"Take a screenshot"* | Native OS Screen Capture | **<100 ms** |
-| **Autonomous Reasoning** | *"Summarize the open windows on my screen"* | Local Ollama ReAct Planning (`ministral-3:8b`, `qwen3:8b`) | **~350 ms** |
-
-### Sophisticated macOS Packaging (`Aura.app` & DMG)
-You can package Aura into a first-class native macOS application with custom high-res icon and drag-and-drop installer:
+### Zero-Postgres Sovereign Local Storage & Auditing
+* **100% Local SQLite:** Database stored exclusively at `~/.desktop_dom/aura_memory.db` in Write-Ahead Logging mode (`PRAGMA journal_mode=WAL`).
+* **Strict OS Permissions:** Files are locked to user-isolated permissions (`0o600` on the database file, `0o700` on the directory).
+* **Zero Plaintext Token Custody:** OAuth tokens are never written to disk in plaintext.
+* **Institutional Audit CLI:** Run `desktop-dom audit` anytime to verify storage integrity, table counts, and token isolation:
 
 ```bash
-# 1-Click build and install Aura.app to ~/Applications:
-desktop-dom package --install
-
-# Build a distributable drag-and-drop DMG installer:
-desktop-dom package --dmg
-
-# Build compressed release ZIP archive:
-desktop-dom package --zip
+desktop-dom audit
 ```
 
-### Assistant CLI Commands
+```
+╭──────────────── Sovereign Storage & Security Audit ─────────────────╮
+│ Database Path        │ /Users/piyushdua/.desktop_dom/aura_memory.db │
+│ Storage Engine       │ Embedded SQLite (Zero-Postgres Sovereign)   │
+│ Journal Mode         │ WAL (Write-Ahead Logging)                    │
+│ File Permissions     │ 0o600 (User-Isolated Read/Write)             │
+│ Plaintext Tokens     │ 0 (Zero-Token Custody Guaranteed)            │
+│ SQLite Tables        │ 10 tables verified (entities, preferences…)  │
+╰──────────────────────────────────────────────────────────────────────╯
+```
+
+Output as machine-readable JSON:
 ```bash
-# Launch the floating Spotlight Omnibar (summon with Cmd+Shift+Space)
-desktop-dom assistant
-
-# Launch conversational terminal HUD mode
-desktop-dom assistant --cli
-
-# Point to custom Ollama endpoint or preferred local model
-desktop-dom assistant --ollama-host http://localhost:11434 --model qwen3:8b
-
-# Disable voice synthesis (text-only)
-desktop-dom assistant --mute
+desktop-dom audit --json
 ```
 
-### Python Assistant API
-```python
-from desktop_dom.assistant import DesktopAssistant
+### 45-Toolkit Integration Catalog & Sovereign Data Scopes
+Aura includes an extensive categorized catalog of 45 desktop and cloud toolkits:
+* **Meetings & Audio:** Zoom, Google Meet, Granola, Spotify, Krisp, Rewind.
+* **Engineering & Code:** GitHub, GitLab, Jira, Linear, Sentry, Postman, Terminal.
+* **Communication:** Slack, Discord, Microsoft Teams, Gmail, Microsoft Outlook, WhatsApp.
+* **Productivity:** Google Calendar, Notion, Apple Notes, Obsidian, Raycast, Linear.
+* **CRM & Business:** HubSpot, Salesforce, Stripe, Zendesk, Intercom.
 
-assistant = DesktopAssistant()
-
-# Ask questions or execute commands programmatically
-response = assistant.ask("Calculate 125 * 40")
-print(response)  # "The answer is 5000."
-```
+Users control five sovereign data scopes (`calendar`, `repos`, `contacts`, `notes`, `media`) with instant toggle controls. Background ingestion pipelines strictly verify that a scope is enabled before processing data.
 
 ---
 
-## 5. Python SDK Quickstart
+## 5. CLI Command Reference
+
+| Command | Description | Example |
+| :--- | :--- | :--- |
+| `desktop-dom assistant` | Launch the floating Spotlight/Raycast Omnibar | `desktop-dom assistant` |
+| `desktop-dom assistant --cli` | Launch conversational terminal HUD mode | `desktop-dom assistant --cli --mute` |
+| `desktop-dom audit` | Run sovereign storage, permission & security audit | `desktop-dom audit` |
+| `desktop-dom audit --json` | Output machine-readable audit report | `desktop-dom audit --json` |
+| `desktop-dom doctor` | Diagnose OS accessibility permissions & display bounds | `desktop-dom doctor --fix` |
+| `desktop-dom inspect` | Dump token-pruned JSON tree of an application | `desktop-dom inspect --app "Spotify"` |
+| `desktop-dom apps` | List all running and installed desktop applications | `desktop-dom apps` |
+| `desktop-dom snapshot` | Generate visual SVG/HTML bounding box snapshot | `desktop-dom snapshot --app "Calculator" --out snap.svg` |
+| `desktop-dom overlay` | Display transparent click-through HUD overlay | `desktop-dom overlay --app "Safari"` |
+| `desktop-dom click` | Deterministically click element by ID | `desktop-dom click --app "Spotify" --id "btn_play"` |
+| `desktop-dom type` | Type text into active or specified element | `desktop-dom type --app "Slack" --text "Hello"` |
+| `desktop-dom press` | Send native keyboard shortcut | `desktop-dom press --key "cmd+s"` |
+| `desktop-dom wait-for` | Synchronously wait for an element to appear | `desktop-dom wait-for --app "App" --name "Save" --timeout 5.0` |
+| `desktop-dom package` | Build native macOS `Aura.app` and DMG installer | `desktop-dom package --install` |
+| `desktop-dom serve` | Launch stdio Model Context Protocol (MCP) server | `desktop-dom serve --app "Finder"` |
+
+---
+
+## 6. Python SDK Quickstart
 
 ### Basic Automation
 ```python
@@ -192,7 +233,7 @@ tree = app.get_tree(max_depth=8, as_dict=True)
 # 2. Search for elements semantically
 play_btn = app.find(role="button", name="Play")
 
-# 3. Deterministic click
+# 3. Deterministic centroid click
 if play_btn:
     app.click(play_btn.id)
 
@@ -204,7 +245,7 @@ if search_bar:
 ```
 
 ### Reactive State Engine
-Eliminate flaky `time.sleep()` calls with built-in reactive synchronization:
+Eliminate brittle `time.sleep()` calls with built-in reactive synchronization:
 
 ```python
 # Wait for an async UI element to appear
@@ -221,22 +262,8 @@ for mutation in app.observe(interval=0.25):
         break
 ```
 
-### Multi-Display & Virtual Space Awareness
-Handle complex multi-monitor arrangements (including negative coordinate monitors) and verify virtual desktop visibility:
-
-```python
-# Enumerate all connected displays with physical/virtual bounds
-displays = app.get_displays()
-for d in displays:
-    print(f"Display {d.id}: {d.name} bounds=({d.bounds.x},{d.bounds.y}) scale={d.scale_factor}x")
-
-# Check if window is currently visible on the active virtual space/desktop
-if not app.is_on_active_space():
-    print("Warning: App window is minimized or hosted on an inactive virtual desktop!")
-```
-
 ### Hybrid DOM + Sub-Region Vision Fallback
-For custom WebGL, HTML5 Canvas, or game viewports without accessibility child nodes, crop only the target subregion to retain **>90% token savings** compared to full 4K screen captures:
+For WebGL, HTML5 Canvas, or game viewports without accessibility nodes, crop only the target subregion to retain **>90% token savings** compared to 4K captures:
 
 ```python
 # Crop only the canvas element bounding box (e.g. 300x200px = ~100 tokens vs 2,500 for 4K)
@@ -255,7 +282,7 @@ multimodal_message = {
 
 ---
 
-## 6. TypeScript SDK Quickstart
+## 7. TypeScript SDK Quickstart
 
 `@desktop-dom/core` provides a type-safe TypeScript client that connects directly to the `desktop-dom` engine:
 
@@ -276,105 +303,7 @@ await app.press("enter");
 
 ---
 
-## 7. Developer CLI & Visual Tooling
-
-### Health Check & Permissions
-```bash
-desktop-dom doctor
-```
-Verifies OS accessibility permissions (macOS TCC / Windows UIA), display backing scale factors, and platform drivers.
-
-### List Active Applications
-```bash
-desktop-dom apps
-```
-
-### Inspect Semantic DOM
-Render a terminal tree with element roles, names, bounding boxes, and deterministic IDs:
-```bash
-desktop-dom inspect --app "Finder"
-```
-
-Or export raw token-minimized JSON for LLMs:
-```bash
-desktop-dom inspect --app "Spotify" --format json
-```
-
-### Interactive SVG / HTML Snapshot
-Generate a standalone visual canvas with highlighted bounding boxes and element metadata:
-```bash
-desktop-dom snapshot --app "Calculator" --out calc_snapshot.svg
-```
-
-### Transparent Debug Overlay HUD
-Launch a transparent Cocoa click-through HUD overlay directly on top of the target application to visualize bounding boxes in real time:
-```bash
-desktop-dom overlay --app "Spotify"
-```
-
-### Multi-Display & Virtual Spaces
-```bash
-# List all connected displays, coordinates, and scale factors
-desktop-dom displays
-
-# Check if an application window is visible on the current active virtual space
-desktop-dom spaces --app "Calculator"
-```
-
-### Sub-Region Vision Crop
-Crop an exact element or coordinate bounding box for vision model fallback with automated token estimation:
-```bash
-# Crop by element ID
-desktop-dom crop --app "Calculator" --id "btn_equals" --out equals.png
-
-# Crop by desktop bounding box (x, y, width, height)
-desktop-dom crop --app "Google Chrome" --bbox "100,100,500,300" --out chart.png
-```
-
-### Action Dispatch & Reactive Wait
-```bash
-# Synchronously wait for an element
-desktop-dom wait-for --app "Calculator" --name "Equals" --timeout 5.0
-
-# Click by element ID
-desktop-dom click --app "Spotify" --id "btn_play_4c1e"
-
-# Type into focused element or specified ID
-desktop-dom type --app "TextEdit" --text "Hello world" --clear
-
-# Send keyboard shortcuts
-desktop-dom press --key "cmd+s"
-```
-
-### Interaction Recorder & Code Generator
-Record human interactions and generate ready-to-run Python agent automation scripts:
-```bash
-desktop-dom record --app "Calculator" --out automate_calc.py
-```
-
-### Built-in Model Context Protocol (MCP) Server
-Expose `desktop-dom` directly to AI coding agents (Claude Code, Cursor, Codex, Antigravity) via MCP:
-```bash
-desktop-dom serve --app "Calculator"
-```
-
----
-
-## 8. OS & Window Manager Edge-Case Handling
-
-Desktop environments present unique challenges that break generic automation libraries. `desktop-dom` implements dedicated engineering solutions for each OS edge case:
-
-| Edge Case | Root Cause | Engineering Solution |
-| :--- | :--- | :--- |
-| **Electron / Chromium Blank Tree** | Chrome and Electron apps disable accessibility trees by default to conserve CPU. | Detects Chromium process and dispatches `kAXManualAccessibility` / `AXEnhancedUserInterface` to hydrate the accessibility tree. |
-| **Retina / HiDPI Coordinate Drift** | OS reports accessibility bounds in logical points; hardware event taps require physical pixels. | Queries display backing scale factor (`NSScreen.backingScaleFactor` / `GetDpiForSystem`) and calibrates physical coordinates. |
-| **Transient State & Stale IDs** | Dynamic UI changes (dropdowns, popups, lazy lists) invalidate older IDs held by LLMs. | Generational counter + automatic delta-refresh + weighted `FuzzyResolver` matching nearest role, name, and spatial proximity. |
-| **Modal Focus Traps** | Modal dialog opens, making background root window unresponsive. | Adapter dynamically inspects `AXFocusedWindow` / active window handle rather than relying on stale root window pointers. |
-| **Window Activation & Event Delivery** | Synthetic mouse/keyboard events may be dropped if target application is not active. | WindowServer activation polling (`NSRunningApplication.activate` / `SetForegroundWindow`) ensures reliable event dispatch. |
-
----
-
-## 9. AI Agent Framework Integration
+## 8. AI Agent Framework Integration
 
 ### LangChain / LangGraph
 ```python
@@ -413,15 +342,16 @@ Add `desktop-dom` to your `claude.json` or `mcpServers` configuration:
 
 ---
 
-## 10. Community & Contributing
+## 9. Community & Contributing
 
 We welcome contributions from the community!
 
 - **Follow on X:** Follow [@PDgit12 on X](https://x.com/PDgit12) for announcements, benchmarks, and updates.
 - **GitHub Discussions:** Join discussions and share agent workflows on [GitHub Discussions](https://github.com/PDgit12/desktop-dom/discussions).
 - **Issues & Bug Reports:** Submit issues or feature requests via [GitHub Issues](https://github.com/PDgit12/desktop-dom/issues).
+- **Security Inquiries:** Review [SECURITY.md](SECURITY.md) for vulnerability disclosure and sovereign threat model details.
 
-To contribute code:
+To set up a local development environment:
 ```bash
 git clone https://github.com/PDgit12/desktop-dom.git
 cd desktop-dom
@@ -431,6 +361,6 @@ pytest -v
 
 ---
 
-## 11. License
+## 10. License
 
 [Apache-2.0](LICENSE) © 2026 [PDgit12](https://github.com/PDgit12).

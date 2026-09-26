@@ -97,7 +97,14 @@ class DesktopAssistant:
                     res = self.brain.execute_intent(user_input)
                     reply = res.get("response", "Done.")
 
-                console.print(f"[bold magenta]Aura:[/bold magenta] {reply}")
+                engine_name = res.get("engine", "fast_path")
+                latency_str = f"{res.get('latency_ms', 0)}ms"
+                if engine_name == "ollama":
+                    model_name = res.get("model", "Local LLM")
+                    tag = f"[dim cyan]({model_name} · {latency_str})[/dim cyan]"
+                else:
+                    tag = f"[dim cyan]({engine_name} · {latency_str})[/dim cyan]"
+                console.print(f"[bold magenta]Aura[/bold magenta] {tag}:\n{reply}")
                 self.audio.speak(reply)
             except (KeyboardInterrupt, EOFError):
                 console.print("\n[dim]Session terminated.[/dim]")

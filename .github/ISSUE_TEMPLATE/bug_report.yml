@@ -1,0 +1,52 @@
+name: Bug Report
+description: Create a report to help us improve desktop-dom
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please ensure you have run `desktop-dom doctor` first.
+  - type: input
+    id: version
+    attributes:
+      label: desktop-dom Version
+      description: What version of desktop-dom are you using? (run `desktop-dom --version`)
+      placeholder: e.g. 0.2.4
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      options:
+        - macOS (Apple Silicon M-Series)
+        - macOS (Intel x86_64)
+        - Windows 11
+        - Windows 10
+        - Linux (X11 / Wayland)
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the Bug
+      description: A clear and concise description of what the bug is.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior.
+      placeholder: |
+        1. Run `desktop-dom assistant`
+        2. Type query '...'
+        3. See error
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Terminal / Doctor Output
+      description: Paste output from `desktop-dom doctor` or terminal logs.
+      render: shell

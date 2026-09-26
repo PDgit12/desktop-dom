@@ -14,8 +14,11 @@ from desktop_dom.cli.main import app
 runner = CliRunner()
 
 @pytest.fixture
-def brain():
-    b = AssistantBrain(preferred_model="test-model")
+def brain(tmp_path):
+    from desktop_dom.assistant.memory import AuraMemory
+    db_file = tmp_path / "test_brain_mem.db"
+    mem = AuraMemory(db_path=str(db_file))
+    b = AssistantBrain(preferred_model="test-model", memory=mem)
     return b
 
 def test_assistant_fast_path_spotify(brain):
@@ -883,8 +886,11 @@ def test_assistant_fast_path_quit_app(brain):
         assert res_close["status"] == "success"
         assert res_close["target"] == "Google Chrome"
 
-def test_assistant_mistral_standard_model_priority():
-    b_def = AssistantBrain()
+def test_assistant_mistral_standard_model_priority(tmp_path):
+    from desktop_dom.assistant.memory import AuraMemory
+    db_file = tmp_path / "test_mistral_priority.db"
+    mem = AuraMemory(db_path=str(db_file))
+    b_def = AssistantBrain(memory=mem)
     assert any(sub in b_def.preferred_model.lower() for sub in ["mistral", "ministral"])
 
 def test_omnibar_onboarding_ui_and_ipc(tmp_path):
