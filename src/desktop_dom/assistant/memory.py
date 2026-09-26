@@ -519,6 +519,7 @@ class AuraMemory:
             ("mail.preferred_client", "Microsoft Outlook", "mail", now),
             ("user.name", user_name, "user", now),
             ("user.email", user_email, "user", now),
+            ("llm.execution_mode", "llm_first", "system", now),
         ]
         if si.get("repo"):
             prefs.append(("github.default_repo", si["repo"], "developer", now))
@@ -899,6 +900,14 @@ class AuraMemory:
             cursor.execute("DELETE FROM preferences WHERE key = ?;", (key,))
             conn.commit()
             self._pref_cache.pop(key, None)
+
+    def get_execution_mode(self, default: str = "llm_first") -> str:
+        """Returns the active execution mode ('llm_first' or 'fast_path')."""
+        return self.get_preference("llm.execution_mode", default)
+
+    def set_execution_mode(self, mode: str):
+        """Sets and persists the execution mode in preferences."""
+        self.set_preference("llm.execution_mode", mode, category="system")
 
     def list_preferences(self, category: Optional[str] = None) -> Dict[str, str]:
         """Returns key-value preferences dictionary."""

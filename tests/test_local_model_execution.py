@@ -255,3 +255,98 @@ def test_personal_search_guardrail_diverts_to_team(isolated_brain):
             res = isolated_brain._execute_with_local_llm("Who is on my team?")
             assert res["status"] == "success"
             assert "Hannah Vance" in res["response"]
+
+
+def test_llm_first_is_primary_execution_mode(tmp_path):
+    db_file = tmp_path / "llm_first_mode.db"
+    mem = AuraMemory(db_path=str(db_file))
+    b = AssistantBrain(preferred_model="qwen3:8b", memory=mem, execution_mode="llm_first")
+    assert b.execution_mode == "llm_first"
+    assert b.preferred_model == "qwen3:8b"
+
+
+def test_llm_first_routes_intent_to_local_llm(tmp_path):
+    db_file = tmp_path / "llm_route.db"
+    mem = AuraMemory(db_path=str(db_file))
+    b = AssistantBrain(preferred_model="qwen3:8b", memory=mem, execution_mode="llm_first")
+
+    chat_resp = io.BytesIO(json.dumps({
+        "message": {
+            "role": "assistant",
+            "content": "You have a sync in 2 minutes. Opening Granola and Google Meet.\nACTION: meeting"
+        }
+    }).encode("utf-8"))
+
+    with patch("urllib.request.urlopen", return_value=chat_resp):
+        with patch.object(b, "_try_deterministic_fast_path", return_value={"status": "success", "response": "Opened Granola."}):
+            res = b.execute_intent("meeting in 2")
+            assert res["engine"] == "ollama"
+            assert res["model"] == "qwen3:8b"
+            assert "sync in 2 minutes" in res["response"]
+            assert "Opened Granola" in res["response"]
+
+
+def test_llm_first_fallback_to_fast_path_when_offline(tmp_path):
+    db_file = tmp_path / "llm_fallback.db"
+    mem = AuraMemory(db_path=str(db_file))
+    b = AssistantBrain(ollama_host="http://localhost:9999", preferred_model="qwen3:8b", memory=mem, execution_mode="llm_first")
+
+    with patch("urllib.request.urlopen", side_effect=Exception("Connection refused")):
+        res = b.execute_intent("dark mode")
+        assert res["status"] == "success"
+        assert res["engine"] == "fast_path"
+        assert "dark mode" in res["response"].lower() or "theme" in res["response"].lower()
+
+
+def test_set_execution_mode_persists_to_memory(tmp_path):
+    db_file = tmp_path / "mode_persist.db"
+    mem = AuraMemory(db_path=str(db_file))
+    b = AssistantBrain(preferred_model="qwen3:8b", memory=mem)
+
+    b.set_execution_mode("fast_path")
+    assert b.execution_mode == "fast_path"
+    assert mem.get_execution_mode() == "fast_path"
+
+    b.set_execution_mode("llm_first")
+    assert b.execution_mode == "llm_first"
+    assert mem.get_execution_mode() == "llm_first"
+
+
+def test_meta_commands_instant_bypass(tmp_path):
+    db_file = tmp_path / "meta_cmd.db"
+    mem = AuraMemory(db_path=str(db_file))
+    b = AssistantBrain(preferred_model="qwen3:8b", memory=mem, execution_mode="llm_first")
+
+    with patch("urllib.request.urlopen") as mock_url:
+        mode_res = b.execute_intent("/mode")
+        assert mode_res["status"] == "success"
+        assert mode_res["mode"] == "llm_first"
+        mock_url.assert_not_called()
+
+        switch_res = b.execute_intent("/mode fast_path")
+        assert switch_res["status"] == "success"
+        assert switch_res["mode"] == "fast_path"
+        assert b.execution_mode == "fast_path"
+        mock_url.assert_not_called()
+
+
+def test_llm_multi_action_execution(isolated_brain):
+    model_output = (
+        "Setting up your focus session:\n"
+        "ACTION: open Google Chrome\n"
+        "ACTION: play lofi on spotify"
+    )
+    chat_resp = io.BytesIO(json.dumps({
+        "message": {"role": "assistant", "content": model_output}
+    }).encode("utf-8"))
+
+    with patch("urllib.request.urlopen", return_value=chat_resp):
+        with patch.object(isolated_brain, "_try_deterministic_fast_path", return_value={"status": "success", "response": "Launched Google Chrome."}):
+            with patch.object(isolated_brain, "_control_spotify_play", return_value={"status": "success", "response": "Now playing lofi."}):
+                res = isolated_brain._execute_with_local_llm("prep my work focus")
+                assert res["status"] == "success"
+                assert res["action"] == "multi_action"
+                assert len(res["parts"]) == 2
+                assert "Launched Google Chrome" in res["response"]
+                assert "Now playing lofi" in res["response"]
+

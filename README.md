@@ -150,11 +150,14 @@ Aura runs **100% on-device** with zero cloud telemetry and zero external databas
 * **Workspace Switcher:** Press `Cmd+P` to quickly switch between projects (`Personal`, `Work`, `Custom`).
 * **Active Engine Pill:** Displays real-time model execution badge (`ministral-3:8b · 1.2s`, `Fast-Path · 12ms`, `Memory · 4ms`). Click the pill to open the **Local Model Drawer** and switch models dynamically.
 
-### Local Neural Model Reasoning (Ollama)
-Aura connects natively to local LLMs via `localhost:11434`:
+### Local Neural Model Reasoning (Ollama & LLM-First)
+Aura connects natively to local LLMs via `localhost:11434` with an **LLM-First Primary Intelligence Architecture**:
+* **LLM-First Core ("Up There"):** Natural user prompts are routed directly to the local model as the primary intelligence driver. The LLM reasons over rich desktop context (screen accessibility tree, calendar, contacts, habits, and spreading activation nodes) and emits structured actions for Desktop DOM to execute.
+* **Semantic & Phrased Intent Understanding:** Flexibly handles real-world conversational phrasing (e.g. *"meeting in 2"*, *"prep my work focus"*, *"wrap up my day"*) that rigid regex engines miss.
 * **Auto-Discovery:** Detects installed Ollama models, prioritizing instruction models like `ministral-3:8b-instruct-2512-q4_K_M` and `qwen3:8b`.
 * **Dual Chat Protocol:** Employs `/api/chat` with structured role templates (Mistral `[INST]` tags, Qwen ChatML) with automatic fallback to `/api/generate`.
-* **Markdown Action Sanitization:** Handles actions emitted by local models (e.g. `**ACTION: open Granola** *(to take notes)*`), stripping formatting artifacts and dispatching deterministic actions to the desktop.
+* **Multi-Action & Markdown Sanitization:** Handles single or chained actions emitted by local models (e.g. `**ACTION: open Granola** *(to take notes)*`), executing each action cleanly.
+* **Offline / Eco Fast-Path Fallback:** If Ollama is offline, unreachable, or in `Zero-Model Fast-Path` mode, Aura gracefully falls back to deterministic execution without failing.
 * **Zero-Leakage Markdown HUD:** Renders bullet points, numbered lists, bold text, and code blocks inside the WebKit HUD with clean typography.
 * **Anti-Hallucination Search Guardrail:** Strictly blocks local models from performing external web searches for personal schedules, meetings, contacts, emails, or playlists.
 

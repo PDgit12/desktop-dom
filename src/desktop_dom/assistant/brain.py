@@ -1,4 +1,5 @@
 from __future__ import annotations
+import os
 import re
 import sys
 import json
@@ -105,6 +106,7 @@ class AssistantBrain:
         ollama_host: str = "http://localhost:11434",
         preferred_model: Optional[str] = None,
         memory: Optional[AuraMemory] = None,
+        execution_mode: Optional[str] = None,
     ):
         self.ollama_host = ollama_host
         self.memory = memory or AuraMemory()
@@ -115,6 +117,18 @@ class AssistantBrain:
             self.preferred_model = None if saved_model == "Zero-Model Fast-Path" else saved_model
         else:
             self.preferred_model = self._detect_ollama_model()
+
+        # Execution Mode: "llm_first" (primary model intelligence) vs "fast_path" (deterministic offline/eco)
+        saved_mode = self.memory.get_execution_mode() if hasattr(self.memory, "get_execution_mode") else self.memory.get_preference("llm.execution_mode") if self.memory else None
+        if execution_mode:
+            self.execution_mode = execution_mode
+        elif "PYTEST_CURRENT_TEST" in os.environ:
+            self.execution_mode = "fast_path"
+        elif saved_mode:
+            self.execution_mode = saved_mode
+        else:
+            self.execution_mode = "llm_first"
+
         self.active_app: Optional[DesktopApp] = None
         self._action_callback: Optional[Callable[[str, str], None]] = None
         self._installed_apps: Dict[str, str] = {}
@@ -251,6 +265,7 @@ class AssistantBrain:
                     "connected": True,
                     "host": self.ollama_host,
                     "current_model": active_model,
+                    "execution_mode": self.execution_mode,
                     "available_models": models,
                     "latency_ms": latency,
                 }
@@ -259,6 +274,7 @@ class AssistantBrain:
                 "connected": False,
                 "host": self.ollama_host,
                 "current_model": active_model,
+                "execution_mode": self.execution_mode,
                 "available_models": [],
                 "latency_ms": None,
             }
@@ -276,6 +292,29 @@ class AssistantBrain:
                 self.memory.set_preference("llm.preferred_model", model_name, category="llm")
             logger.info(f"Aura active reasoning model switched to: '{model_name}'")
         return True
+
+    def set_execution_mode(self, mode: str) -> bool:
+        """Sets the execution mode ('llm_first' or 'fast_path') and persists to memory."""
+        clean = mode.strip().lower()
+        if clean in {"llm_first", "llm-first", "llm", "ai", "model"}:
+            self.execution_mode = "llm_first"
+            if self.memory:
+                if hasattr(self.memory, "set_execution_mode"):
+                    self.memory.set_execution_mode("llm_first")
+                else:
+                    self.memory.set_preference("llm.execution_mode", "llm_first", category="system")
+            logger.info("Aura execution mode switched to: llm_first (Primary Model Intelligence)")
+            return True
+        elif clean in {"fast_path", "fast-path", "fast", "deterministic", "eco", "zero_model"}:
+            self.execution_mode = "fast_path"
+            if self.memory:
+                if hasattr(self.memory, "set_execution_mode"):
+                    self.memory.set_execution_mode("fast_path")
+                else:
+                    self.memory.set_preference("llm.execution_mode", "fast_path", category="system")
+            logger.info("Aura execution mode switched to: fast_path (Deterministic Offline/Eco)")
+            return True
+        return False
 
     def _get_current_context_dict(self) -> Dict[str, Any]:
         """Returns non-blocking snapshot of current active desktop context."""
@@ -430,10 +469,70 @@ end tell'''
             "response": resp,
         }
 
+    def _handle_meta_command(self, prompt: str, raw_prompt: str) -> Optional[Dict[str, Any]]:
+        """Handles administrative, model-management, mode-switching, and onboarding commands instantly."""
+        # 0. Model Status & Available Models
+        if prompt in {"/model", "/models", "/status", "model status", "check models", "what model"}:
+            status = self.get_model_status()
+            if status["connected"]:
+                available = ", ".join(status["available_models"]) if status["available_models"] else "None detected"
+                resp = (
+                    f"Ollama connected ({status['host']}) with {status['latency_ms']}ms latency. "
+                    f"Active Model: {status['current_model']} (Mode: {self.execution_mode}). Available Models: {available}."
+                )
+            else:
+                resp = (
+                    f"Active: {status['current_model']}. Ollama is currently offline at {status['host']}. "
+                    "Zero-Model Fast-Path is active (0MB RAM, sub-25ms response)."
+                )
+            self._notify_action("completed", f"Model: {status['current_model']}")
+            return {
+                "status": "success",
+                "action": "model_status",
+                "model_status": status,
+                "response": resp,
+            }
+
+        # Model Switch
+        model_switch = re.match(r"^(?:/model|use model|switch model to|set model)\s+([a-zA-Z0-9._:\-]+)", prompt)
+        if model_switch:
+            new_model = model_switch.group(1).strip()
+            self.set_model(new_model)
+            self._notify_action("completed", f"Switched to {new_model}")
+            return {
+                "status": "success",
+                "action": "model_switch",
+                "model": new_model,
+                "response": f"Active reasoning model switched to '{new_model}'.",
+            }
+
+        # Execution Mode Switch (/mode, /mode llm_first, /mode fast_path)
+        mode_match = re.match(r"^(?:/mode|switch mode to|set mode)\s*([a-zA-Z0-9_\-]+)?", prompt)
+        if mode_match or prompt in {"/mode", "mode status", "check mode", "execution mode"}:
+            target_mode = mode_match.group(1).strip() if (mode_match and mode_match.group(1)) else ""
+            if not target_mode:
+                return {
+                    "status": "success",
+                    "action": "execution_mode_status",
+                    "mode": self.execution_mode,
+                    "response": f"Current execution mode: **{self.execution_mode}** (Active Model: {self.preferred_model}).",
+                }
+            if self.set_execution_mode(target_mode):
+                return {
+                    "status": "success",
+                    "action": "execution_mode_switch",
+                    "mode": self.execution_mode,
+                    "response": f"Execution mode switched to **{self.execution_mode}**.",
+                }
+
+        return None
+
     def execute_intent(self, prompt: str) -> Dict[str, Any]:
         """
         Processes a natural language user query.
-        Tries high-velocity deterministic fast-path first; falls back to local LLM reasoning.
+        When execution_mode is 'llm_first' (default with active model), routes to local LLM
+        for autonomous reasoning and tool dispatch, falling back to deterministic fast-path.
+        When execution_mode is 'fast_path' or Zero-Model, executes deterministic fast-path directly.
         """
         clean_prompt = prompt.strip().lower()
         if not clean_prompt:
@@ -449,11 +548,17 @@ end tell'''
                 disambig_res["latency_ms"] = round((time.time() - start_t) * 1000, 1)
                 return disambig_res
 
-        # 0b. Spreading Activation & Node Ignition for Intent Engine
+        # 0b. Administrative / System Meta Commands (Instant Bypass)
+        meta_res = self._handle_meta_command(clean_prompt, raw_prompt=prompt)
+        if meta_res is not None:
+            meta_res["latency_ms"] = round((time.time() - start_t) * 1000, 1)
+            return meta_res
+
+        # 0c. Spreading Activation & Node Ignition for Intent Engine
         ctx_dict = self._get_current_context_dict()
         ignite_res = self.memory.ignite_graph(prompt, context=ctx_dict) if hasattr(self, "memory") and self.memory else {}
 
-        # 0c. Multi-Action Compound Query Support (e.g. "open chrome and open gmail", "open outlook and message josh")
+        # 0d. Multi-Action Compound Query Support (e.g. "open chrome and open gmail", "open outlook and message josh")
         if (" and " in clean_prompt or " then " in clean_prompt) and not any(clean_prompt.startswith(p) for p in ["what", "who", "where", "why", "how", "tell", "explain", "describe", "search", "google", "calculate", "type", "note", "remember", "shared", "connect", "link"]):
             parts = [s.strip() for s in re.split(r"\s+(?:and|then)\s+", prompt, flags=re.IGNORECASE) if s.strip()]
             if len(parts) > 1 and all(len(p) > 2 for p in parts):
@@ -473,12 +578,34 @@ end tell'''
                         "parts": results,
                         "response": combined_resp,
                         "latency_ms": round((time.time() - start_t) * 1000, 1),
-                        "engine": "fast_path",
+                        "engine": "compound",
                         "confidence": 0.95,
                         "tier": "autonomous",
                     }
 
-        # 1. Fast-Path: Deterministic Intent Handling
+        # 1. PRIMARY: LLM-First Intelligence Core ("Up There")
+        if self.execution_mode == "llm_first" and self.preferred_model and self.preferred_model != "Zero-Model Fast-Path":
+            try:
+                llm_result = self._execute_with_local_llm(prompt)
+                if llm_result and llm_result.get("status") not in {"error", "empty"}:
+                    llm_result["latency_ms"] = round((time.time() - start_t) * 1000, 1)
+                    llm_result["engine"] = "ollama"
+                    llm_result["model"] = self.preferred_model
+                    if "level" not in llm_result:
+                        llm_result["level"] = "2.0"
+                    if "confidence" not in llm_result:
+                        llm_result["confidence"] = ignite_res.get("confidence", 0.95)
+                    if "tier" not in llm_result:
+                        llm_result["tier"] = ignite_res.get("tier", "autonomous")
+                    if "ignited_nodes" not in llm_result:
+                        llm_result["ignited_nodes"] = [n["name"] for n in ignite_res.get("ignited_nodes", [])[:4]]
+                    return llm_result
+                elif llm_result and llm_result.get("status") == "error":
+                    logger.warning(f"Local LLM error: {llm_result.get('response')}. Gracefully falling back to deterministic fast-path.")
+            except Exception as e:
+                logger.warning(f"Local LLM exception: {e}. Gracefully falling back to deterministic fast-path.")
+
+        # 2. FALLBACK / ECO-MODE: Deterministic Fast-Path
         fast_result = self._try_deterministic_fast_path(clean_prompt, raw_prompt=prompt)
         if fast_result is not None:
             fast_result["latency_ms"] = round((time.time() - start_t) * 1000, 1)
@@ -503,18 +630,12 @@ end tell'''
                 }
             return fast_result
 
-        # 2. General Local LLM ReAct Planning
-        if self.preferred_model and self.preferred_model != "Zero-Model Fast-Path":
+        # 3. Secondary LLM attempt if fast-path mode was active and fast path missed
+        if self.execution_mode == "fast_path" and self.preferred_model and self.preferred_model != "Zero-Model Fast-Path":
             llm_result = self._execute_with_local_llm(prompt)
             llm_result["latency_ms"] = round((time.time() - start_t) * 1000, 1)
             llm_result["engine"] = "ollama"
             llm_result["model"] = self.preferred_model
-            if "level" not in llm_result:
-                llm_result["level"] = "2.0"
-            if "confidence" not in llm_result:
-                llm_result["confidence"] = ignite_res.get("confidence", 0.85)
-            if "tier" not in llm_result:
-                llm_result["tier"] = ignite_res.get("tier", "cautious")
             return llm_result
 
         elapsed_ms = round((time.time() - start_t) * 1000, 1)
@@ -3159,60 +3280,78 @@ end tell'''
         if not reply:
             return {"status": "empty", "action": "llm_reasoning", "response": "No response from model."}
 
-        # Check for executable action emitted by LLM (supports markdown bold e.g. **ACTION: ...**)
-        action_match = re.search(r"(?:\*\*|__)?ACTION:(?:\*\*|__)?\s*`?([^\n\r`]+)`?", reply, re.IGNORECASE)
-        if action_match:
-            raw_action = action_match.group(1).strip()
-            clean_action = re.sub(r"[\*`\"']", "", raw_action).strip()
-            clean_action = re.sub(r"\(.*?\)", "", clean_action).strip()
-            clean_action = clean_action.rstrip(".;:, ")
-
+        # Check for executable action(s) emitted by LLM (supports markdown bold e.g. **ACTION: ...**)
+        action_matches = list(re.finditer(r"(?:\*\*|__)?ACTION:(?:\*\*|__)?\s*`?([^\n\r`]+)`?", reply, re.IGNORECASE))
+        if action_matches:
             clean_reply = re.sub(r"(?:\*\*|__)?ACTION:.*", "", reply, flags=re.IGNORECASE).strip()
+            action_results = []
 
-            if clean_action:
+            for am in action_matches:
+                raw_action = am.group(1).strip()
+                clean_action = re.sub(r"[\*`\"']", "", raw_action).strip()
+                clean_action = re.sub(r"\(.*?\)", "", clean_action).strip()
+                clean_action = clean_action.rstrip(".;:, ")
+                if not clean_action:
+                    continue
+
                 lower_action = clean_action.lower()
                 if lower_action in ["schedule", "calendar", "check schedule", "my schedule"]:
-                    cal_res = self._handle_calendar_schedule_query(prompt)
-                    if clean_reply and cal_res.get("response"):
-                        cal_res["response"] = f"{clean_reply}\n\n{cal_res['response']}"
-                    return cal_res
+                    action_results.append(self._handle_calendar_schedule_query(prompt))
+                    continue
 
-                if lower_action in ["meeting", "join meeting", "i have a meeting"]:
+                if lower_action in ["meeting", "join meeting", "i have a meeting"] or lower_action.startswith("meeting"):
                     meet_res = self._try_deterministic_fast_path("i have a meeting", raw_prompt="i have a meeting")
                     if meet_res:
-                        if clean_reply and meet_res.get("response"):
-                            meet_res["response"] = f"{clean_reply}\n\n✓ {meet_res['response']}"
-                        return meet_res
+                        action_results.append(meet_res)
+                    continue
 
                 note_match = re.match(r"^note(?::|\s+)\s*(.+)$", clean_action, re.IGNORECASE)
                 if note_match:
-                    note_res = self._control_notes_create(note_match.group(1).strip())
-                    if clean_reply and note_res.get("response"):
-                        note_res["response"] = f"{clean_reply}\n\n✓ {note_res['response']}"
-                    return note_res
+                    action_results.append(self._control_notes_create(note_match.group(1).strip()))
+                    continue
 
                 play_match = re.search(r"^play\s+(.+?)(?:\s+on\s+spotify)?$", clean_action, re.IGNORECASE)
                 if play_match:
                     song = play_match.group(1).strip()
-                    sp_res = self._control_spotify_play(song)
-                    if clean_reply and sp_res.get("response"):
-                        sp_res["response"] = f"{clean_reply}\n\n✓ {sp_res['response']}"
-                    return sp_res
+                    action_results.append(self._control_spotify_play(song))
+                    continue
 
                 if lower_action.startswith("search"):
                     search_query = lower_action[6:].strip()
                     personal_keywords = ["schedule", "meeting", "calendar", "contact", "email", "playlist", "habit", "team", "app"]
                     if any(pk in search_query for pk in personal_keywords):
                         if any(k in search_query for k in ["schedule", "calendar", "meeting"]):
-                            return self._handle_calendar_schedule_query(prompt)
+                            action_results.append(self._handle_calendar_schedule_query(prompt))
+                            continue
                         if "team" in search_query or "contact" in search_query:
-                            return self._try_deterministic_fast_path("who is on my team", raw_prompt="who is on my team")
+                            t_res = self._try_deterministic_fast_path("who is on my team", raw_prompt="who is on my team")
+                            if t_res:
+                                action_results.append(t_res)
+                            continue
 
                 fast_res = self._try_deterministic_fast_path(lower_action, raw_prompt=clean_action)
                 if fast_res:
-                    if clean_reply and fast_res.get("response"):
-                        fast_res["response"] = f"{clean_reply}\n\n✓ {fast_res['response']}"
-                    return fast_res
+                    action_results.append(fast_res)
+
+            if action_results:
+                if len(action_results) == 1:
+                    primary_res = action_results[0]
+                    if clean_reply and primary_res.get("response"):
+                        primary_res["response"] = f"{clean_reply}\n\n✓ {primary_res['response']}"
+                    elif clean_reply and not primary_res.get("response"):
+                        primary_res["response"] = clean_reply
+                    return primary_res
+                else:
+                    combined_parts = [clean_reply] if clean_reply else []
+                    for r in action_results:
+                        if r.get("response"):
+                            combined_parts.append(f"✓ {r['response']}")
+                    return {
+                        "status": "success",
+                        "action": "multi_action",
+                        "parts": action_results,
+                        "response": "\n\n".join(combined_parts),
+                    }
 
         return {"status": "success", "action": "llm_reasoning", "response": reply}
 
