@@ -347,7 +347,18 @@ Eliminates vision agent flaws (>90% token waste, 3–6 second latency, pixel coo
   - **Interactive CLI & Natural Language Audit Interface:**
     - Added `desktop-dom audit` and `desktop-dom audit --json` CLI commands rendering Rich status dashboards of database integrity, security compliance, data scopes, and record distributions.
     - Integrated with Assistant Omnibar (`/memory`, `audit my data`, `what data do you have on me`) returning transparent real-time storage breakdowns and zero-token custody certification.
-
-
-
-
+- **Local Model Reasoning & ReAct Execution Optimization:**
+  - Upgraded `AssistantBrain` LLM communication to Ollama's official `/api/chat` structured message protocol with automatic fallback to legacy `/api/generate`.
+  - Auto-detects local models running on `localhost:11434` (verified with `ministral-3:8b-instruct-2512-q4_K_M` and `qwen3:8b` at 2.1ms ping latency).
+  - Persists user model selection in SQLite preferences (`llm.preferred_model`) and supports `Zero-Model Fast-Path` (0MB RAM, sub-25ms deterministic dispatch).
+  - Added robust regex action extraction and sanitization that strips markdown decorators, backticks, quotes, and parenthetical commentary (e.g. `**ACTION: open Granola** *(to take notes)*`), executing desktop actions without leaking raw syntax into conversational text.
+  - Enforced strict anti-hallucination guardrails: model attempts to search personal topics are diverted to sovereign local schedule/contacts queries.
+  - Integrated native markdown renderer (`renderMarkdown`) in Omnibar WebKit HUD with bold styling, bullet points, numbered lists, and monospace code blocks.
+  - Added dedicated test suite `tests/test_local_model_execution.py` (15 tests, 100% green).
+  - **310 / 310 tests passing across all 26 test suites** (100% green, 0 errors, 0 failures).
+  - Recompiled and verified native application bundle at `/Users/piyushdua/Applications/Aura.app`.
+- **GitHub Beautification & Repository Presentation:**
+  - Re-architected `README.md` showcasing the dual-engine vision: Developer OS SDK & MCP ("Playwright for Desktop") and Aura Sovereign Desktop Assistant.
+  - Added comprehensive security policy (`SECURITY.md`) detailing the zero-postgres local-first threat model, WAL mode, `0o600` permissions, and zero-token custody.
+  - Added GitHub issue templates (`bug_report.yml`, `feature_request.yml`) and pull request template (`pull_request_template.md`).
+  - Synced and verified clean working trees on `develop` and `main` branches with `origin`.
