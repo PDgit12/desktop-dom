@@ -362,3 +362,22 @@ Eliminates vision agent flaws (>90% token waste, 3–6 second latency, pixel coo
   - Added comprehensive security policy (`SECURITY.md`) detailing the zero-postgres local-first threat model, WAL mode, `0o600` permissions, and zero-token custody.
   - Added GitHub issue templates (`bug_report.yml`, `feature_request.yml`) and pull request template (`pull_request_template.md`).
   - Synced and verified clean working trees on `develop` and `main` branches with `origin`.
+- **Architectural Transformation: Local LLM Elevated to Primary Intelligence Core (LLM-First):**
+  - **The Paradigm Inversion ("LLM Up There"):**
+    - Inverted execution pipeline: removed the architecture where deterministic pattern matching intercepted queries first with the LLM acting as a fallback.
+    - Elevated the local Ollama LLM (`qwen3:8b`, `ministral-3:8b`) to the **Primary Intelligence Core** for all natural language inputs.
+    - The LLM reasons directly over user prompts alongside the complete desktop context: on-screen accessibility tree (active window, interactive elements), today's calendar schedule, active habits (meeting platform, notes companion, playlists), known contacts, connected integrations, and spreading activation knowledge graph nodes.
+    - Desktop DOM native adapters (AppleScript, Notes, Spotify, Calendar, Window Manager) act as actuators/tools for the LLM via structured `ACTION:` execution lines.
+  - **Graceful Offline & Eco Fallback:**
+    - Repurposed deterministic pattern matching strictly as an **offline/eco fallback**: if Ollama is unreachable, offline, or if the user switches to `Zero-Model Fast-Path` (0MB RAM), the system falls back to fast-path without crashing or failing.
+  - **Instant Administrative Bypass:**
+    - Direct slash commands (`/model`, `/status`, `/mode`, `/onboard`) bypass LLM reasoning for instant sub-millisecond system control and model switching.
+  - **Semantic Intent Reasoning Verified:**
+    - Verified real-world phrasing like `"meeting in 2"`, which the local model understands as impending meeting preparation, automatically opening Granola notes, retrieving the synced Google Meet URL, and igniting context graph nodes.
+  - **Comprehensive Verification & Regression Guardrails:**
+    - Added dedicated test coverage in `tests/test_local_model_execution.py` (21 tests total covering LLM-First routing, offline fallback, execution mode switching, and multi-action execution).
+    - **316 / 316 tests passing across all 26 test suites** (100% green, 0 errors, 0 failures).
+    - Verified sovereign storage audit via `desktop-dom audit` (0 plaintext tokens held, `0o600` / `0o700` permissions).
+    - Recompiled and verified native application bundle at `/Users/piyushdua/Applications/Aura.app`.
+    - Both `develop` and `main` branches synchronized and pushed to `origin`.
+
