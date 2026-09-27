@@ -395,10 +395,17 @@ Eliminates vision agent flaws (>90% token waste, 3–6 second latency, pixel coo
     - Python Wheel & Source Dist: `desktop_dom-0.1.0-py3-none-any.whl` (228 KB) and `desktop_dom-0.1.0.tar.gz` (456 KB), validated with `twine check`.
     - macOS Standalone Bundle & DMG: `~/Applications/Aura.app` (verified with `Info.plist`, `AppIcon.icns`, `Aura.icns`, `chmod +x` launcher) and `dist/Aura-v0.2.0-macOS.dmg` (1.8 MB drag-and-drop installer).
     - Windows & Linux Distribution: `dist/Aura-v0.2.0-Windows.zip` + WiX `.wxs` MSI specification, and `dist/Aura-v0.2.0-Linux-x86_64.tar.gz` + Debian package hierarchy.
-    - Dynamic home path resolution replacing hardcoded user paths across scripts.
-  - **Final Certification Baseline:**
-    - **345 / 345 automated tests passed across all 28 test suites (100% green, 0 errors, 0 failures)**.
-    - Zero plaintext tokens held, zero external DB dependencies, air-gapped local SQLite (`0o600`).
-    - Ready for official release tagging and distribution.
+- **RhythmBridge: Clinical-to-Home Pediatric Neuro-Development Platform (`src/desktop_dom/assistant/pediatric/`):**
+  - **Clinical Problem Solved:** Resolves the 66%+ failure rate of traditional pediatric home exercise programs (HEPs) by embedding therapy goals into 15-second music-cued daily routines (dressing, meals, bath) rather than isolated exercise homework.
+  - **The Bidirectional Intent Layer:**
+    - *Forward Routine Compiler (`routine_compiler.py`):* Translates complex pediatric clinical OT goals (bilateral coordination, pincer grasp, sensory tolerance) into 15-second music-cued routines with Neurologic Music Therapy (NMT) BPM tempo anchors (58–88 BPM).
+    - *Reverse Observation Compiler (`observation_compiler.py`):* Translates raw parent micro-logs (10-second video or voice memos) into WeeFIM assistance levels (Independent to Total Dependence), sensory triggers (tactile, auditory, vestibular), motor compensations, and automated clinical SOAP notes.
+    - *Sensory & Behavioral Intent Decoder (`sensory_decoder.py`):* Decodes child resistance into underlying root causes (postural instability vs. sensory overload).
+    - *Remote Therapeutic Monitoring Tracker (`rtm_tracker.py`):* Automates 16-day monthly compliance tracking for Medicare/Medicaid RTM billing (CPT 98977 @ ~$55/mo and CPT 98980 @ ~$50/mo) and generates 1-click audit-proof Letters of Medical Necessity and insurance re-authorization packets.
+  - **Comprehensive Verification:**
+    - Added dedicated test suite `tests/test_pediatric_rhythm_bridge.py` (8 unit/integration tests).
+    - **353 / 353 automated tests passing across all 29 test suites (100% green, 0 errors, 0 failures)**.
+    - Committed to git (`edacd14`) and pushed to `origin/develop`.
+
 
 
