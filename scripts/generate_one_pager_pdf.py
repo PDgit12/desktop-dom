@@ -305,13 +305,15 @@ def build_one_pager(output_path: str):
     print(f"One-Pager Architecture PDF generated: {output_path}")
 
 if __name__ == "__main__":
-    out_pdf = "/Users/piyushdua/desktop-dom/docs/Desktop_DOM_One_Pager_Architecture.pdf"
+    repo_root = Path(__file__).resolve().parent.parent
+    docs_dir = repo_root / "docs"
+    docs_dir.mkdir(parents=True, exist_ok=True)
+    out_pdf = str(docs_dir / "Desktop_DOM_One_Pager_Architecture.pdf")
     build_one_pager(out_pdf)
 
     # Mirror copies
     mirrors = [
-        "/Users/piyushdua/Desktop_DOM_One_Pager_Architecture.pdf",
-        "/Users/piyushdua/.gemini/antigravity-cli/brain/c9d8e736-66c6-4f1c-b001-61be7bcaa9df/Desktop_DOM_One_Pager_Architecture.pdf"
+        str(Path.home() / "Desktop_DOM_One_Pager_Architecture.pdf"),
     ]
     for m in mirrors:
         try:

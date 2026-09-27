@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # Aura Native macOS Application Bundle Build & Deployment Script
-# Compiles and deploys Aura.app to /Users/piyushdua/Applications/Aura.app
+# Compiles and deploys Aura.app to ~/Applications/Aura.app
 # ==============================================================================
 
 set -eo pipefail
@@ -77,8 +77,8 @@ fi
 
 echo "✓ Info.plist present"
 echo "✓ Launcher executable verified (chmod +x)"
-if [ -f "${TARGET_APP_DIR}/Contents/Resources/AppIcon.icns" ]; then
-    echo "✓ AppIcon.icns present"
+if [ -f "${TARGET_APP_DIR}/Contents/Resources/AppIcon.icns" ] || [ -f "${TARGET_APP_DIR}/Contents/Resources/Aura.icns" ]; then
+    echo "✓ AppIcon.icns & Aura.icns present"
 fi
 
 echo ""

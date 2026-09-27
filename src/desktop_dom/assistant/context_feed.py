@@ -301,8 +301,9 @@ class ContextFeedEngine:
         combined_text = f"{app_low} {win_low} {b_title_low} {b_url_low}"
 
         # 1. Gaming Context
-        gaming_signals = ["fifa", "ea sports fc", "steam", "epic games", "fortnite", "game", "cyberpunk", "valorant", "league of legends"]
-        if any(sig in combined_text for sig in gaming_signals):
+        gaming_signals = ["fifa", "ea sports fc", "steam", "epic games", "fortnite", "game session", "cyberpunk", "valorant", "league of legends"]
+        is_gaming = any(sig in combined_text for sig in gaming_signals) or bool(re.search(r"\b(?:gaming|fifa|fortnite)\b", combined_text))
+        if is_gaming:
             topic = "FIFA / Gaming Session" if ("fifa" in combined_text or "ea sports" in combined_text) else "Gaming Session"
             suggested = "Gaming Soundtrack"
             if self.memory:

@@ -18,6 +18,7 @@ app = typer.Typer(
     add_completion=False,
 )
 console = Console()
+err_console = Console(stderr=True)
 
 @app.command()
 def doctor(
@@ -100,8 +101,18 @@ def inspect(
                 f"\n[dim]Summary: {total_nodes} elements | ~{est_tokens} tokens JSON payload (<300ms query)[/dim]"
             )
     except Exception as e:
-        console.print(f"[bold red]Error inspecting '{target}':[/bold red] {e}", file=sys.stderr)
+        err_console.print(f"[bold red]Error inspecting '{target}':[/bold red] {e}")
         sys.exit(1)
+
+@app.command(name="tree")
+def tree_cmd(
+    target: str = typer.Option("Finder", "--app", "-a", help="Application name or PID to inspect"),
+    format_type: str = typer.Option("tree", "--format", "-f", help="'tree' or 'json'"),
+    depth: int = typer.Option(10, "--depth", "-d", help="Max hierarchy depth"),
+    prune: bool = typer.Option(True, "--prune/--raw", help="Prune non-interactive containers and assign clean IDs"),
+):
+    """Inspects the desktop accessibility DOM and renders a token-pruned tree (alias for inspect)."""
+    inspect(target=target, format_type=format_type, depth=depth, prune=prune)
 
 @app.command()
 def click(
@@ -190,7 +201,7 @@ def wait_for_element(
         node = app_instance.wait_for(role=role, name=name, element_id=element_id, timeout=timeout)
         console.print(f"[bold green]✓ Found element:[/bold green] [{node.role.upper()}] \"{node.name}\" (ID: {node.id}, Centroid: {node.bbox.centroid})")
     except TimeoutError as e:
-        console.print(f"[bold red]Timeout:[/bold red] {e}", file=sys.stderr)
+        err_console.print(f"[bold red]Timeout:[/bold red] {e}")
         sys.exit(1)
 
 @app.command()
@@ -210,7 +221,7 @@ def snapshot(
             f.write(html)
         console.print(f"[bold green]✓ Generated visual HUD snapshot:[/bold green] {output}")
     except Exception as e:
-        console.print(f"[bold red]Error generating snapshot for '{target}':[/bold red] {e}", file=sys.stderr)
+        err_console.print(f"[bold red]Error generating snapshot for '{target}':[/bold red] {e}")
         sys.exit(1)
 
 @app.command()
@@ -224,7 +235,7 @@ def overlay(
         console.print(f"[dim]Rendering HUD overlay over '{target}' for {duration}s...[/dim]")
         show_macos_overlay(target, duration=duration)
     except Exception as e:
-        console.print(f"[bold red]Error launching overlay for '{target}':[/bold red] {e}", file=sys.stderr)
+        err_console.print(f"[bold red]Error launching overlay for '{target}':[/bold red] {e}")
         sys.exit(1)
 
 @app.command()
@@ -258,7 +269,7 @@ def install_mcp(
         config_path = Path.home() / ".cursor" / "mcp.json"
 
     if not config_path:
-        console.print(f"[bold red]Unsupported client or platform:[/bold red] {client} on {sys.platform}", file=sys.stderr)
+        err_console.print(f"[bold red]Unsupported client or platform:[/bold red] {client} on {sys.platform}")
         sys.exit(1)
 
     try:
@@ -285,7 +296,7 @@ def install_mcp(
         console.print(f"[bold green]✓ Successfully configured desktop-dom MCP in:[/bold green]\n  {config_path}")
         console.print("[dim]Restart your AI assistant to start using desktop-dom tools natively.[/dim]")
     except Exception as e:
-        console.print(f"[bold red]Failed to write configuration:[/bold red] {e}", file=sys.stderr)
+        err_console.print(f"[bold red]Failed to write configuration:[/bold red] {e}")
         sys.exit(1)
 
 @app.command()

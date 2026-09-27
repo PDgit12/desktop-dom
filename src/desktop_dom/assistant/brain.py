@@ -173,7 +173,9 @@ class AssistantBrain:
         Resolves an application name with typo tolerance and alias lookup.
         Matches exact aliases, installed apps, substring inclusions, and SequenceMatcher close matches.
         """
-        q = query.strip().lower()
+        if not query:
+            return None
+        q = str(query).strip().lower()
         if not q:
             return None
 
@@ -279,23 +281,26 @@ class AssistantBrain:
                 "latency_ms": None,
             }
 
-    def set_model(self, model_name: str) -> bool:
+    def set_model(self, model_name: Optional[str]) -> bool:
         """Dynamically switches the active reasoning model and persists choice in local memory."""
-        if model_name in {"Zero-Model Fast-Path", "none", "fast_path", "off", ""}:
+        clean_name = str(model_name).strip().lower() if model_name else ""
+        if not model_name or clean_name in {"zero-model fast-path", "zero-model", "zero_model", "none", "fast_path", "fast-path", "off", ""}:
             self.preferred_model = None
             if self.memory:
                 self.memory.set_preference("llm.preferred_model", "Zero-Model Fast-Path", category="llm")
             logger.info("Aura active reasoning model switched to: Zero-Model Fast-Path (0MB RAM, <25ms deterministic)")
         else:
-            self.preferred_model = model_name
+            self.preferred_model = str(model_name).strip()
             if self.memory:
-                self.memory.set_preference("llm.preferred_model", model_name, category="llm")
-            logger.info(f"Aura active reasoning model switched to: '{model_name}'")
+                self.memory.set_preference("llm.preferred_model", self.preferred_model, category="llm")
+            logger.info(f"Aura active reasoning model switched to: '{self.preferred_model}'")
         return True
 
-    def set_execution_mode(self, mode: str) -> bool:
+    def set_execution_mode(self, mode: Optional[str]) -> bool:
         """Sets the execution mode ('llm_first' or 'fast_path') and persists to memory."""
-        clean = mode.strip().lower()
+        if not mode:
+            return False
+        clean = str(mode).strip().lower()
         if clean in {"llm_first", "llm-first", "llm", "ai", "model"}:
             self.execution_mode = "llm_first"
             if self.memory:
@@ -494,16 +499,28 @@ end tell'''
             }
 
         # Model Switch
-        model_switch = re.match(r"^(?:/model|use model|switch model to|set model)\s+([a-zA-Z0-9._:\-]+)", prompt)
+        model_switch = re.match(r"^(?:/model|use model|switch model to|set model)\s+(.+)$", raw_prompt.strip(), re.IGNORECASE)
         if model_switch:
             new_model = model_switch.group(1).strip()
             self.set_model(new_model)
             self._notify_action("completed", f"Switched to {new_model}")
+
+            warning = ""
+            nm_clean = new_model.lower()
+            if nm_clean not in {"zero-model fast-path", "zero-model", "zero_model", "none", "fast_path", "fast-path", "off", ""}:
+                status = self.get_model_status()
+                if status.get("connected") and status.get("available_models"):
+                    avail = [str(m).lower() for m in status["available_models"] if m]
+                    nm_lower = new_model.lower()
+                    is_installed = any(nm_lower == a or a.startswith(f"{nm_lower}:") or nm_lower.startswith(f"{a}:") for a in avail)
+                    if not is_installed:
+                        warning = f" (Note: '{new_model}' is not currently installed in Ollama. Run 'ollama pull {new_model}' to install)."
+
             return {
                 "status": "success",
                 "action": "model_switch",
                 "model": new_model,
-                "response": f"Active reasoning model switched to '{new_model}'.",
+                "response": f"Active reasoning model switched to '{new_model}'.{warning}",
             }
 
         # Execution Mode Switch (/mode, /mode llm_first, /mode fast_path)
@@ -524,6 +541,13 @@ end tell'''
                     "mode": self.execution_mode,
                     "response": f"Execution mode switched to **{self.execution_mode}**.",
                 }
+            else:
+                return {
+                    "status": "error",
+                    "action": "execution_mode_switch",
+                    "mode": self.execution_mode,
+                    "response": f"Invalid execution mode '{target_mode}'. Valid modes are 'llm_first' and 'fast_path'.",
+                }
 
         return None
 
@@ -534,8 +558,10 @@ end tell'''
         for autonomous reasoning and tool dispatch, falling back to deterministic fast-path.
         When execution_mode is 'fast_path' or Zero-Model, executes deterministic fast-path directly.
         """
-        clean_prompt = prompt.strip().lower()
-        if not clean_prompt:
+        if prompt is None:
+            return {"status": "empty", "response": "I didn't catch that."}
+        clean_prompt = str(prompt).strip().lower()
+        if not clean_prompt or not re.search(r"[a-zA-Z0-9]", clean_prompt):
             return {"status": "empty", "response": "I didn't catch that."}
 
         start_t = time.time()
@@ -558,15 +584,21 @@ end tell'''
         ctx_dict = self._get_current_context_dict()
         ignite_res = self.memory.ignite_graph(prompt, context=ctx_dict) if hasattr(self, "memory") and self.memory else {}
 
-        # 0d. Multi-Action Compound Query Support (e.g. "open chrome and open gmail", "open outlook and message josh")
-        if (" and " in clean_prompt or " then " in clean_prompt) and not any(clean_prompt.startswith(p) for p in ["what", "who", "where", "why", "how", "tell", "explain", "describe", "search", "google", "calculate", "type", "note", "remember", "shared", "connect", "link"]):
-            parts = [s.strip() for s in re.split(r"\s+(?:and|then)\s+", prompt, flags=re.IGNORECASE) if s.strip()]
+        # 0d. Multi-Action Compound Query Support (e.g. "open chrome and open gmail", "open outlook and message josh", "open chrome also open slack")
+        has_conjunction = any(c in clean_prompt for c in [" and ", " then ", " also "])
+        if has_conjunction and not any(clean_prompt.startswith(p) for p in ["what", "who", "where", "why", "how", "tell", "explain", "describe", "search", "google", "calculate", "type", "note", "remember", "shared", "connect", "link"]):
+            parts = [s.strip() for s in re.split(r"(?:,|;)?\s+(?:and\s+then|and\s+also|then\s+also|and|then|also)\s+", prompt, flags=re.IGNORECASE) if s.strip()]
             if len(parts) > 1 and all(len(p) > 2 for p in parts):
                 normalized = []
                 for idx, sub in enumerate(parts):
-                    if idx > 0 and not any(sub.lower().startswith(v) for v in ["open", "launch", "play", "search", "close", "set", "calculate", "message", "email", "mail"]):
-                        sub = f"open {sub}"
-                    normalized.append(sub)
+                    sub_clean = sub.strip()
+                    if sub_clean.lower().startswith("also "):
+                        sub_clean = sub_clean[5:].strip()
+                    elif sub_clean.lower().startswith("then "):
+                        sub_clean = sub_clean[5:].strip()
+                    if idx > 0 and not any(sub_clean.lower().startswith(v) for v in ["open", "launch", "play", "search", "close", "set", "calculate", "message", "email", "mail"]):
+                        sub_clean = f"open {sub_clean}"
+                    normalized.append(sub_clean)
 
                 results = [self.execute_intent(p) for p in normalized]
                 successes = [r for r in results if r.get("status") == "success"]
@@ -1621,12 +1653,13 @@ end tell'''
                 or self.memory.get_preference("music.daily_playlist")
             )
 
-            # Check if user explicitly asked for gaming vs coding/focus vs personal
+            # Check if user explicitly asked for gaming vs coding/focus vs personal vs daily/favorite
             req_gaming = any(w in prompt for w in ["gaming", "game", "fifa"])
             req_coding = any(w in prompt for w in ["coding", "code", "work", "focus"])
             req_personal = any(w in prompt for w in ["personal", "chill", "relax"])
+            req_daily = any(w in prompt for w in ["daily", "favorite", "favourite", "usual"])
 
-            if req_gaming or snapshot.activity_category == "Gaming":
+            if req_gaming or (snapshot.activity_category == "Gaming" and not req_daily):
                 contextual_genre = "Gaming Energy"
                 fav_playlist = self.memory.resolve_habit("spotify.playlist.gaming") or self.memory.get_preference("spotify.playlist.gaming", snapshot.suggested_playlist or "Gaming Soundtrack")
             elif req_personal:
@@ -1643,6 +1676,9 @@ end tell'''
             elif explicit_fav:
                 contextual_genre = "Personal Favorite"
                 fav_playlist = explicit_fav
+            elif snapshot.activity_category == "Gaming":
+                contextual_genre = "Gaming Energy"
+                fav_playlist = self.memory.resolve_habit("spotify.playlist.gaming") or self.memory.get_preference("spotify.playlist.gaming", snapshot.suggested_playlist or "Gaming Soundtrack")
             elif snapshot.activity_category == "Engineering":
                 contextual_genre = "Focus Beats"
                 fav_playlist = self.memory.resolve_habit("spotify.playlist.coding") or ""
@@ -2323,18 +2359,22 @@ end tell'''
             return {"status": "success", "action": "open_app", "target": resolved_target, "response": f"Opened {resolved_target}."}
 
         # 11. Web Search / Browser
-        # 11. Web Search / Browser
         search_match = re.search(r"^(?:search|google|look up)\s+(?:for\s+)?(.+)$", raw_prompt.strip(), re.IGNORECASE)
         if search_match:
             query = search_match.group(1).strip()
             query_lower = query.lower()
+            clean_search_target = re.sub(r"\s+(?:on|in|using|via)\s+(?:google|chrome|browser|safari)$", "", query_lower).strip()
             # Absolute Guard: Never perform web search for personal user queries
-            if any(term in query_lower for term in ["schedule", "calendar", "meeting", "events", "agenda"]):
+            if any(term in clean_search_target for term in ["schedule", "calendar", "meeting", "events", "agenda"]):
                 return self._handle_calendar_schedule_query(raw_prompt)
-            if any(term in query_lower for term in ["playlist", "songs", "song"]):
+            if any(term in clean_search_target for term in ["playlist", "songs", "song"]):
                 return self._try_deterministic_fast_path("play my playlist", raw_prompt="play my playlist")
-            if any(term in query_lower for term in ["last email", "recent email", "my email", "inbox"]):
+            if any(term in clean_search_target for term in ["last email", "recent email", "my email", "inbox"]):
                 return self._try_deterministic_fast_path("last email", raw_prompt="last email")
+            if any(term in clean_search_target for term in ["contact", "contacts", "team", "colleague", "colleagues"]):
+                return self._try_deterministic_fast_path("who is on my team", raw_prompt="who is on my team")
+            if any(term in clean_search_target for term in ["note", "notes"]):
+                return self._try_deterministic_fast_path("open notes", raw_prompt="open notes")
 
             self._notify_action("executing", f"Searching web for: {query}")
             url = f"https://www.google.com/search?q={urllib.parse.quote(query)}"
@@ -3316,17 +3356,24 @@ end tell'''
                     action_results.append(self._control_spotify_play(song))
                     continue
 
-                if lower_action.startswith("search"):
-                    search_query = lower_action[6:].strip()
-                    personal_keywords = ["schedule", "meeting", "calendar", "contact", "email", "playlist", "habit", "team", "app"]
+                if lower_action.startswith("search") or lower_action.startswith("google"):
+                    prefix_len = 7 if lower_action.startswith("google") else 6
+                    search_query = lower_action[prefix_len:].strip()
+                    search_query = re.sub(r"\s+(?:on|in|using|via)\s+(?:google|chrome|browser|safari)$", "", search_query).strip()
+                    personal_keywords = ["schedule", "meeting", "calendar", "contact", "email", "playlist", "habit", "team", "app", "note"]
                     if any(pk in search_query for pk in personal_keywords):
-                        if any(k in search_query for k in ["schedule", "calendar", "meeting"]):
+                        if any(k in search_query for k in ["schedule", "calendar", "meeting", "events", "agenda"]):
                             action_results.append(self._handle_calendar_schedule_query(prompt))
                             continue
-                        if "team" in search_query or "contact" in search_query:
+                        if any(k in search_query for k in ["team", "contact", "colleague"]):
                             t_res = self._try_deterministic_fast_path("who is on my team", raw_prompt="who is on my team")
                             if t_res:
                                 action_results.append(t_res)
+                            continue
+                        if any(k in search_query for k in ["note", "notes"]):
+                            n_res = self._try_deterministic_fast_path("open notes", raw_prompt="open notes")
+                            if n_res:
+                                action_results.append(n_res)
                             continue
 
                 fast_res = self._try_deterministic_fast_path(lower_action, raw_prompt=clean_action)

@@ -380,4 +380,25 @@ Eliminates vision agent flaws (>90% token waste, 3–6 second latency, pixel coo
     - Verified sovereign storage audit via `desktop-dom audit` (0 plaintext tokens held, `0o600` / `0o700` permissions).
     - Recompiled and verified native application bundle at `/Users/piyushdua/Applications/Aura.app`.
     - Both `develop` and `main` branches synchronized and pushed to `origin`.
+- **Institutional Edge-Case Hardening & Distribution Certification:**
+  - **Edge-Case & Robustness Audit (`tests/test_edge_cases_audit.py`):**
+    - Remediated 7 distinct failure modes across CLI, Assistant Brain, and Memory.
+    - Empty/whitespace/symbol-only query sanitization returning structured clean diagnostics.
+    - Malformed LLM action sanitization (unwrapping quotes, backticks, bold markdown, unknown tools).
+    - Multi-conjunction compound queries (`and then`, `then also`, `and also`, `then`, `also`).
+    - Personal search guardrail defense against prefixed/suffixed "google" requests.
+    - Rich Console stderr print bugfix (`TypeError` masked runtime exceptions).
+    - Added `desktop-dom tree` official CLI alias with JSON/Rich hierarchy formatting.
+    - Emoticon and trailing noise character stripping in entity resolution.
+    - Ambient context feed regex hardening to prevent false-positive gaming classifications.
+  - **Packaging & Distribution Artifacts Verified (`dist/`):**
+    - Python Wheel & Source Dist: `desktop_dom-0.1.0-py3-none-any.whl` (228 KB) and `desktop_dom-0.1.0.tar.gz` (456 KB), validated with `twine check`.
+    - macOS Standalone Bundle & DMG: `~/Applications/Aura.app` (verified with `Info.plist`, `AppIcon.icns`, `Aura.icns`, `chmod +x` launcher) and `dist/Aura-v0.2.0-macOS.dmg` (1.8 MB drag-and-drop installer).
+    - Windows & Linux Distribution: `dist/Aura-v0.2.0-Windows.zip` + WiX `.wxs` MSI specification, and `dist/Aura-v0.2.0-Linux-x86_64.tar.gz` + Debian package hierarchy.
+    - Dynamic home path resolution replacing hardcoded user paths across scripts.
+  - **Final Certification Baseline:**
+    - **345 / 345 automated tests passed across all 28 test suites (100% green, 0 errors, 0 failures)**.
+    - Zero plaintext tokens held, zero external DB dependencies, air-gapped local SQLite (`0o600`).
+    - Ready for official release tagging and distribution.
+
 

@@ -1,4 +1,5 @@
 from __future__ import annotations
+import sys
 import time
 import logging
 from typing import List, Optional, Literal, Dict, Any, Set, Tuple
@@ -15,7 +16,7 @@ try:
 except ImportError:
     HAS_MACOS_DEPS = False
 
-from desktop_dom.adapters.base import BasePlatformAdapter
+from desktop_dom.adapters.base import BasePlatformAdapter, PlatformNotSupportedError
 from desktop_dom.schema import DesktopNode, BoundingBox, ElementStates, DisplayInfo, SubregionCapture
 
 # Canonical role mapping from macOS AX roles
@@ -118,6 +119,10 @@ class MacOSAdapter(BasePlatformAdapter):
         self._require_macos()
 
     def _require_macos(self):
+        if sys.platform != "darwin":
+            raise PlatformNotSupportedError(
+                f"MacOSAdapter requires macOS Darwin (current host is '{sys.platform}')."
+            )
         if not HAS_MACOS_DEPS:
             raise RuntimeError(
                 "macOS dependencies are missing. Please run:\n"

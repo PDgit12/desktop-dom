@@ -1,11 +1,14 @@
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
+
+# Distribution / packaging
 build/
-develop-eggs/
 dist/
+develop-eggs/
 downloads/
 eggs/
 .eggs/
@@ -17,11 +20,20 @@ var/
 wheels/
 share/python-wheels/
 *.egg-info/
+*.egg-info
 .installed.cfg
 *.egg
 MANIFEST
+*.dmg
+*.pkg
+*.msi
+*.deb
+*.tar.gz
+*.zip
 
+# Virtual Environments
 .env
+.env.*
 .venv
 env/
 venv/
@@ -29,13 +41,22 @@ ENV/
 env.bak/
 venv.bak/
 
+# Testing & Quality Assurance
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
+.mypy_cache/
+.ruff_cache/
 
+# OS and Editor metadata
 .DS_Store
 .vscode/
 .idea/
+*.swp
+*.swo
+
+# Node / Web / Temporary
 node_modules/
-dist/
 tmp/
+

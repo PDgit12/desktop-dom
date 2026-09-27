@@ -64,6 +64,8 @@ def test_installed_aura_app_bundle_structure():
     assert resources_dir.exists()
     assert (resources_dir / "AppIcon.icns").exists()
     assert (resources_dir / "AppIcon.icns").stat().st_size > 1000
+    assert (resources_dir / "Aura.icns").exists()
+    assert (resources_dir / "Aura.icns").stat().st_size > 1000
     
     # 4. Bundled source verification
     assert (resources_dir / "src" / "desktop_dom").exists()
@@ -75,3 +77,22 @@ def test_build_app_sh_execution_help():
     res = subprocess.run([str(BUILD_SH), "--help"], capture_output=True, text=True)
     assert res.returncode == 0
     assert "Aura" in res.stdout or "help" in res.stdout.lower()
+
+
+@pytest.mark.skipif(sys.platform != "darwin", reason="DMG generation requires macOS hdiutil")
+def test_dmg_creation_pipeline(tmp_path):
+    """Verify scripts/build_app.py --dmg produces a valid DMG installer."""
+    import shutil
+    if not shutil.which("hdiutil"):
+        pytest.skip("hdiutil not available")
+    dist_dir = tmp_path / "dist"
+    res = subprocess.run([
+        sys.executable, str(BUILD_PY),
+        "--output-dir", str(dist_dir),
+        "--dmg"
+    ], capture_output=True, text=True)
+    assert res.returncode == 0, f"build_app.py --dmg failed: {res.stderr}"
+    dmg_files = list(dist_dir.glob("*.dmg"))
+    assert len(dmg_files) >= 1, "No DMG disk image was generated"
+    assert dmg_files[0].stat().st_size > 10000
+

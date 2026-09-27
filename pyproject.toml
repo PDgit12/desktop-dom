@@ -28,6 +28,12 @@ dependencies = [
     "pydantic>=2.5.0",
     "typer>=0.9.0",
     "rich>=13.5.0",
+    "pyobjc-framework-ApplicationServices>=10.0; sys_platform == 'darwin'",
+    "pyobjc-framework-Quartz>=10.0; sys_platform == 'darwin'",
+    "pyobjc-framework-Cocoa>=10.0; sys_platform == 'darwin'",
+    "pyobjc-framework-WebKit>=10.0; sys_platform == 'darwin'",
+    "comtypes>=1.2.0; sys_platform == 'win32'",
+    "jeepney>=0.8.0; sys_platform == 'linux'",
 ]
 
 [project.optional-dependencies]
@@ -42,6 +48,11 @@ windows = [
 ]
 linux = [
     "jeepney>=0.8.0",
+]
+voice = [
+    "sounddevice>=0.4.6",
+    "numpy>=1.24.0",
+    "faster-whisper>=1.0.0",
 ]
 langchain = [
     "langchain-core>=0.2.0",
@@ -58,7 +69,7 @@ dev = [
     "pytest-asyncio>=0.23.0",
 ]
 all = [
-    "desktop-dom[langchain,mcp,composio,dev]",
+    "desktop-dom[langchain,mcp,composio,voice,dev]",
 ]
 
 [project.scripts]

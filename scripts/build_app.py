@@ -129,8 +129,11 @@ def build_app_bundle(
     with open(contents_dir / "Info.plist", "w", encoding="utf-8") as f:
         f.write(info_plist)
 
-    # 2. Generate AppIcon.icns
-    generate_app_icon(resources_dir / "AppIcon.icns")
+    # 2. Generate AppIcon.icns & Aura.icns
+    app_icon_path = resources_dir / "AppIcon.icns"
+    generate_app_icon(app_icon_path)
+    if app_icon_path.exists():
+        shutil.copyfile(app_icon_path, resources_dir / "Aura.icns")
 
     # 2b. Bundle internal source tree for zero-configuration standalone portability
     repo_root = Path(__file__).resolve().parent.parent

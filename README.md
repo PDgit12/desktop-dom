@@ -173,7 +173,7 @@ desktop-dom audit
 
 ```
 ╭──────────────── Sovereign Storage & Security Audit ─────────────────╮
-│ Database Path        │ /Users/piyushdua/.desktop_dom/aura_memory.db │
+│ Database Path        │ ~/.desktop_dom/aura_memory.db                │
 │ Storage Engine       │ Embedded SQLite (Zero-Postgres Sovereign)   │
 │ Journal Mode         │ WAL (Write-Ahead Logging)                    │
 │ File Permissions     │ 0o600 (User-Isolated Read/Write)             │

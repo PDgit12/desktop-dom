@@ -68,10 +68,22 @@ class DesktopApp:
         Caches internal node lookup table for subsequent action resolution.
         """
         raw_root = self.adapter.get_root_window(self.target)
+        if raw_root is None:
+            from desktop_dom.schema import BoundingBox
+            raw_root = DesktopNode(
+                id=f"app_{self.target}",
+                role="window",
+                name=str(self.target),
+                bbox=BoundingBox(x=0, y=0, width=1920, height=1080),
+                children=[],
+            )
 
         if prune:
             root = self.pruner.prune_and_normalize(raw_root) or raw_root
         else:
+            root = raw_root
+
+        if root is None:
             root = raw_root
 
         self._node_lookup.clear()

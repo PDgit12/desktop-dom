@@ -673,7 +673,9 @@ class AuraMemory:
         6. Typo-tolerant edit distance (dist <= 1 -> 88, dist == 2 -> 80)
         Ranked by confidence score + interaction recency/frequency + priority boost.
         """
-        clean = query.strip().lower()
+        if not query:
+            return None
+        clean = str(query).strip().lower()
         if not clean:
             return None
 
@@ -697,6 +699,10 @@ class AuraMemory:
         clean = re.sub(r"^(?:the|our|my|a|an)\s+", "", clean, flags=re.IGNORECASE).strip()
         clean = re.sub(r"^(?:friend|colleague|teammate|partner|coworker|co-worker)\s+", "", clean, flags=re.IGNORECASE).strip()
         clean = re.sub(r"\s+(?:please|now|asap|today)$", "", clean, flags=re.IGNORECASE).strip()
+        clean = re.sub(r"(?:\s*[:;=8]-?[\)\(DpP]|[\s!?,.:;~`\"'\)\(\]\[\}\{\^]+)+$", "", clean).strip()
+        clean = re.sub(r"^[\s!?,.:;~`\"'\)\(\]\[\}\{\^]+", "", clean).strip()
+        if not clean:
+            return None
 
         # Check if direct email address
         if "@" in clean and "." in clean:
@@ -876,22 +882,26 @@ class AuraMemory:
     # Preferences & Habit Recall (<0.1ms)
     # -------------------------------------------------------------------------
 
-    def get_preference(self, key: str, default: Optional[str] = None) -> Optional[str]:
+    def get_preference(self, key: Optional[str], default: Optional[str] = None) -> Optional[str]:
         """Returns stored preference by key (sub-0.1ms in-memory cache lookup)."""
+        if not key:
+            return default
         with self._lock:
             return self._pref_cache.get(key, default)
 
-    def set_preference(self, key: str, value: str, category: str = "general"):
+    def set_preference(self, key: Optional[str], value: Any, category: str = "general"):
         """Persists preference in SQLite and syncs in-memory cache."""
+        if not key:
+            raise ValueError("Preference key cannot be empty or None")
         now = time.time()
         with self._lock, self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
             INSERT OR REPLACE INTO preferences (key, value, category, updated_at)
             VALUES (?, ?, ?, ?);
-            """, (key, str(value), category, now))
+            """, (str(key), str(value), category, now))
             conn.commit()
-            self._pref_cache[key] = str(value)
+            self._pref_cache[str(key)] = str(value)
 
     def delete_preference(self, key: str):
         """Removes a preference from SQLite and syncs in-memory cache."""
@@ -1241,8 +1251,20 @@ class AuraMemory:
             return [dict(row) for row in cursor.fetchall()]
 
     # -------------------------------------------------------------------------
-    # Entity CRUD API
-    # -------------------------------------------------------------------------
+    def upsert_entity(self, entity: Dict[str, Any]) -> Dict[str, Any]:
+        """Convenience dictionary-based upsert for entity records."""
+        if not isinstance(entity, dict):
+            return {}
+        return self.add_entity(
+            name=entity.get("name", ""),
+            email=entity.get("email"),
+            aliases=entity.get("aliases"),
+            phone=entity.get("phone", ""),
+            company=entity.get("company", ""),
+            role=entity.get("role", ""),
+            category=entity.get("category", "contact"),
+            metadata=entity.get("metadata"),
+        )
 
     def add_entity(
         self,
@@ -3596,7 +3618,9 @@ class AuraMemory:
         - Specificity evaluation (vague prompts like "meeting someone" drop to 80-85%)
         - Past misfire penalties and recorded learnings.
         """
-        clean_q = query.strip().lower()
+        if not query:
+            return {"status": "empty", "confidence": 0.0, "tier": "disambiguation", "ignited_nodes": []}
+        clean_q = str(query).strip().lower()
         if not clean_q:
             return {"status": "empty", "confidence": 0.0, "tier": "disambiguation", "ignited_nodes": []}
 

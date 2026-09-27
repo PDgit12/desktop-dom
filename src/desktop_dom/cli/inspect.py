@@ -21,7 +21,9 @@ ROLE_COLORS = {
     "pane": "dim cyan",
 }
 
-def render_rich_tree(node: DesktopNode) -> Tree:
+def render_rich_tree(node: Optional[DesktopNode]) -> Tree:
+    if node is None:
+        return Tree(Text("[No UI elements detected]", style="dim yellow"))
     color = ROLE_COLORS.get(node.role, "white")
     role_badge = f"[{node.role.upper()}]"
     

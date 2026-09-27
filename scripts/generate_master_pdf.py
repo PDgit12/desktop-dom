@@ -769,13 +769,15 @@ def create_pdf(output_path):
     print(f"Master PDF successfully generated: {output_path}")
 
 if __name__ == "__main__":
-    out = "/Users/piyushdua/desktop-dom/docs/Desktop_DOM_Comprehensive_Technical_Master_Guide.pdf"
+    repo_root = Path(__file__).resolve().parent.parent
+    docs_dir = repo_root / "docs"
+    docs_dir.mkdir(parents=True, exist_ok=True)
+    out = str(docs_dir / "Desktop_DOM_Comprehensive_Technical_Master_Guide.pdf")
     create_pdf(out)
     
-    # Mirror copies to user home and artifact directory for seamless access
+    # Mirror copies to user home for seamless access
     mirror_targets = [
-        "/Users/piyushdua/Desktop_DOM_Comprehensive_Technical_Master_Guide.pdf",
-        "/Users/piyushdua/.gemini/antigravity-cli/brain/c9d8e736-66c6-4f1c-b001-61be7bcaa9df/Desktop_DOM_Comprehensive_Technical_Master_Guide.pdf"
+        str(Path.home() / "Desktop_DOM_Comprehensive_Technical_Master_Guide.pdf"),
     ]
     for target in mirror_targets:
         try:
