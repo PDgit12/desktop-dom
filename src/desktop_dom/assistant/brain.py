@@ -107,9 +107,11 @@ class AssistantBrain:
         preferred_model: Optional[str] = None,
         memory: Optional[AuraMemory] = None,
         execution_mode: Optional[str] = None,
+        intent_healer: Optional[Any] = None,
     ):
         self.ollama_host = ollama_host
         self.memory = memory or AuraMemory()
+        self.intent_healer = intent_healer
         saved_model = self.memory.get_preference("llm.preferred_model") if self.memory else None
         if preferred_model:
             self.preferred_model = preferred_model
@@ -640,6 +642,19 @@ end tell'''
         # 2. FALLBACK / ECO-MODE: Deterministic Fast-Path
         fast_result = self._try_deterministic_fast_path(clean_prompt, raw_prompt=prompt)
         if fast_result is not None:
+            if self.intent_healer is not None:
+                try:
+                    scope = str(ctx_dict.get("activity_category") or "general")
+                    if fast_result.get("action") == "misfire_self_correction" and fast_result.get("false_positive"):
+                        state = getattr(self, "last_intent_state", {}) or {}
+                        self.intent_healer.record_correction(
+                            query=state.get("query", prompt), scope=scope,
+                            predicted=fast_result["false_positive"],
+                            target=fast_result["corrected_to"],
+                        )
+                    fast_result["self_healing_shadow"] = self.intent_healer.predict(prompt, scope)
+                except Exception:
+                    logger.exception("Optional shadow intent model failed; original route preserved")
             fast_result["latency_ms"] = round((time.time() - start_t) * 1000, 1)
             fast_result["engine"] = "fast_path"
             if "level" not in fast_result:
@@ -3633,5 +3648,4 @@ end tell'''
             "active_project": active,
             "projects": projects,
         }
-
 
